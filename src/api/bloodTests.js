@@ -23,10 +23,36 @@ export async function uploadBloodTests(files) {
   return data; // { batchId, fileCount, message }
 }
 
+// GET /api/bloodtests/files → SentFileResponse[]
+//   { fileId, batchId, fileName, status, sentAt, processedAt, testId,
+//     isValidExam, invalidReason, errorMessage }
+// Lista todo arquivo já enviado, mais recente primeiro.
+export async function getSentFiles() {
+  const { data } = await api.get('/api/bloodtests/files');
+  return data;
+}
+
+// GET /api/bloodtests/files/{fileId}/download → dispara o download do arquivo
+// original (o mesmo PDF/imagem que foi enviado), mantendo o nome original.
+export async function downloadFile(fileId, fileName) {
+  const { data } = await api.get(`/api/bloodtests/files/${fileId}/download`, {
+    responseType: 'blob',
+  });
+
+  const url = window.URL.createObjectURL(data);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Endpoints abaixo NÃO foram pedidos no escopo desta entrega.
 // Estão aqui prontos pra uso futuro — TODO: revisar contrato/comportamento
-// quando as telas de "Exames enviados" e "Histórico" forem implementadas.
+// quando a tela de "Histórico" for implementada.
 // ──────────────────────────────────────────────────────────────────────────
 
 // GET /api/bloodtests/batch/{batchId} → BatchStatusResponse

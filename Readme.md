@@ -95,3 +95,14 @@ VALUES (gen_random_uuid(), 'admin', '<hash-retornado>', NOW());
 ```
 
 Depois, basta logar no front com `admin` / `minha-senha`.
+
+### Usuário de teste já criado no back do Railway
+
+> Repositório privado — apenas para dev/teste, trocar antes de qualquer uso real.
+
+```
+usuário: admin
+senha:   Admin123!
+```
+
+Criado direto via SQL no Postgres do Railway (o endpoint `dev/hash` só funciona em `Development`, retorna 404 lá).
