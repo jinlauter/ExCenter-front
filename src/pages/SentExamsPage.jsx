@@ -32,6 +32,7 @@ function truncateFileName(name) {
 const STATUS_LABEL = {
   pending: 'Pendente',
   processing: 'Processando',
+  retrying: 'Tentando novamente',
   done: 'Concluído',
   failed: 'Falhou',
 };
@@ -39,6 +40,7 @@ const STATUS_LABEL = {
 const STATUS_COLOR = {
   pending: 'default',
   processing: 'info',
+  retrying: 'warning',
   done: 'success',
   failed: 'error',
 };
