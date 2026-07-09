@@ -4,14 +4,24 @@ import { setAccessToken, clearAccessToken } from './tokenStore.js';
 // ============================================================================
 // API de autenticação — mapeada de AuthController.cs
 // ============================================================================
-// POST /api/auth/login   → 200 { accessToken, expiresAt, username } | 401 | 429
-// POST /api/auth/refresh → 200 { accessToken, expiresAt, username } | 401
-// POST /api/auth/logout  → 204
-// GET  /api/auth/me      → 200 { userId, username }                  | 401
+// POST /api/auth/login    → 200 { accessToken, expiresAt, username } | 401 | 429
+// POST /api/auth/register → 200 { accessToken, expiresAt, username } | 400 | 429
+// POST /api/auth/refresh  → 200 { accessToken, expiresAt, username } | 401
+// POST /api/auth/logout   → 204
+// GET  /api/auth/me       → 200 { userId, username }                  | 401
 // ============================================================================
 
 export async function login(username, password) {
   const { data } = await api.post('/api/auth/login', { username, password });
+  setAccessToken(data.accessToken, data.expiresAt);
+  return data; // { accessToken, expiresAt, username }
+}
+
+// Cria a conta e já autentica — sem etapa de confirmação de email (back não
+// suporta isso ainda). Erros de validação (email duplicado, senha curta)
+// vêm como 400 { message } pronto pra exibir.
+export async function register(email, password) {
+  const { data } = await api.post('/api/auth/register', { email, password });
   setAccessToken(data.accessToken, data.expiresAt);
   return data; // { accessToken, expiresAt, username }
 }

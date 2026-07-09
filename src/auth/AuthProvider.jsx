@@ -1,5 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
-import { login as apiLogin, logout as apiLogout, me, tryRestoreSession } from '../api/auth.js';
+import {
+  login as apiLogin,
+  register as apiRegister,
+  logout as apiLogout,
+  me,
+  tryRestoreSession,
+} from '../api/auth.js';
 import { AuthContext } from './authContext.js';
 
 // ============================================================================
@@ -43,12 +49,21 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
+  const register = useCallback(async (email, password) => {
+    await apiRegister(email, password);
+    const data = await me();
+    setUser(data);
+    return data;
+  }, []);
+
   const logout = useCallback(async () => {
     await apiLogout();
     setUser(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+      {children}
+    </AuthContext.Provider>
   );
 }

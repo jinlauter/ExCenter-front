@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   Paper,
@@ -273,13 +273,10 @@ export default function LoginPage() {
           <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center', mt: 3 }}>
             Novo aqui?{' '}
             <Link
-              href="#"
+              component={RouterLink}
+              to="/registrar"
               underline="none"
-              onClick={(e) => {
-                e.preventDefault();
-                handleNotImplemented('cadastro de novo usuário')();
-              }}
-              sx={{ color: colors.primary, fontWeight: 500, cursor: 'pointer' }}
+              sx={{ color: colors.primary, fontWeight: 500 }}
             >
               Criar conta
             </Link>

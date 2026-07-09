@@ -194,10 +194,13 @@ export default function SentExamsPage() {
                 {files.map((file) => {
                   const statusDisplay = getStatusDisplay(file);
                   const isInvalidExam = file.status === 'done' && file.isValidExam === false;
-                  const statusReason = file.invalidReason || file.errorMessage;
-                  const statusTooltip = isInvalidExam
+                  // O tooltip de info só existe pro caso "não é exame de sangue" (invalidReason).
+                  // Falha de processamento (errorMessage / status "failed") não exibe esse ícone —
+                  // o chip vermelho "Falhou" já comunica o status, sem expor mensagem técnica.
+                  const statusReason = isInvalidExam ? file.invalidReason : null;
+                  const statusTooltip = statusReason
                     ? `O sistema interpretou que este arquivo é: "${statusReason}"`
-                    : statusReason;
+                    : null;
                   return (
                     <TableRow key={file.fileId} hover>
                       <TableCell>
@@ -219,10 +222,7 @@ export default function SentExamsPage() {
                             <Tooltip title={statusTooltip}>
                               <InfoOutlinedIcon
                                 fontSize="small"
-                                sx={{
-                                  color: isInvalidExam ? 'warning.main' : 'error.main',
-                                  cursor: 'help',
-                                }}
+                                sx={{ color: 'warning.main', cursor: 'help' }}
                               />
                             </Tooltip>
                           )}
