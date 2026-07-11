@@ -8,6 +8,7 @@ import RegisterPage from './pages/RegisterPage.jsx';
 import HomePage from './pages/HomePage.jsx';
 import SentExamsPage from './pages/SentExamsPage.jsx';
 import HistoryPage from './pages/HistoryPage.jsx';
+import ConfiguracoesPage from './pages/ConfiguracoesPage.jsx';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
               <Route path="/home" element={<HomePage />} />
               <Route path="/exames-enviados" element={<SentExamsPage />} />
               <Route path="/historico" element={<HistoryPage />} />
+              <Route path="/configuracoes" element={<ConfiguracoesPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/home" replace />} />
           </Routes>

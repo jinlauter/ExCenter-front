@@ -61,8 +61,17 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  // Atualiza só o username no contexto (ex: depois de editar o perfil em
+  // Configurações), pra refletir em qualquer lugar que leia daqui (ex: Sidebar).
+  // NÃO reconsulta GET /api/auth/me pra isso — esse endpoint devolve o username
+  // cravado nas claims do JWT emitido no login, não uma leitura fresca do banco,
+  // então continuaria mostrando o nome antigo até a sessão ser renovada.
+  const updateUsername = useCallback((username) => {
+    setUser((prev) => (prev ? { ...prev, username } : prev));
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUsername }}>
       {children}
     </AuthContext.Provider>
   );

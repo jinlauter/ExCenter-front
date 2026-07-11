@@ -36,7 +36,7 @@ export const excenterTheme = createTheme({
     divider: 'rgba(0, 0, 0, 0.08)',
   },
   typography: {
-    fontFamily: '"Inter", "Helvetica Neue", Arial, sans-serif',
+    fontFamily: '"Poppins", "Helvetica Neue", Arial, sans-serif',
     h1: { fontWeight: 500, fontSize: 22 },
     h2: { fontWeight: 500, fontSize: 18 },
     h3: { fontWeight: 500, fontSize: 16 },

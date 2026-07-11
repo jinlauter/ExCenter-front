@@ -17,24 +17,49 @@ import MonitorHeartOutlinedIcon from '@mui/icons-material/MonitorHeartOutlined';
 import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import ShowChartOutlinedIcon from '@mui/icons-material/ShowChartOutlined';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import { excenterColors as colors } from '../theme.js';
 import { useAuth } from '../auth/useAuth.js';
 
-const SIDEBAR_WIDTH = 220;
+const SIDEBAR_WIDTH = 250;
+const NOTCH = 16;
 
 function NavItem({ icon, label, active, onClick }) {
   return (
     <ListItemButton
       onClick={onClick}
       sx={{
-        borderRadius: 1.5,
+        borderRadius: active ? `${NOTCH}px 0 0 ${NOTCH}px` : 1.5,
         mb: 0.5,
-        backgroundColor: active ? colors.primaryLight : 'transparent',
-        color: active ? colors.primary : 'text.secondary',
+        mr: active ? -2 : 0,
+        position: 'relative',
+        zIndex: active ? 2 : 0,
+        backgroundColor: active ? colors.pageBg : 'transparent',
+        color: active ? colors.primary : 'rgba(255,255,255,0.85)',
         '&:hover': {
-          backgroundColor: active ? colors.primaryLight : colors.pageBg,
+          backgroundColor: active ? colors.pageBg : 'rgba(255,255,255,0.1)',
         },
+        ...(active && {
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            right: 0,
+            top: `-${NOTCH}px`,
+            width: `${NOTCH}px`,
+            height: `${NOTCH}px`,
+            background: `radial-gradient(circle at 0 0, ${colors.primary} ${NOTCH}px, ${colors.pageBg} ${NOTCH}px)`,
+          },
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            right: 0,
+            bottom: `-${NOTCH}px`,
+            width: `${NOTCH}px`,
+            height: `${NOTCH}px`,
+            background: `radial-gradient(circle at 0 100%, ${colors.primary} ${NOTCH}px, ${colors.pageBg} ${NOTCH}px)`,
+          },
+        }),
       }}
     >
       <ListItemIcon sx={{ minWidth: 32, color: 'inherit' }}>{icon}</ListItemIcon>
@@ -42,7 +67,7 @@ function NavItem({ icon, label, active, onClick }) {
         primary={label}
         primaryTypographyProps={{
           fontSize: 13,
-          fontWeight: active ? 500 : 400,
+          fontWeight: active ? 600 : 400,
         }}
       />
     </ListItemButton>
@@ -55,7 +80,6 @@ export default function Sidebar() {
   const { user, logout } = useAuth();
 
   const username = user?.username ?? '';
-  // Primeira letra do username para o avatar (back não tem display name).
   const initial = username ? username.charAt(0).toUpperCase() : '?';
 
   const handleLogout = async () => {
@@ -72,29 +96,38 @@ export default function Sidebar() {
         '& .MuiDrawer-paper': {
           width: SIDEBAR_WIDTH,
           boxSizing: 'border-box',
-          borderRight: `0.5px solid ${colors.borderSoft}`,
-          backgroundColor: 'white',
+          borderRight: 'none',
+          backgroundColor: colors.primary,
           padding: 2,
         },
       }}
     >
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 4, px: 1 }}>
-        <Box
+      {/* User section */}
+      <Stack alignItems="center" sx={{ mt: 1.5, mb: 2.5, px: 1 }}>
+        <Avatar
           sx={{
-            width: 28,
-            height: 28,
-            borderRadius: 1.5,
-            backgroundColor: colors.primary,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            width: 72,
+            height: 72,
+            fontSize: 28,
+            fontWeight: 600,
+            backgroundColor: '#B5D4F4',
+            color: '#0C447C',
+            mb: 1.5,
           }}
         >
-          <MonitorHeartOutlinedIcon sx={{ color: 'white', fontSize: 16 }} />
-        </Box>
-        <Typography sx={{ fontWeight: 500, fontSize: 14 }}>ExCenter</Typography>
+          {initial}
+        </Avatar>
+        <Typography sx={{ fontSize: 13, fontWeight: 600, color: 'white', mb: 0.25 }}>
+          {username || '—'}
+        </Typography>
+        <Typography sx={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
+          Data de nascimento
+        </Typography>
       </Stack>
 
+      <Divider sx={{ mb: 2, borderColor: 'rgba(255,255,255,0.2)' }} />
+
+      {/* Nav items */}
       <List sx={{ flex: 1, padding: 0 }}>
         <NavItem
           icon={<HomeOutlinedIcon sx={{ fontSize: 18 }} />}
@@ -114,33 +147,40 @@ export default function Sidebar() {
           active={location.pathname === '/historico'}
           onClick={() => navigate('/historico')}
         />
+        <NavItem
+          icon={<SettingsOutlinedIcon sx={{ fontSize: 18 }} />}
+          label="Configurações"
+          active={location.pathname === '/configuracoes'}
+          onClick={() => navigate('/configuracoes')}
+        />
       </List>
 
+      {/* Logo + Configurações */}
       <Box sx={{ mt: 'auto' }}>
-        <Divider sx={{ mb: 1.5 }} />
-        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ px: 1 }}>
-          <Avatar
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2, px: 1 }}>
+          <Box
             sx={{
               width: 28,
               height: 28,
-              fontSize: 11,
-              fontWeight: 500,
-              backgroundColor: '#B5D4F4',
-              color: '#0C447C',
+              borderRadius: 1.5,
+              backgroundColor: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            {initial}
-          </Avatar>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography
-              sx={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}
-            >
-              {username || '—'}
-            </Typography>
-            <Typography sx={{ fontSize: 11, color: 'text.disabled' }}>Conta pessoal</Typography>
+            <MonitorHeartOutlinedIcon sx={{ color: colors.primary, fontSize: 16 }} />
           </Box>
+          <Typography sx={{ fontWeight: 500, fontSize: 14, color: 'white' }}>ExCenter</Typography>
+        </Stack>
+
+        <Divider sx={{ mb: 1.5, borderColor: 'rgba(255,255,255,0.2)' }} />
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 1 }}>
+          <Typography sx={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
+            Sair da conta
+          </Typography>
           <Tooltip title="Sair">
-            <IconButton size="small" onClick={handleLogout} sx={{ color: 'text.secondary' }}>
+            <IconButton size="small" onClick={handleLogout} sx={{ color: 'rgba(255,255,255,0.7)' }}>
               <LogoutOutlinedIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>

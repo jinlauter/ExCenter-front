@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -16,7 +16,7 @@ import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import { excenterColors as colors } from '../theme.js';
 import { useAuth } from '../auth/useAuth.js';
 import Sidebar from '../components/Sidebar.jsx';
-import { uploadBloodTests } from '../api/bloodTests.js';
+import { uploadBloodTests, getSentFiles } from '../api/bloodTests.js';
 
 const ACCEPTED_MIME = 'application/pdf,image/jpeg,image/jpg,image/png';
 
@@ -27,8 +27,62 @@ export default function HomePage() {
 
   const [uploading, setUploading] = useState(false);
   const [feedback, setFeedback] = useState(null); // { type: 'success'|'error', message: string }
+  const [typedText, setTypedText] = useState('');
+  const [cursorOn, setCursorOn] = useState(true);
+  const [sentCount, setSentCount] = useState(null);
 
   const username = user?.username ?? '';
+
+  useEffect(() => {
+    let cancelled = false;
+    getSentFiles()
+      .then((data) => {
+        if (!cancelled) setSentCount(data.length);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const prefixes = ['Olá, ', 'Seja bem-vindo, '];
+    let phraseIdx = 0;
+    let charIdx = 0;
+    let deleting = false;
+    let timeout;
+
+    const tick = () => {
+      const prefix = prefixes[phraseIdx];
+
+      if (deleting) {
+        charIdx--;
+        setTypedText(prefix.slice(0, charIdx));
+        if (charIdx === 0) {
+          deleting = false;
+          phraseIdx++;
+          timeout = setTimeout(tick, 150);
+          return;
+        }
+        timeout = setTimeout(tick, 30);
+      } else {
+        charIdx++;
+        setTypedText(prefix.slice(0, charIdx));
+        if (charIdx === prefix.length) {
+          if (phraseIdx < prefixes.length - 1) {
+            timeout = setTimeout(() => { deleting = true; tick(); }, 2000);
+          } else {
+            setTimeout(() => setCursorOn(false), 800);
+          }
+          return;
+        }
+        timeout = setTimeout(tick, 60);
+      }
+    };
+
+    timeout = setTimeout(tick, 300);
+    return () => clearTimeout(timeout);
+  }, [username]);
 
   const handleFileSelect = () => {
     if (uploading) return;
@@ -65,12 +119,53 @@ export default function HomePage() {
       <Sidebar />
 
       <Box component="main" sx={{ flexGrow: 1, padding: { xs: 3, md: 5 } }}>
-        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
-          Olá, {username || 'usuário'}
+        <Typography variant="h5" sx={{ fontWeight: 500, mb: 0.5, fontSize: 28 }}>
+          {typedText}
+          {cursorOn && (
+            <Box
+              component="span"
+              sx={{
+                display: 'inline-block',
+                width: '2px',
+                height: '0.85em',
+                backgroundColor: 'text.primary',
+                ml: '1px',
+                mr: '1px',
+                verticalAlign: 'text-bottom',
+                '@keyframes blink': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0 } },
+                animation: 'blink 0.75s step-end infinite',
+              }}
+            />
+          )}
+          {username || 'usuário'}
         </Typography>
-        <Typography variant="h5" sx={{ fontWeight: 500, mb: 4 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 4 }}>
           Pronto para acompanhar sua saúde?
         </Typography>
+
+        <Paper
+          elevation={0}
+          sx={{
+            backgroundColor: 'white',
+            borderRadius: 2,
+            border: `0.5px solid ${colors.borderSoft}`,
+            padding: 2,
+            mb: 2,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 2,
+          }}
+        >
+          <DescriptionOutlinedIcon sx={{ color: colors.primary, fontSize: 32, flexShrink: 0 }} />
+          <Box>
+            <Typography sx={{ fontSize: 22, fontWeight: 600, lineHeight: 1.1 }}>
+              {sentCount === null ? '—' : sentCount}
+            </Typography>
+            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+              Exames enviados
+            </Typography>
+          </Box>
+        </Paper>
 
         {feedback && (
           <Alert severity={feedback.type} sx={{ mb: 2 }} onClose={() => setFeedback(null)}>
@@ -130,9 +225,9 @@ export default function HomePage() {
           </Typography>
           <Typography
             variant="body2"
-            sx={{ color: 'text.secondary', maxWidth: 380, margin: '0 auto 20px' }}
+            sx={{ color: 'text.secondary', maxWidth: 380, margin: '0 auto 20px', textAlign: 'center' }}
           >
-            Selecione um ou mais PDFs. Processamos automaticamente em segundo plano.
+            Selecione um ou mais PDFs.<br />Processamos automaticamente em segundo plano.
           </Typography>
           <Button
             variant="contained"
@@ -177,18 +272,15 @@ export default function HomePage() {
               '&:hover': { borderColor: colors.primaryLighter },
             }}
           >
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
-              <DescriptionOutlinedIcon sx={{ color: colors.primary, fontSize: 18 }} />
-              <Typography sx={{ fontSize: 13, fontWeight: 500 }}>Exames enviados</Typography>
+            <Stack direction="row" alignItems="flex-start" spacing={2}>
+              <DescriptionOutlinedIcon sx={{ color: colors.primary, fontSize: 38, flexShrink: 0 }} />
+              <Box>
+                <Typography sx={{ fontSize: 13, fontWeight: 500, mb: 0, lineHeight: 1.2 }}>Exames enviados</Typography>
+                <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+                  Acompanhe o processamento dos seus envios
+                </Typography>
+              </Box>
             </Stack>
-            {/* TODO: substituir pelo número real de exames do usuário. O back
-                hoje não expõe um endpoint dedicado de contagem; POST
-                /api/bloodtests/results/query pode ser usado, mas é overkill
-                (devolve resultados completos, não só o count). Avaliar criar
-                GET /api/bloodtests/count no back. */}
-            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
-              Acompanhe o processamento dos seus envios
-            </Typography>
           </Paper>
 
           <Paper
@@ -204,13 +296,15 @@ export default function HomePage() {
               '&:hover': { borderColor: colors.primaryLighter },
             }}
           >
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
-              <ShowChartOutlinedIcon sx={{ color: colors.primary, fontSize: 18 }} />
-              <Typography sx={{ fontSize: 13, fontWeight: 500 }}>Histórico</Typography>
+            <Stack direction="row" alignItems="flex-start" spacing={2}>
+              <ShowChartOutlinedIcon sx={{ color: colors.primary, fontSize: 38, flexShrink: 0 }} />
+              <Box>
+                <Typography sx={{ fontSize: 13, fontWeight: 500, mb: 0, lineHeight: 1.2 }}>Histórico</Typography>
+                <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+                  Veja seus gráficos ao longo do tempo
+                </Typography>
+              </Box>
             </Stack>
-            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
-              Veja seus gráficos ao longo do tempo
-            </Typography>
           </Paper>
         </Box>
       </Box>

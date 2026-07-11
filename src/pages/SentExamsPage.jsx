@@ -14,10 +14,13 @@ import {
   Tooltip,
   CircularProgress,
   Alert,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import { excenterColors as colors } from '../theme.js';
 import Sidebar from '../components/Sidebar.jsx';
 import { getSentFiles, downloadFile } from '../api/bloodTests.js';
@@ -71,6 +74,7 @@ export default function SentExamsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [downloadingId, setDownloadingId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const loadFiles = useCallback(async () => {
     setLoading(true);
@@ -99,6 +103,10 @@ export default function SentExamsPage() {
       setDownloadingId(null);
     }
   };
+
+  const filteredFiles = files.filter((file) =>
+    file.fileName.toLowerCase().includes(searchTerm.trim().toLowerCase())
+  );
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: colors.pageBg }}>
@@ -135,6 +143,22 @@ export default function SentExamsPage() {
           </Alert>
         )}
 
+        <TextField
+          placeholder="Buscar por nome do arquivo..."
+          size="small"
+          fullWidth
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          sx={{ mb: 2, backgroundColor: 'white' }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchOutlinedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+              </InputAdornment>
+            ),
+          }}
+        />
+
         {loading ? (
           <Paper
             elevation={0}
@@ -170,6 +194,27 @@ export default function SentExamsPage() {
               processamento.
             </Typography>
           </Paper>
+        ) : filteredFiles.length === 0 ? (
+          <Paper
+            elevation={0}
+            sx={{
+              backgroundColor: 'white',
+              borderRadius: 2,
+              border: `0.5px solid ${colors.borderSoft}`,
+              padding: 5,
+              textAlign: 'center',
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 500, fontSize: 16, mb: 1 }}>
+              Nenhum arquivo encontrado
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{ color: 'text.secondary', maxWidth: 480, margin: '0 auto' }}
+            >
+              Nenhum arquivo corresponde à busca &ldquo;{searchTerm}&rdquo;.
+            </Typography>
+          </Paper>
         ) : (
           <TableContainer
             component={Paper}
@@ -193,7 +238,7 @@ export default function SentExamsPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {files.map((file) => {
+                {filteredFiles.map((file) => {
                   const statusDisplay = getStatusDisplay(file);
                   const isInvalidExam = file.status === 'done' && file.isValidExam === false;
                   // O tooltip de info só existe pro caso "não é exame de sangue" (invalidReason).
