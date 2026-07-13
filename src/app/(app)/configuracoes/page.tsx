@@ -1,11 +1,11 @@
-import { backendFetch } from '@/lib/backend';
+import { backendFetchOrRedirect } from '@/lib/backend';
 import { ProfileSettingsForm } from '@/components/profile-settings-form';
 import type { UserProfileResponse } from '@/types/api';
 
 // Configurações — server component. Busca o perfil server-side e passa como
 // prop inicial pro form (client, precisa de estado por seção).
 export default async function ConfiguracoesPage() {
-  const profile = await backendFetch<UserProfileResponse>('/api/users/me');
+  const profile = await backendFetchOrRedirect<UserProfileResponse>('/api/users/me');
 
   return (
     <div className="max-w-2xl space-y-1">

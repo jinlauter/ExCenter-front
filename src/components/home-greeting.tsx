@@ -3,10 +3,9 @@
 import { useEffect, useState } from 'react';
 
 // Efeito de "digitação" na saudação: escreve "Olá, ", apaga, escreve
-// "Seja bem-vindo, " e para (cursor pisca até a 2ª frase terminar).
+// "Seja bem-vindo, " e para.
 export function HomeGreeting({ username }: { username: string }) {
   const [typedText, setTypedText] = useState('');
-  const [cursorOn, setCursorOn] = useState(true);
 
   useEffect(() => {
     const prefixes = ['Olá, ', 'Seja bem-vindo, '];
@@ -37,8 +36,6 @@ export function HomeGreeting({ username }: { username: string }) {
               deleting = true;
               tick();
             }, 2000);
-          } else {
-            setTimeout(() => setCursorOn(false), 800);
           }
           return;
         }
@@ -53,9 +50,6 @@ export function HomeGreeting({ username }: { username: string }) {
   return (
     <h1 className="text-[28px] font-medium">
       {typedText}
-      {cursorOn && (
-        <span className="mx-px inline-block h-[0.85em] w-[2px] animate-pulse-blink bg-foreground align-text-bottom" />
-      )}
       {username}
     </h1>
   );

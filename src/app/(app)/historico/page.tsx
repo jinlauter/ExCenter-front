@@ -1,9 +1,9 @@
-import { backendFetch } from '@/lib/backend';
+import { backendFetchOrRedirect } from '@/lib/backend';
 import { HistoryView } from '@/components/history-view';
 import type { BloodTestResultQueryResponse } from '@/types/api';
 
 export default async function HistoryPage() {
-  const results = await backendFetch<BloodTestResultQueryResponse[]>('/api/bloodtests/results/query', {
+  const results = await backendFetchOrRedirect<BloodTestResultQueryResponse[]>('/api/bloodtests/results/query', {
     method: 'POST',
     body: {},
   });

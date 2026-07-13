@@ -1,7 +1,7 @@
 import { FileText, LineChart } from 'lucide-react';
 import Link from 'next/link';
 import { getSession } from '@/lib/session';
-import { backendFetch } from '@/lib/backend';
+import { backendFetchOrRedirect } from '@/lib/backend';
 import { UploadCard } from '@/components/upload-card';
 import { HomeGreeting } from '@/components/home-greeting';
 import type { SentFileResponse } from '@/types/api';
@@ -11,7 +11,7 @@ import type { SentFileResponse } from '@/types/api';
 export default async function HomePage() {
   const session = await getSession();
   const username = session.username ?? 'usuário';
-  const files = await backendFetch<SentFileResponse[]>('/api/bloodtests/files');
+  const files = await backendFetchOrRedirect<SentFileResponse[]>('/api/bloodtests/files');
 
   return (
     <div className="space-y-4">

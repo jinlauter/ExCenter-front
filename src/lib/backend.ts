@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { decodeJwt } from 'jose';
+import { redirect } from 'next/navigation';
 import { env } from './env';
 import { getSession, type SessionData } from './session';
 import type { LoginResponse } from '@/types/api';
@@ -47,6 +48,10 @@ interface FetchOptions extends Omit<RequestInit, 'body'> {
 /**
  * Faz uma chamada autenticada ao back, retornando o JSON da resposta tipado.
  * Lança UnauthenticatedError se sessão estiver ausente ou expirar.
+ *
+ * Uso: route handlers (onde a exceção é traduzida pra 401 JSON). Para server
+ * components, usar backendFetchOrRedirect — Next não deixa mutar cookie
+ * (destroySessionSafely abaixo) fora de Server Action/Route Handler.
  */
 export async function backendFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
   const session = await getSession();
@@ -66,7 +71,7 @@ export async function backendFetch<T>(path: string, options: FetchOptions = {}):
   }
 
   if (response.status === 401) {
-    session.destroy();
+    await destroySessionSafely(session);
     throw new UnauthenticatedError();
   }
 
@@ -77,6 +82,28 @@ export async function backendFetch<T>(path: string, options: FetchOptions = {}):
 
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
+}
+
+/**
+ * Variante de backendFetch pra uso em server components (as páginas
+ * `(app)/*`): se a sessão estiver ausente/expirada, redireciona pro login em
+ * vez de deixar a UnauthenticatedError estourar como erro de render.
+ *
+ * Redireciona pra /api/session/expire (não direto pra /login): server
+ * component não pode apagar cookie, e o middleware só checa PRESENÇA do
+ * cookie (não validade) — indo direto pro /login com o cookie inválido ainda
+ * setado, o middleware manda de volta pra /home = loop de redirect. A rota
+ * intermediária apaga o cookie de verdade antes de redirecionar.
+ */
+export async function backendFetchOrRedirect<T>(path: string, options: FetchOptions = {}): Promise<T> {
+  try {
+    return await backendFetch<T>(path, options);
+  } catch (err) {
+    if (err instanceof UnauthenticatedError) {
+      redirect('/api/session/expire');
+    }
+    throw err;
+  }
 }
 
 /**
@@ -100,7 +127,7 @@ export async function backendFetchRaw(
   }
 
   if (response.status === 401) {
-    session.destroy();
+    await destroySessionSafely(session);
     throw new UnauthenticatedError();
   }
 
@@ -316,6 +343,22 @@ export async function logoutAndClearSession(): Promise<void> {
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * session.destroy() muta o cookie — só é permitido em Server Action/Route
+ * Handler. Chamado a partir de um server component (via backendFetchOrRedirect)
+ * ele lança "Cookies can only be modified...". Engolimos esse erro específico
+ * aqui: o cookie fica intacto por mais um request, mas UnauthenticatedError
+ * ainda é propagada pelo chamador (backendFetch), então o usuário é
+ * redirecionado mesmo assim — só não expira o cookie AGORA.
+ */
+async function destroySessionSafely(session: Awaited<ReturnType<typeof getSession>>): Promise<void> {
+  try {
+    session.destroy();
+  } catch {
+    // Esperado quando chamado durante o render de um server component.
+  }
+}
 
 /**
  * Decoda o JWT (SEM verificar assinatura — o back já validou ao emitir) e
