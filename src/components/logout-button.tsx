@@ -3,8 +3,9 @@
 import { useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
-export function LogoutButton() {
+export function LogoutButton({ className }: { className?: string }) {
   const router = useRouter();
 
   async function handleLogout() {
@@ -24,7 +25,7 @@ export function LogoutButton() {
       size="icon"
       onClick={handleLogout}
       title="Sair"
-      className="h-8 w-8 text-muted-foreground"
+      className={cn('h-8 w-8 text-muted-foreground', className)}
     >
       <LogOut className="h-4 w-4" strokeWidth={1.75} />
     </Button>

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { Activity } from 'lucide-react';
 import { LoginForm } from '@/components/login-form';
 import { isGoogleEnabled, isMicrosoftEnabled } from '@/lib/env';
@@ -6,6 +7,9 @@ import { isGoogleEnabled, isMicrosoftEnabled } from '@/lib/env';
 // O form em si é client component (precisa de useState).
 // As flags isXEnabled são avaliadas no servidor e passadas como prop — o
 // client não precisa (nem deve) ler env vars.
+//
+// Suspense é necessário porque LoginForm usa useSearchParams(), que exige um
+// boundary — sem isso o build estático falha (bail out de CSR).
 export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -17,7 +21,9 @@ export default function LoginPage() {
           <h1 className="mt-1 text-xl font-medium text-primary-dark">ExCenter</h1>
           <p className="text-center text-sm text-primary-soft">Seu histórico. Seu controle.</p>
         </header>
-        <LoginForm googleEnabled={isGoogleEnabled} microsoftEnabled={isMicrosoftEnabled} />
+        <Suspense>
+          <LoginForm googleEnabled={isGoogleEnabled} microsoftEnabled={isMicrosoftEnabled} />
+        </Suspense>
       </div>
     </main>
   );

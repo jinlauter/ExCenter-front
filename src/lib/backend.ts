@@ -206,6 +206,41 @@ export async function loginAndPersistSession(
 }
 
 /**
+ * Cria a conta no back (POST /api/auth/register) e já persiste a sessão —
+ * mesmo contrato do login, sem etapa de confirmação de email.
+ * Usado pela route handler /api/register.
+ */
+export async function registerAndPersistSession(
+  email: string,
+  password: string,
+): Promise<{ ok: true; data: LoginResponse } | { ok: false; status: number; body: unknown }> {
+  const response = await fetch(`${env.BACKEND_URL}/api/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    return { ok: false, status: response.status, body: await safeReadBody(response) };
+  }
+
+  const data = (await response.json()) as LoginResponse;
+  if (!data.refreshToken) {
+    return {
+      ok: false,
+      status: 500,
+      body: {
+        message: 'Resposta do back não trouxe refreshToken no body. Atualize o back para a versão BFF-compatible.',
+      },
+    };
+  }
+
+  await persistSessionFromLogin(data);
+  return { ok: true, data };
+}
+
+/**
  * Executa o login social com Google: envia o id_token (já obtido pelo fluxo
  * OAuth no callback) ao back, que valida e devolve nossos tokens. Persiste a
  * sessão. Retorna true em sucesso.

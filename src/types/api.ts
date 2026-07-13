@@ -91,3 +91,56 @@ export interface BloodTestResultQueryResponse {
   referenceValue?: string | null;
   isAbnormal?: boolean | null;
 }
+
+export interface SentFileResponse {
+  fileId: string;
+  batchId: string;
+  fileName: string;
+  status: string;
+  sentAt: string;
+  processedAt?: string | null;
+  testId?: string | null;
+  isValidExam?: boolean | null;
+  invalidReason?: string | null;
+  errorMessage?: string | null;
+}
+
+// ── User profile (tela de Configurações) ───────────────────────────────────
+
+export interface UserProfileResponse {
+  userId: string;
+  username: string;
+  email?: string | null;
+  dateOfBirth?: string | null;
+  bloodType?: string | null;
+  biologicalSex?: string | null;
+  preferredLanguage: string;
+}
+
+export interface UpdatePersonalInfoRequest {
+  username: string;
+  dateOfBirth?: string | null;
+  bloodType?: string | null;
+  biologicalSex?: string | null;
+}
+
+export interface UpdateLanguageRequest {
+  preferredLanguage: string;
+}
+
+export interface UpdateEmailRequest {
+  newEmail: string;
+  currentPassword: string;
+}
+
+export interface UpdatePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+// ── Cadastro ────────────────────────────────────────────────────────────────
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+}

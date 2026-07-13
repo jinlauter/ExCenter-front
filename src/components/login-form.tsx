@@ -177,14 +177,7 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
 
       <p className="pt-2 text-center text-sm text-muted-foreground">
         Novo aqui?{' '}
-        <Link
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            notImplemented('cadastro de novo usuário')();
-          }}
-          className="font-medium text-primary hover:underline"
-        >
+        <Link href="/registrar" className="font-medium text-primary hover:underline">
           Criar conta
         </Link>
       </p>

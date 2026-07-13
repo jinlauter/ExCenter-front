@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, FileText, LineChart } from 'lucide-react';
+import { Home, FileText, LineChart, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ITEMS = [
   { href: '/home', label: 'Início', Icon: Home },
   { href: '/exames-enviados', label: 'Exames enviados', Icon: FileText },
   { href: '/historico', label: 'Histórico de exames', Icon: LineChart },
+  { href: '/configuracoes', label: 'Configurações', Icon: Settings },
 ] as const;
 
 export function SidebarNav() {
@@ -22,14 +23,22 @@ export function SidebarNav() {
             key={href}
             href={href}
             className={cn(
-              'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
+              'relative flex items-center gap-2 px-3 py-2 text-sm transition-colors',
               active
-                ? 'bg-primary-light text-primary'
-                : 'text-muted-foreground hover:bg-background hover:text-foreground',
+                ? // "Entalhe" nos dois cantos direitos: o item ativo funde visualmente com o
+                  // fundo da área de conteúdo (bg-background), como se fosse uma aba conectada.
+                  cn(
+                    'z-10 -mr-4 rounded-l-md rounded-r-none bg-background font-semibold text-primary',
+                    "before:absolute before:-top-4 before:right-0 before:h-4 before:w-4 before:content-['']",
+                    'before:[background:radial-gradient(circle_at_0_0,hsl(var(--primary))_16px,hsl(var(--background))_16px)]',
+                    "after:absolute after:-bottom-4 after:right-0 after:h-4 after:w-4 after:content-['']",
+                    'after:[background:radial-gradient(circle_at_0_100%,hsl(var(--primary))_16px,hsl(var(--background))_16px)]',
+                  )
+                : 'rounded-md text-white/85 hover:bg-white/10',
             )}
           >
             <Icon className="h-4 w-4" strokeWidth={1.75} />
-            <span className={active ? 'font-medium' : ''}>{label}</span>
+            <span>{label}</span>
           </Link>
         );
       })}

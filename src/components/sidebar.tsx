@@ -9,27 +9,31 @@ export function Sidebar({ username }: { username: string }) {
   const initial = (username[0] ?? '?').toUpperCase();
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-card p-4">
-      <div className="mb-6 flex items-center gap-2 px-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
-          <Activity className="h-4 w-4 text-primary-foreground" strokeWidth={1.75} />
+    <aside className="flex w-[250px] shrink-0 flex-col bg-primary p-4">
+      <div className="mb-2.5 mt-1.5 flex flex-col items-center px-1">
+        <div className="mb-3 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#B5D4F4] text-[28px] font-semibold text-[#0C447C]">
+          {initial}
         </div>
-        <span className="text-sm font-medium">ExCenter</span>
+        <p className="mb-0.5 text-[13px] font-semibold text-white">{username}</p>
+        <p className="text-[11px] text-white/60">Data de nascimento</p>
       </div>
+
+      <Separator className="mb-2 bg-white/20" />
 
       <SidebarNav />
 
       <div className="mt-auto">
-        <Separator className="mb-3" />
-        <div className="flex items-center gap-3 px-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#B5D4F4] text-[11px] font-medium text-[#0C447C]">
-            {initial}
+        <div className="mb-2 flex items-center gap-2 px-1">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white">
+            <Activity className="h-4 w-4 text-primary" strokeWidth={1.75} />
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium">{username}</p>
-            <p className="text-[11px] text-muted-foreground">Conta pessoal</p>
-          </div>
-          <LogoutButton />
+          <span className="text-sm font-medium text-white">ExCenter</span>
+        </div>
+
+        <Separator className="mb-3 bg-white/20" />
+        <div className="flex items-center justify-between px-1">
+          <span className="text-xs text-white/60">Sair da conta</span>
+          <LogoutButton className="text-white/70 hover:bg-white/10 hover:text-white" />
         </div>
       </div>
     </aside>
