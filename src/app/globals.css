@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* =====================================================================
+     * Tokens ExCenter — saúde wellness profissional, light mode.
+     *
+     * Cores principais convertidas para HSL para casar com o padrão shadcn:
+     *   #0F6E56 → 167 76% 25%  (primary)
+     *   #085041 → 169 79% 17%  (primary-soft)
+     *   #04342C → 167 80% 11%  (primary-dark)
+     *   #5DCAA5 → 156 47% 58%  (primary-lighter)
+     *   #E1F5EE → 156 53% 92%  (primary-light)
+     *   #F7FAF9 → 156 19% 97%  (background)
+     *   #D3D1C7 → 51   8% 80%  (border)
+     * ===================================================================== */
+    --background: 156 19% 97%;
+    --foreground: 60 4% 17%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 60 4% 17%;
+
+    --muted: 156 19% 94%;
+    --muted-foreground: 30 4% 37%;
+
+    --primary: 167 76% 25%;
+    --primary-foreground: 0 0% 100%;
+    --primary-soft: 169 79% 17%;
+    --primary-dark: 167 80% 11%;
+    --primary-light: 156 53% 92%;
+    --primary-lighter: 156 47% 58%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 35%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 0 0% 0% / 0.08;
+    --input: 51 8% 80%;
+    --ring: 167 76% 25%;
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
+  }
+}
