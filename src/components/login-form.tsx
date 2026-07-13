@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { GoogleIcon, MicrosoftIcon } from '@/components/brand-icons';
+import { safeRedirectPath } from '@/lib/utils';
 
 // =============================================================================
 // LoginForm (client)
@@ -61,8 +62,7 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
           return;
         }
 
-        const dest = search.get('from') ?? '/home';
-        router.replace(dest);
+        router.replace(safeRedirectPath(search.get('from')));
         router.refresh(); // força server components a relerem a sessão
       } catch {
         setError('Falha de rede. Verifique sua conexão e tente novamente.');
