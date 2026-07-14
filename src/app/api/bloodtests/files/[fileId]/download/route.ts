@@ -11,11 +11,12 @@ import { backendFetchRaw, UnauthenticatedError } from '@/lib/backend';
 // via cookie de sessão.
 // =============================================================================
 
-export async function GET(_request: Request, { params }: { params: Promise<{ fileId: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ fileId: string }> }) {
   const { fileId } = await params;
+  const inline = new URL(request.url).searchParams.get('inline') === 'true';
 
   try {
-    const response = await backendFetchRaw(`/api/bloodtests/files/${fileId}/download`, {
+    const response = await backendFetchRaw(`/api/bloodtests/files/${fileId}/download${inline ? '?inline=true' : ''}`, {
       method: 'GET',
     });
 

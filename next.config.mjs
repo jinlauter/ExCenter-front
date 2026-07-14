@@ -55,6 +55,20 @@ const nextConfig = {
         source: '/:path*',
         headers: securityHeaders,
       },
+      {
+        // Única rota que precisa ser "framável" (mesma origem): o preview inline do
+        // laudo (olhinho na tela de Exames enviados) renderiza o PDF/imagem num <iframe>
+        // apontando pra essa mesma rota. 'self' em vez de 'none' SÓ aqui — todo o resto
+        // do app continua com frame-ancestors 'none' / X-Frame-Options DENY.
+        source: '/api/bloodtests/files/:fileId/download',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          {
+            key: 'Content-Security-Policy',
+            value: cspDirectives.map((d) => (d.startsWith('frame-ancestors') ? "frame-ancestors 'self'" : d)).join('; '),
+          },
+        ],
+      },
     ];
   },
 };

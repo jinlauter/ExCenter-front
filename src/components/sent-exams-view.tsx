@@ -3,10 +3,11 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Search, RefreshCw, Download, Info } from 'lucide-react';
+import { Search, RefreshCw, Download, Eye, Info } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
+import { FilePreviewModal } from '@/components/file-preview-modal';
 import { cn } from '@/lib/utils';
 import type { SentFileResponse } from '@/types/api';
 
@@ -103,6 +104,7 @@ export function SentExamsView({ files }: { files: SentFileResponse[] }) {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [isRefreshing, startRefresh] = useTransition();
+  const [previewFile, setPreviewFile] = useState<SentFileResponse | null>(null);
 
   const filteredFiles = files.filter((file) =>
     file.fileName.toLowerCase().includes(searchTerm.trim().toLowerCase()),
@@ -207,14 +209,24 @@ export function SentExamsView({ files }: { files: SentFileResponse[] }) {
                       <ExtractedFieldCell file={file} value={file.requestingDoctor} format={(v) => v} />
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      <a
-                        href={`/api/bloodtests/files/${file.fileId}/download`}
-                        download={file.fileName}
-                        title="Baixar arquivo original"
-                        className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-8 w-8 text-primary')}
-                      >
-                        <Download className="h-4 w-4" />
-                      </a>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          title="Visualizar arquivo"
+                          onClick={() => setPreviewFile(file)}
+                          className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-8 w-8 text-primary')}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <a
+                          href={`/api/bloodtests/files/${file.fileId}/download`}
+                          download={file.fileName}
+                          title="Baixar arquivo original"
+                          className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-8 w-8 text-primary')}
+                        >
+                          <Download className="h-4 w-4" />
+                        </a>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -222,6 +234,14 @@ export function SentExamsView({ files }: { files: SentFileResponse[] }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {previewFile && (
+        <FilePreviewModal
+          fileId={previewFile.fileId}
+          fileName={previewFile.fileName}
+          onClose={() => setPreviewFile(null)}
+        />
       )}
     </div>
   );

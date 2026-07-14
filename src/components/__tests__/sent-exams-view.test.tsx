@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { SentExamsView } from '@/components/sent-exams-view';
 import type { SentFileResponse } from '@/types/api';
 
@@ -82,5 +83,38 @@ describe('SentExamsView — colunas de data do exame e médico solicitante', () 
 
     expect(dataCell(container, 4).textContent).toBe('');
     expect(dataCell(container, 5).textContent).toBe('');
+  });
+});
+
+describe('SentExamsView — visualização do arquivo (olhinho)', () => {
+  it('não mostra o modal antes de clicar no olho', () => {
+    render(<SentExamsView files={[makeFile()]} />);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('clicar no olho abre o modal com o arquivo certo', async () => {
+    const user = userEvent.setup();
+    render(<SentExamsView files={[makeFile({ fileName: 'laudo.pdf' })]} />);
+
+    await user.click(screen.getByRole('button', { name: 'Visualizar arquivo' }));
+
+    expect(screen.getByRole('dialog', { name: 'Visualizando laudo.pdf' })).toBeInTheDocument();
+  });
+
+  it('fechar o modal (X) remove ele da tela', async () => {
+    const user = userEvent.setup();
+    render(<SentExamsView files={[makeFile({ fileName: 'laudo.pdf' })]} />);
+
+    await user.click(screen.getByRole('button', { name: 'Visualizar arquivo' }));
+    await user.click(screen.getByRole('button', { name: 'Fechar' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('o olho está disponível independente do status (arquivo já existe no storage assim que enviado)', () => {
+    render(<SentExamsView files={[makeFile({ status: 'pending', isValidExam: undefined })]} />);
+
+    expect(screen.getByRole('button', { name: 'Visualizar arquivo' })).toBeInTheDocument();
   });
 });
