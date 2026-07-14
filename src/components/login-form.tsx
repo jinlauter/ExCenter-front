@@ -144,33 +144,43 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
       </div>
 
       <div className="flex gap-2">
-        <Button
-          type="button"
-          variant="outline"
+        {/* title no <span> wrapper, não no <button> — navegadores geralmente não disparam
+            o tooltip nativo em elementos disabled, mesmo com o atributo presente. */}
+        <span
           className="flex-1"
-          disabled={!googleEnabled || isPending}
           title={googleEnabled ? undefined : comingSoonMessage('Google')}
-          onClick={() => {
-            // Full page redirect — fluxo OAuth roda server-side a partir daí.
-            window.location.href = '/api/auth/google/start';
-          }}
         >
-          <GoogleIcon className="h-4 w-4" />
-          Google
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            disabled={!googleEnabled || isPending}
+            onClick={() => {
+              // Full page redirect — fluxo OAuth roda server-side a partir daí.
+              window.location.href = '/api/auth/google/start';
+            }}
+          >
+            <GoogleIcon className="h-4 w-4" />
+            Google
+          </Button>
+        </span>
+        <span
           className="flex-1"
-          disabled={!microsoftEnabled || isPending}
           title={microsoftEnabled ? undefined : comingSoonMessage('Microsoft')}
-          onClick={() => {
-            window.location.href = '/api/auth/microsoft/start';
-          }}
         >
-          <MicrosoftIcon className="h-4 w-4" />
-          Microsoft
-        </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            disabled={!microsoftEnabled || isPending}
+            onClick={() => {
+              window.location.href = '/api/auth/microsoft/start';
+            }}
+          >
+            <MicrosoftIcon className="h-4 w-4" />
+            Microsoft
+          </Button>
+        </span>
       </div>
 
       <p className="pt-2 text-center text-sm text-muted-foreground">
