@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Home, FileText, LineChart, Settings } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState, useTransition } from 'react';
+import { Home, FileText, LineChart, Loader2, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ITEMS = [
@@ -14,14 +15,36 @@ const ITEMS = [
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
+
+  function handleNavigation(event: React.MouseEvent<HTMLAnchorElement>, href: string) {
+    if (pathname === href || pendingHref) {
+      event.preventDefault();
+      return;
+    }
+
+    event.preventDefault();
+    setPendingHref(href);
+    startTransition(() => router.push(href));
+  }
+
   return (
     <nav className="flex-1 space-y-1">
       {ITEMS.map(({ href, label, Icon }) => {
         const active = pathname === href || pathname.startsWith(`${href}/`);
+        const loading = pendingHref === href && isPending;
         return (
           <Link
             key={href}
             href={href}
+            onClick={(event) => handleNavigation(event, href)}
+            aria-disabled={Boolean(pendingHref)}
             className={cn(
               'relative flex items-center gap-2 px-3 py-2 text-sm transition-colors',
               active
@@ -37,7 +60,7 @@ export function SidebarNav() {
                 : 'rounded-md text-white/85 hover:bg-white/10',
             )}
           >
-            <Icon className="h-4 w-4" strokeWidth={1.75} />
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" strokeWidth={1.75} />}
             <span>{label}</span>
           </Link>
         );

@@ -1,8 +1,9 @@
+/* eslint-disable @next/next/no-img-element -- imagem vem de rota BFF privada autenticada */
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { Camera, Loader2, Eye, EyeOff } from 'lucide-react';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -52,6 +53,7 @@ function PasswordInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
       <button
         type="button"
         tabIndex={-1}
+        disabled={props.disabled}
         onClick={() => setVisible((v) => !v)}
         className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
       >
@@ -77,6 +79,7 @@ async function putJson(path: string, body: unknown) {
 export function ProfileSettingsForm({ initialProfile }: { initialProfile: UserProfileResponse }) {
   const router = useRouter();
   const [profile, setProfile] = useState(initialProfile);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // ---- Informações pessoais ----
   const [personalForm, setPersonalForm] = useState({
@@ -129,37 +132,61 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: UserPr
     }
   }
 
-  // ---- Email ----
-  const [newEmail, setNewEmail] = useState('');
-  const [emailPassword, setEmailPassword] = useState('');
-  const [emailSaving, setEmailSaving] = useState(false);
-  const [emailFeedback, setEmailFeedback] = useState<Feedback>(null);
-
-  async function handleSaveEmail() {
-    setEmailSaving(true);
-    setEmailFeedback(null);
-    try {
-      const updated = (await putJson('/api/users/email', {
-        newEmail,
-        currentPassword: emailPassword,
-      })) as UserProfileResponse;
-      setProfile(updated);
-      setNewEmail('');
-      setEmailPassword('');
-      setEmailFeedback({ type: 'success', message: 'Email atualizado.' });
-    } catch (err) {
-      setEmailFeedback({ type: 'error', message: (err as Error).message });
-    } finally {
-      setEmailSaving(false);
-    }
-  }
-
   // ---- Senha ----
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordFeedback, setPasswordFeedback] = useState<Feedback>(null);
+
+  // ---- Foto de perfil ----
+  const [avatarSaving, setAvatarSaving] = useState(false);
+  const [avatarFeedback, setAvatarFeedback] = useState<Feedback>(null);
+
+  async function handleAvatarSelected(event: React.ChangeEvent<HTMLInputElement>) {
+    const avatar = event.target.files?.[0];
+    event.target.value = '';
+    if (!avatar || avatarSaving) return;
+
+    setAvatarSaving(true);
+    setAvatarFeedback(null);
+    const formData = new FormData();
+    formData.append('avatar', avatar, avatar.name);
+    try {
+      const response = await fetch('/api/users/avatar', { method: 'PUT', body: formData });
+      const updated = (await response.json().catch(() => null)) as UserProfileResponse | { message?: string } | null;
+      if (!response.ok || !updated || !('avatarUpdatedAt' in updated)) {
+        throw new Error((updated && 'message' in updated && updated.message) || 'Não foi possível salvar a foto.');
+      }
+      setProfile(updated);
+      setAvatarFeedback({ type: 'success', message: 'Foto de perfil atualizada.' });
+      router.refresh();
+    } catch (err) {
+      setAvatarFeedback({ type: 'error', message: (err as Error).message });
+    } finally {
+      setAvatarSaving(false);
+    }
+  }
+
+  async function handleRemoveAvatar() {
+    if (avatarSaving || !profile.avatarUpdatedAt) return;
+    setAvatarSaving(true);
+    setAvatarFeedback(null);
+    try {
+      const response = await fetch('/api/users/avatar', { method: 'DELETE' });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.message ?? 'Não foi possível remover a foto.');
+      }
+      setProfile({ ...profile, avatarUpdatedAt: null });
+      setAvatarFeedback({ type: 'success', message: 'Foto de perfil removida.' });
+      router.refresh();
+    } catch (err) {
+      setAvatarFeedback({ type: 'error', message: (err as Error).message });
+    } finally {
+      setAvatarSaving(false);
+    }
+  }
 
   async function handleSavePassword() {
     if (newPassword !== confirmPassword) {
@@ -195,6 +222,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: UserPr
               id="p-username"
               value={personalForm.username}
               onChange={(e) => setPersonalForm({ ...personalForm, username: e.target.value })}
+              disabled={personalSaving}
             />
           </div>
           <div className="space-y-1.5">
@@ -204,6 +232,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: UserPr
               type="date"
               value={personalForm.dateOfBirth}
               onChange={(e) => setPersonalForm({ ...personalForm, dateOfBirth: e.target.value })}
+              disabled={personalSaving}
             />
           </div>
           <div className="space-y-1.5">
@@ -212,6 +241,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: UserPr
               id="p-bloodtype"
               value={personalForm.bloodType}
               onChange={(e) => setPersonalForm({ ...personalForm, bloodType: e.target.value })}
+              disabled={personalSaving}
             >
               <option value="">Não informado</option>
               {BLOOD_TYPES.map((bt) => (
@@ -227,6 +257,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: UserPr
               id="p-sex"
               value={personalForm.biologicalSex}
               onChange={(e) => setPersonalForm({ ...personalForm, biologicalSex: e.target.value })}
+              disabled={personalSaving}
             >
               <option value="">Não informado</option>
               {BIOLOGICAL_SEXES.map((s) => (
@@ -258,6 +289,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: UserPr
             className="max-w-[220px]"
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
+            disabled={languageSaving}
           >
             {LANGUAGES.map((l) => (
               <option key={l.value} value={l.value}>
@@ -276,33 +308,59 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: UserPr
       </SectionCard>
 
       <SectionCard title="Email">
-        <p className="mb-4 text-xs text-muted-foreground">
-          Email atual: <strong>{profile.email || 'nenhum cadastrado'}</strong>
+        <p className="text-sm text-muted-foreground">
+          <strong className="font-medium text-foreground">{profile.email || 'Nenhum email cadastrado'}</strong>
         </p>
-        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="new-email">Novo email</Label>
-            <Input
-              id="new-email"
-              type="email"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-            />
+        <p className="mt-1 text-xs text-muted-foreground">
+          O email é o identificador de acesso da sua conta e não pode ser alterado.
+        </p>
+      </SectionCard>
+
+      <SectionCard title="Foto de perfil">
+        <div className="flex items-center gap-4">
+          <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-primary-light text-primary">
+            {profile.avatarUpdatedAt ? (
+              <img
+                src={`/api/users/avatar?v=${encodeURIComponent(profile.avatarUpdatedAt)}`}
+                alt="Sua foto de perfil"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <Camera className="h-5 w-5" />
+            )}
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="email-password">Senha atual</Label>
-            <PasswordInput
-              id="email-password"
-              autoComplete="current-password"
-              value={emailPassword}
-              onChange={(e) => setEmailPassword(e.target.value)}
-            />
+          <div>
+            <p className="text-sm font-medium">Personalize seu perfil</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Use uma imagem JPG, PNG ou WebP de até 5 MB.
+            </p>
           </div>
         </div>
-        <SectionFeedback feedback={emailFeedback} />
-        <Button onClick={handleSaveEmail} disabled={emailSaving || !newEmail.trim() || !emailPassword}>
-          {emailSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar'}
-        </Button>
+        <input
+          ref={avatarInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={handleAvatarSelected}
+          disabled={avatarSaving}
+        />
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            disabled={avatarSaving}
+            onClick={() => avatarInputRef.current?.click()}
+          >
+            {avatarSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Alterar foto'}
+          </Button>
+          {profile.avatarUpdatedAt && (
+            <Button variant="ghost" disabled={avatarSaving} onClick={handleRemoveAvatar}>
+              Remover foto
+            </Button>
+          )}
+        </div>
+        <div className="mt-3">
+          <SectionFeedback feedback={avatarFeedback} />
+        </div>
       </SectionCard>
 
       <SectionCard title="Senha">
@@ -314,6 +372,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: UserPr
               autoComplete="current-password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
+              disabled={passwordSaving}
             />
           </div>
           <div />
@@ -324,6 +383,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: UserPr
               autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
+              disabled={passwordSaving}
             />
           </div>
           <div className="space-y-1.5">
@@ -333,6 +393,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: UserPr
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={passwordSaving}
             />
           </div>
         </div>

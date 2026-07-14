@@ -240,11 +240,13 @@ export async function loginAndPersistSession(
 export async function registerAndPersistSession(
   email: string,
   password: string,
+  fullName: string,
+  dateOfBirth: string,
 ): Promise<{ ok: true; data: LoginResponse } | { ok: false; status: number; body: unknown }> {
   const response = await fetch(`${env.BACKEND_URL}/api/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, fullName, dateOfBirth }),
     cache: 'no-store',
   });
 

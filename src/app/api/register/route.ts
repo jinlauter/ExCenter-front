@@ -13,6 +13,8 @@ import { rejectCrossSite } from '@/lib/csrf';
 const bodySchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
+  fullName: z.string().trim().min(1).max(100),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
 export async function POST(request: Request) {
@@ -26,7 +28,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Payload inválido.' }, { status: 400 });
   }
 
-  const result = await registerAndPersistSession(parsed.email, parsed.password);
+  const result = await registerAndPersistSession(
+    parsed.email,
+    parsed.password,
+    parsed.fullName,
+    parsed.dateOfBirth,
+  );
 
   if (!result.ok) {
     if (result.status === 400) {

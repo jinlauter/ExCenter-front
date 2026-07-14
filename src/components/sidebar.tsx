@@ -1,21 +1,47 @@
+/* eslint-disable @next/next/no-img-element -- imagem vem de rota BFF privada autenticada */
+
 import { Activity } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { SidebarNav } from '@/components/sidebar-nav';
 import { LogoutButton } from '@/components/logout-button';
 
-// Sidebar SSR — renderiza marca + iniciais a partir do username da sessão.
+// Sidebar SSR — renderiza marca + iniciais a partir do perfil autenticado.
 // SidebarNav é client (precisa de usePathname pra realçar o item ativo).
-export function Sidebar({ username }: { username: string }) {
+export function Sidebar({
+  username,
+  dateOfBirth,
+  avatarUpdatedAt,
+}: {
+  username: string;
+  dateOfBirth?: string | null;
+  avatarUpdatedAt?: string | null;
+}) {
   const initial = (username[0] ?? '?').toUpperCase();
+  const birthDateLabel = dateOfBirth
+    ? new Intl.DateTimeFormat('pt-BR', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC',
+      }).format(new Date(dateOfBirth))
+    : 'Data de nascimento não informada';
 
   return (
     <aside className="flex w-[250px] shrink-0 flex-col bg-primary p-4">
       <div className="mb-2.5 mt-1.5 flex flex-col items-center px-1">
-        <div className="mb-3 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#B5D4F4] text-[28px] font-semibold text-[#0C447C]">
-          {initial}
+        <div className="mb-3 flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-full bg-[#B5D4F4] text-[28px] font-semibold text-[#0C447C]">
+          {avatarUpdatedAt ? (
+            <img
+              src={`/api/users/avatar?v=${encodeURIComponent(avatarUpdatedAt)}`}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            initial
+          )}
         </div>
         <p className="mb-0.5 text-[13px] font-semibold text-white">{username}</p>
-        <p className="text-[11px] text-white/60">Data de nascimento</p>
+        <p className="text-[11px] text-white/60">{birthDateLabel}</p>
       </div>
 
       <Separator className="mb-2 bg-white/20" />

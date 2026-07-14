@@ -18,6 +18,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export function RegisterForm() {
   const router = useRouter();
+  const [fullName, setFullName] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -39,7 +41,7 @@ export function RegisterForm() {
         const res = await fetch('/api/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password, fullName, dateOfBirth }),
         });
 
         if (res.status === 429) {
@@ -67,6 +69,30 @@ export function RegisterForm() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
+
+      <div className="space-y-1.5">
+        <Label htmlFor="fullName">Nome completo</Label>
+        <Input
+          id="fullName"
+          placeholder="Seu nome completo"
+          autoComplete="name"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          disabled={isPending}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="dateOfBirth">Data de nascimento</Label>
+        <Input
+          id="dateOfBirth"
+          type="date"
+          autoComplete="bday"
+          value={dateOfBirth}
+          onChange={(e) => setDateOfBirth(e.target.value)}
+          disabled={isPending}
+        />
+      </div>
 
       <div className="space-y-1.5">
         <Label htmlFor="email">E-mail</Label>
@@ -110,7 +136,7 @@ export function RegisterForm() {
       <Button
         type="submit"
         className="w-full"
-        disabled={isPending || !email || !password || !confirmPassword}
+        disabled={isPending || !fullName.trim() || !dateOfBirth || !email || !password || !confirmPassword}
       >
         {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Criar conta'}
       </Button>

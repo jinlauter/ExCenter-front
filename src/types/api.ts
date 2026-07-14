@@ -115,6 +115,7 @@ export interface UserProfileResponse {
   bloodType?: string | null;
   biologicalSex?: string | null;
   preferredLanguage: string;
+  avatarUpdatedAt?: string | null;
 }
 
 export interface UpdatePersonalInfoRequest {
@@ -128,11 +129,6 @@ export interface UpdateLanguageRequest {
   preferredLanguage: string;
 }
 
-export interface UpdateEmailRequest {
-  newEmail: string;
-  currentPassword: string;
-}
-
 export interface UpdatePasswordRequest {
   currentPassword: string;
   newPassword: string;
@@ -143,4 +139,7 @@ export interface UpdatePasswordRequest {
 export interface RegisterRequest {
   email: string;
   password: string;
+  fullName: string;
+  /** Data ISO curta: YYYY-MM-DD. */
+  dateOfBirth: string;
 }
