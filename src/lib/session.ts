@@ -29,6 +29,12 @@ export interface SessionData {
   refreshExpiresAt?: string;
   username: string;
   userId?: string;
+  /**
+   * "Lembrar de mim" do login. false = cookie de sessão do browser (some ao
+   * fechar); true/ausente = cookie persistente (comportamento padrão do
+   * iron-session, ~14 dias) — ver getSession() abaixo.
+   */
+  remember?: boolean;
 }
 
 export const sessionOptions: SessionOptions = {
@@ -49,8 +55,36 @@ export const sessionOptions: SessionOptions = {
  *
  * Atenção: este import só funciona em route handlers / server components /
  * server actions — não pode ser chamado em código client.
+ *
+ * "Lembrar de mim": se a sessão decodificada tiver remember === false, o save()
+ * seguinte reemite o cookie SEM maxAge (cookie de sessão do browser, some ao
+ * fechar) em vez do maxAge persistente padrão do iron-session (~14 dias).
+ * Isso precisa de duas leituras porque o maxAge é decidido nas opções passadas
+ * pro getIronSession, e só sabemos o valor de remember depois de decodificar
+ * o cookie já existente.
  */
 export async function getSession() {
   const cookieStore = await cookies();
-  return getIronSession<SessionData>(cookieStore, sessionOptions);
+  const session = await getIronSession<SessionData>(cookieStore, sessionOptions);
+  if (session.remember === false) {
+    return getIronSession<SessionData>(cookieStore, {
+      ...sessionOptions,
+      cookieOptions: { ...sessionOptions.cookieOptions, maxAge: undefined },
+    });
+  }
+  return session;
+}
+
+/**
+ * Variante usada só na criação de uma sessão nova (login), quando já sabemos
+ * o valor de "remember" escolhido no formulário — sem isso, getSession()
+ * decidiria o maxAge com base no cookie ANTERIOR (inexistente/anônimo nesse
+ * momento), não no valor que estamos prestes a gravar.
+ */
+export async function getSessionForLogin(remember: boolean) {
+  const cookieStore = await cookies();
+  const options: SessionOptions = remember
+    ? sessionOptions
+    : { ...sessionOptions, cookieOptions: { ...sessionOptions.cookieOptions, maxAge: undefined } };
+  return getIronSession<SessionData>(cookieStore, options);
 }

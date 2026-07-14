@@ -126,4 +126,44 @@ describe('LoginForm', () => {
     expect(screen.getByRole('button', { name: /Google/ })).toBeEnabled();
     expect(screen.getByRole('button', { name: /Microsoft/ })).toBeDisabled();
   });
+
+  it('o campo de senha tem o botão de mostrar/ocultar', async () => {
+    const user = userEvent.setup();
+    render(<LoginForm />);
+
+    const senha = screen.getByLabelText('Senha');
+    expect(senha).toHaveAttribute('type', 'password');
+
+    await user.click(screen.getByRole('button', { name: 'Mostrar senha' }));
+    expect(senha).toHaveAttribute('type', 'text');
+  });
+
+  it('envia remember=false por padrão (checkbox desmarcado)', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: true, status: 200 } as Response);
+    const user = userEvent.setup();
+    render(<LoginForm />);
+
+    await user.type(screen.getByLabelText('E-mail'), 'user@teste.dev');
+    await user.type(screen.getByLabelText('Senha'), 'senha123');
+    await user.click(screen.getByRole('button', { name: 'Entrar' }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string);
+    expect(body.remember).toBe(false);
+  });
+
+  it('envia remember=true quando "Lembrar de mim" está marcado', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: true, status: 200 } as Response);
+    const user = userEvent.setup();
+    render(<LoginForm />);
+
+    await user.type(screen.getByLabelText('E-mail'), 'user@teste.dev');
+    await user.type(screen.getByLabelText('Senha'), 'senha123');
+    await user.click(screen.getByLabelText('Lembrar de mim'));
+    await user.click(screen.getByRole('button', { name: 'Entrar' }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string);
+    expect(body.remember).toBe(true);
+  });
 });

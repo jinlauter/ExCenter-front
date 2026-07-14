@@ -3,7 +3,7 @@ import 'server-only';
 import { decodeJwt } from 'jose';
 import { redirect } from 'next/navigation';
 import { env } from './env';
-import { getSession, type SessionData } from './session';
+import { getSession, getSessionForLogin, type SessionData } from './session';
 import type { LoginResponse } from '@/types/api';
 
 // =============================================================================
@@ -205,6 +205,7 @@ async function tryRefresh(session: Awaited<ReturnType<typeof getSession>>): Prom
 export async function loginAndPersistSession(
   username: string,
   password: string,
+  remember: boolean = true,
 ): Promise<{ ok: true; data: LoginResponse } | { ok: false; status: number; body: unknown }> {
   const response = await fetch(`${env.BACKEND_URL}/api/auth/login`, {
     method: 'POST',
@@ -228,7 +229,7 @@ export async function loginAndPersistSession(
     };
   }
 
-  await persistSessionFromLogin(data);
+  await persistSessionFromLogin(data, remember);
   return { ok: true, data };
 }
 
@@ -309,14 +310,15 @@ async function socialLoginAndPersistSession(
 }
 
 /** Monta e salva a sessão iron-session a partir de um LoginResponse do back. */
-async function persistSessionFromLogin(data: LoginResponse): Promise<void> {
-  const session = await getSession();
+async function persistSessionFromLogin(data: LoginResponse, remember: boolean = true): Promise<void> {
+  const session = await getSessionForLogin(remember);
   session.accessToken = data.accessToken;
   session.accessExpiresAt = data.expiresAt;
   session.refreshToken = data.refreshToken!;
   session.refreshExpiresAt = data.refreshTokenExpiresAt;
   session.username = data.username;
   session.userId = extractUserIdFromJwt(data.accessToken);
+  session.remember = remember;
   await session.save();
 }
 

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Search, RefreshCw, Download, Info } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -100,6 +101,9 @@ export function SentExamsView({ files }: { files: SentFileResponse[] }) {
             Quando você enviar PDFs ou imagens de exames, eles aparecerão aqui com o status do
             processamento.
           </p>
+          <Link href="/home" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
+            Clique aqui para enviar exames
+          </Link>
         </div>
       ) : filteredFiles.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-10 text-center">

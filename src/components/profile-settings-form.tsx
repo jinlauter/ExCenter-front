@@ -3,13 +3,14 @@
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Camera, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Camera, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { PasswordInput } from '@/components/ui/password-input';
 import type { UserProfileResponse } from '@/types/api';
 
 // Mesmo limite do back (UserProfileService.MaxAvatarBytes). Checar aqui evita mandar o
@@ -47,24 +48,6 @@ function SectionFeedback({ feedback }: { feedback: Feedback }) {
     <Alert variant={feedback.type === 'error' ? 'destructive' : 'success'} className="mb-4">
       <AlertDescription>{feedback.message}</AlertDescription>
     </Alert>
-  );
-}
-
-function PasswordInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  const [visible, setVisible] = useState(false);
-  return (
-    <div className="relative">
-      <Input type={visible ? 'text' : 'password'} className="pr-9" {...props} />
-      <button
-        type="button"
-        tabIndex={-1}
-        disabled={props.disabled}
-        onClick={() => setVisible((v) => !v)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-      >
-        {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-      </button>
-    </div>
   );
 }
 
