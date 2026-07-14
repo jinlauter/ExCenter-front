@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip } from '@/components/ui/tooltip';
 import { GoogleIcon, MicrosoftIcon } from '@/components/brand-icons';
 import { safeRedirectPath } from '@/lib/utils';
 
@@ -144,12 +145,7 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
       </div>
 
       <div className="flex gap-2">
-        {/* title no <span> wrapper, não no <button> — navegadores geralmente não disparam
-            o tooltip nativo em elementos disabled, mesmo com o atributo presente. */}
-        <span
-          className="flex-1"
-          title={googleEnabled ? undefined : comingSoonMessage('Google')}
-        >
+        <Tooltip className="flex-1" content={googleEnabled ? undefined : comingSoonMessage('Google')}>
           <Button
             type="button"
             variant="outline"
@@ -163,10 +159,10 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
             <GoogleIcon className="h-4 w-4" />
             Google
           </Button>
-        </span>
-        <span
+        </Tooltip>
+        <Tooltip
           className="flex-1"
-          title={microsoftEnabled ? undefined : comingSoonMessage('Microsoft')}
+          content={microsoftEnabled ? undefined : comingSoonMessage('Microsoft')}
         >
           <Button
             type="button"
@@ -180,7 +176,7 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
             <MicrosoftIcon className="h-4 w-4" />
             Microsoft
           </Button>
-        </span>
+        </Tooltip>
       </div>
 
       <p className="pt-2 text-center text-sm text-muted-foreground">
