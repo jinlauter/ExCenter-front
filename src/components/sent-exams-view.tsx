@@ -109,8 +109,8 @@ export function SentExamsView({ files }: { files: SentFileResponse[] }) {
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+          <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-border">
                 <th className="px-4 py-3 text-left font-medium">Arquivo</th>

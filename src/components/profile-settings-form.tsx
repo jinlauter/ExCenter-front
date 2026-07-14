@@ -12,6 +12,11 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { UserProfileResponse } from '@/types/api';
 
+// Mesmo limite do back (UserProfileService.MaxAvatarBytes). Checar aqui evita mandar o
+// arquivo pro Vercel, que rejeita corpos >4.5MB nas Serverless Functions sem devolver JSON
+// — sem essa checagem local, o usuário só veria um erro genérico sem motivo.
+const MAX_AVATAR_BYTES = 4 * 1024 * 1024;
+
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const BIOLOGICAL_SEXES = ['Masculino', 'Feminino', 'Prefiro não informar'];
 const LANGUAGES = [
@@ -148,6 +153,11 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: UserPr
     event.target.value = '';
     if (!avatar || avatarSaving) return;
 
+    if (avatar.size > MAX_AVATAR_BYTES) {
+      setAvatarFeedback({ type: 'error', message: 'A foto deve ter no máximo 4 MB.' });
+      return;
+    }
+
     setAvatarSaving(true);
     setAvatarFeedback(null);
     const formData = new FormData();
@@ -156,7 +166,8 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: UserPr
       const response = await fetch('/api/users/avatar', { method: 'PUT', body: formData });
       const updated = (await response.json().catch(() => null)) as UserProfileResponse | { message?: string } | null;
       if (!response.ok || !updated || !('avatarUpdatedAt' in updated)) {
-        throw new Error((updated && 'message' in updated && updated.message) || 'Não foi possível salvar a foto.');
+        const reason = updated && 'message' in updated && updated.message;
+        throw new Error(reason || `Não foi possível salvar a foto (erro ${response.status}).`);
       }
       setProfile(updated);
       setAvatarFeedback({ type: 'success', message: 'Foto de perfil atualizada.' });
@@ -332,7 +343,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: UserPr
           <div>
             <p className="text-sm font-medium">Personalize seu perfil</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Use uma imagem JPG, PNG ou WebP de até 5 MB.
+              Use uma imagem JPG, PNG ou WebP de até 4 MB.
             </p>
           </div>
         </div>

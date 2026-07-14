@@ -11,10 +11,13 @@ export function Sidebar({
   username,
   dateOfBirth,
   avatarUpdatedAt,
+  headerExtra,
 }: {
   username: string;
   dateOfBirth?: string | null;
   avatarUpdatedAt?: string | null;
+  /** Botão de fechar a gaveta no mobile (injetado pelo SidebarShell). */
+  headerExtra?: React.ReactNode;
 }) {
   const initial = (username[0] ?? '?').toUpperCase();
   const birthDateLabel = dateOfBirth
@@ -27,7 +30,8 @@ export function Sidebar({
     : 'Data de nascimento não informada';
 
   return (
-    <aside className="flex w-[250px] shrink-0 flex-col bg-primary p-4">
+    <aside className="flex h-full w-[250px] shrink-0 flex-col bg-primary p-4">
+      {headerExtra}
       <div className="mb-2.5 mt-1.5 flex flex-col items-center px-1">
         <div className="mb-3 flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-full bg-[#B5D4F4] text-[28px] font-semibold text-[#0C447C]">
           {avatarUpdatedAt ? (

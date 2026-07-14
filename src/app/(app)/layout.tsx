@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/session';
 import { backendFetchOrRedirect } from '@/lib/backend';
-import { Sidebar } from '@/components/sidebar';
+import { SidebarShell } from '@/components/sidebar-shell';
 import type { UserProfileResponse } from '@/types/api';
 
 // Layout das rotas autenticadas — busca a sessão server-side e passa o
@@ -18,8 +18,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const profile = await backendFetchOrRedirect<UserProfileResponse>('/api/users/me');
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar
+    <div className="flex min-h-screen flex-col bg-background md:flex-row">
+      <SidebarShell
         username={profile.username}
         dateOfBirth={profile.dateOfBirth}
         avatarUpdatedAt={profile.avatarUpdatedAt}
