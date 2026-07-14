@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Search, RefreshCw, Download, Info } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { SentFileResponse } from '@/types/api';
 
@@ -53,6 +54,49 @@ function formatDate(value?: string | null) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function formatExamDate(value: string) {
+  // timeZone: 'UTC' evita a data "voltar um dia" em fusos negativos (ex: BRT) — o valor
+  // vem como meia-noite UTC (data pura, sem hora relevante), então converter pro fuso
+  // local do navegador pode cair no dia anterior.
+  return new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+}
+
+const IN_PROGRESS_STATUSES = new Set(['pending', 'processing', 'retrying']);
+
+// "Data do exame" e "Médico solicitante" vêm da extração por IA, então cada célula depende do
+// estágio de processamento do arquivo, não só de ter ou não valor:
+//   - ainda em andamento (pending/processing/retrying) e vazio → tooltip "pode vir a preencher"
+//   - concluído com exame válido e vazio → tooltip "não foi possível extrair"
+//   - falhou, ou concluído mas não é exame → célula em branco (não faz sentido mostrar nada)
+function ExtractedFieldCell({
+  file,
+  value,
+  format,
+}: {
+  file: SentFileResponse;
+  value?: string | null;
+  format: (value: string) => string;
+}) {
+  const isInvalidExam = file.status === 'done' && file.isValidExam === false;
+  if (file.status === 'failed' || isInvalidExam) return null;
+
+  if (value) return <>{format(value)}</>;
+
+  if (IN_PROGRESS_STATUSES.has(file.status)) {
+    return (
+      <Tooltip content="Ainda em processamento — se essa informação estiver no exame, será preenchida automaticamente.">
+        <span className="cursor-help text-muted-foreground">—</span>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Tooltip content="Não foi possível extrair essa informação do exame.">
+      <span className="cursor-help text-muted-foreground">—</span>
+    </Tooltip>
+  );
 }
 
 export function SentExamsView({ files }: { files: SentFileResponse[] }) {
@@ -114,13 +158,15 @@ export function SentExamsView({ files }: { files: SentFileResponse[] }) {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border bg-card">
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="w-full min-w-[900px] text-sm">
             <thead>
               <tr className="border-b border-border">
                 <th className="px-4 py-3 text-left font-medium">Arquivo</th>
                 <th className="px-4 py-3 text-left font-medium">Status</th>
                 <th className="px-4 py-3 text-left font-medium">Enviado em</th>
                 <th className="px-4 py-3 text-left font-medium">Processado em</th>
+                <th className="px-4 py-3 text-left font-medium">Data do exame</th>
+                <th className="px-4 py-3 text-left font-medium">Médico solicitante</th>
                 <th className="px-4 py-3 text-right font-medium">Download</th>
               </tr>
             </thead>
@@ -154,6 +200,12 @@ export function SentExamsView({ files }: { files: SentFileResponse[] }) {
                     </td>
                     <td className="px-4 py-2.5 text-muted-foreground">{formatDate(file.sentAt)}</td>
                     <td className="px-4 py-2.5 text-muted-foreground">{formatDate(file.processedAt)}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">
+                      <ExtractedFieldCell file={file} value={file.examDate} format={formatExamDate} />
+                    </td>
+                    <td className="px-4 py-2.5 text-muted-foreground">
+                      <ExtractedFieldCell file={file} value={file.requestingDoctor} format={(v) => v} />
+                    </td>
                     <td className="px-4 py-2.5 text-right">
                       <a
                         href={`/api/bloodtests/files/${file.fileId}/download`}

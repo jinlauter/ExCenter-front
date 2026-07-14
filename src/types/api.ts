@@ -103,6 +103,8 @@ export interface SentFileResponse {
   isValidExam?: boolean | null;
   invalidReason?: string | null;
   errorMessage?: string | null;
+  examDate?: string | null;
+  requestingDoctor?: string | null;
 }
 
 // ── User profile (tela de Configurações) ───────────────────────────────────
