@@ -149,7 +149,7 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
           variant="outline"
           className="flex-1"
           disabled={!googleEnabled || isPending}
-          title={googleEnabled ? undefined : 'Login com Google não configurado neste ambiente'}
+          title={googleEnabled ? undefined : comingSoonMessage('Google')}
           onClick={() => {
             // Full page redirect — fluxo OAuth roda server-side a partir daí.
             window.location.href = '/api/auth/google/start';
@@ -163,9 +163,7 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
           variant="outline"
           className="flex-1"
           disabled={!microsoftEnabled || isPending}
-          title={
-            microsoftEnabled ? undefined : 'Login com Microsoft não configurado neste ambiente'
-          }
+          title={microsoftEnabled ? undefined : comingSoonMessage('Microsoft')}
           onClick={() => {
             window.location.href = '/api/auth/microsoft/start';
           }}
@@ -183,6 +181,12 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
       </p>
     </form>
   );
+}
+
+// Tooltip nativo (title) do botão quando o provedor não está configurado neste ambiente —
+// mensagem voltada pro usuário final, não um aviso técnico de configuração.
+function comingSoonMessage(provider: 'Google' | 'Microsoft'): string {
+  return `Em breve! Estamos preparando o login com ${provider} pra você.`;
 }
 
 function initialErrorFromQuery(error: string | null): string | null {
