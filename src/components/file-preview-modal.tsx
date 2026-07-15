@@ -1,8 +1,21 @@
 /* eslint-disable @next/next/no-img-element -- imagem vem de rota BFF privada autenticada */
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { X } from 'lucide-react';
+import { isMobileDevice } from '@/lib/is-mobile';
+
+// react-pdf/pdfjs-dist pesa ~130KB e só é necessário no celular (ver isMobileDevice) — import
+// dinâmico evita empacotar isso no bundle de todo mundo que abre a tela de Exames enviados,
+// já que a maioria acessa de desktop e nunca usa esse caminho.
+const MobilePdfViewer = dynamic(
+  () => import('@/components/mobile-pdf-viewer').then((mod) => mod.MobilePdfViewer),
+  {
+    ssr: false,
+    loading: () => <p className="p-6 text-center text-sm text-muted-foreground">Carregando visualizador…</p>,
+  },
+);
 
 // Laudos costumam ser documentos longos (várias páginas) ou imagens em alta resolução —
 // por isso o modal é quase tela cheia (92vh x 96vw) em vez de um popup pequeno.
@@ -19,6 +32,8 @@ export function FilePreviewModal({
   fileName: string;
   onClose: () => void;
 }) {
+  const [isMobile] = useState(() => isMobileDevice());
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') onClose();
@@ -57,6 +72,8 @@ export function FilePreviewModal({
         <div className="flex-1 overflow-auto bg-muted/30">
           {isImageFile(fileName) ? (
             <img src={src} alt={fileName} className="mx-auto max-w-full" />
+          ) : isMobile ? (
+            <MobilePdfViewer src={src} />
           ) : (
             <iframe src={src} title={fileName} className="h-full w-full" />
           )}

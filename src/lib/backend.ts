@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { cache } from 'react';
 import { decodeJwt } from 'jose';
 import { redirect } from 'next/navigation';
 import { env } from './env';
@@ -164,36 +165,57 @@ async function callBackend(
 }
 
 /**
- * Tenta renovar o access token usando o refresh_token guardado na sessão.
- *
- * Envia o refresh via Authorization: Bearer (suporte adicionado no back para
- * exatamente este caso — clientes BFF que querem evitar cookies em outgoing
- * requests). O back devolve o novo refreshToken DIRETO NO BODY, então não
- * precisamos parsear Set-Cookie.
+ * Chamada de refresh ao back, dedupada por request via React cache(). Necessário porque
+ * layout + page fazem CADA UM sua própria leitura de sessão (getSession() não é
+ * memoizado — duas chamadas decodificam o cookie em dois objetos independentes). Sem essa
+ * dedupe, layout e page acabam disparando dois refreshes concorrentes com o MESMO
+ * refreshToken (ambos ainda leem o cookie antigo, já que a mutação de um não é visível pro
+ * outro); o back rotaciona o refresh token a cada uso, então o segundo refresh falha com
+ * 401 — o usuário via tryRefresh retornando false e sendo redirecionado pro login mesmo
+ * com uma sessão válida. cache() garante que chamadas concorrentes com o mesmo
+ * refreshToken, dentro do mesmo request, reaproveitam a mesma promise/resultado.
  */
-async function tryRefresh(session: Awaited<ReturnType<typeof getSession>>): Promise<boolean> {
-  if (!session.refreshToken) return false;
-
+const refreshTokens = cache(async (refreshToken: string): Promise<LoginResponse | null> => {
   const response = await fetch(`${env.BACKEND_URL}/api/auth/refresh`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${session.refreshToken}`,
+      Authorization: `Bearer ${refreshToken}`,
     },
     cache: 'no-store',
   });
 
-  if (!response.ok) return false;
+  if (!response.ok) return null;
 
   const data = (await response.json()) as LoginResponse;
-  if (!data.refreshToken) return false;
+  return data.refreshToken ? data : null;
+});
+
+/**
+ * Tenta renovar o access token usando o refresh_token guardado na sessão.
+ */
+async function tryRefresh(session: Awaited<ReturnType<typeof getSession>>): Promise<boolean> {
+  if (!session.refreshToken) return false;
+
+  const data = await refreshTokens(session.refreshToken);
+  if (!data) return false;
 
   session.accessToken = data.accessToken;
   session.accessExpiresAt = data.expiresAt;
-  session.refreshToken = data.refreshToken;
+  session.refreshToken = data.refreshToken!;
   session.refreshExpiresAt = data.refreshTokenExpiresAt;
   session.username = data.username;
   session.userId = extractUserIdFromJwt(data.accessToken) ?? session.userId;
-  await session.save();
+
+  // Chamado a partir de um server component (via backendFetchOrRedirect), session.save()
+  // lança "Cookies can only be modified...", igual destroySessionSafely abaixo. Engolimos
+  // aqui também: a sessão em memória já tem o token novo, então a chamada que disparou o
+  // refresh (o retry logo depois, em callBackend) funciona pra esse request. O cookie só
+  // fica desatualizado até o próximo request passar por uma Route Handler.
+  try {
+    await session.save();
+  } catch {
+    // Esperado quando chamado durante o render de um server component.
+  }
 
   return true;
 }

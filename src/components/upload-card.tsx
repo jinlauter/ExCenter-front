@@ -9,6 +9,17 @@ import type { UploadBatchResponse } from '@/types/api';
 
 const ACCEPTED_MIME = 'application/pdf,image/jpeg,image/jpg,image/png';
 
+// Mesmo limite de contagem do back (AnalyzeBloodTestService.MaxFilesPerBatch). O tamanho total
+// de 4MB existe porque o upload passa pela rota BFF do Vercel, que limita o corpo de
+// Serverless Functions a 4.5MB — checar aqui evita mandar pro Vercel um lote que ele vai
+// rejeitar com um erro genérico sem motivo (mesmo problema já visto no upload de avatar).
+const MAX_FILES = 20;
+const MAX_TOTAL_BYTES = 4 * 1024 * 1024;
+
+function formatMegabytes(bytes: number) {
+  return (bytes / (1024 * 1024)).toFixed(1).replace(/\.0$/, '');
+}
+
 interface Feedback {
   type: 'success' | 'error';
   message: string;
@@ -28,6 +39,23 @@ export function UploadCard() {
     const files = Array.from(event.target.files ?? []);
     event.target.value = ''; // permite reselecionar mesmo arquivo
     if (files.length === 0) return;
+
+    if (files.length > MAX_FILES) {
+      setFeedback({
+        type: 'error',
+        message: `Envie no máximo ${MAX_FILES} arquivos por vez. Você selecionou ${files.length}.`,
+      });
+      return;
+    }
+
+    const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+    if (totalBytes > MAX_TOTAL_BYTES) {
+      setFeedback({
+        type: 'error',
+        message: `O total dos arquivos selecionados (${formatMegabytes(totalBytes)} MB) passa do limite de 4 MB por envio. Selecione menos arquivos ou arquivos menores.`,
+      });
+      return;
+    }
 
     setFeedback(null);
     startTransition(async () => {
@@ -54,11 +82,12 @@ export function UploadCard() {
           | null;
 
         if (!res.ok || !data || !('fileCount' in data)) {
+          const backendMessage = data && 'message' in data && data.message;
           setFeedback({
             type: 'error',
             message:
-              (data && 'message' in data && data.message) ||
-              'Não foi possível enviar os exames. Tente novamente.',
+              backendMessage ||
+              `Não foi possível enviar os exames. Verifique se são no máximo ${MAX_FILES} arquivos e 4 MB no total, e tente novamente.`,
           });
           return;
         }
@@ -112,8 +141,11 @@ export function UploadCard() {
           <CloudUpload className="h-7 w-7 text-primary" strokeWidth={1.5} />
         </div>
         <h2 className="text-base font-medium">Envie seus exames</h2>
-        <p className="mx-auto mb-5 mt-1 max-w-sm text-sm text-muted-foreground">
+        <p className="mx-auto mb-1 mt-1 max-w-sm text-sm text-muted-foreground">
           Selecione um ou mais PDFs. Processamos automaticamente em segundo plano.
+        </p>
+        <p className="mx-auto mb-5 max-w-sm text-xs text-muted-foreground/80">
+          Até {MAX_FILES} arquivos por vez, {formatMegabytes(MAX_TOTAL_BYTES)} MB no total.
         </p>
         <Button onClick={trigger} disabled={isPending}>
           {isPending ? (

@@ -64,6 +64,31 @@ function formatExamDate(value: string) {
   return new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
 }
 
+function compareNullableDatesDesc(a?: string | null, b?: string | null): number {
+  if (!a && !b) return 0;
+  if (!a) return 1; // sem data do exame vai pro fim
+  if (!b) return -1;
+  return new Date(b).getTime() - new Date(a).getTime();
+}
+
+function compareNullableStringsAsc(a?: string | null, b?: string | null): number {
+  if (!a && !b) return 0;
+  if (!a) return 1; // sem médico solicitante vai pro fim
+  if (!b) return -1;
+  return a.localeCompare(b, 'pt-BR');
+}
+
+// Ordem: data do exame desc (mais recente primeiro), médico solicitante asc, data de envio asc.
+function compareFiles(a: SentFileResponse, b: SentFileResponse): number {
+  const examCmp = compareNullableDatesDesc(a.examDate, b.examDate);
+  if (examCmp !== 0) return examCmp;
+
+  const doctorCmp = compareNullableStringsAsc(a.requestingDoctor, b.requestingDoctor);
+  if (doctorCmp !== 0) return doctorCmp;
+
+  return new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime();
+}
+
 const IN_PROGRESS_STATUSES = new Set(['pending', 'processing', 'retrying']);
 
 // "Data do exame" e "Médico solicitante" vêm da extração por IA, então cada célula depende do
@@ -106,9 +131,9 @@ export function SentExamsView({ files }: { files: SentFileResponse[] }) {
   const [isRefreshing, startRefresh] = useTransition();
   const [previewFile, setPreviewFile] = useState<SentFileResponse | null>(null);
 
-  const filteredFiles = files.filter((file) =>
-    file.fileName.toLowerCase().includes(searchTerm.trim().toLowerCase()),
-  );
+  const filteredFiles = files
+    .filter((file) => file.fileName.toLowerCase().includes(searchTerm.trim().toLowerCase()))
+    .sort(compareFiles);
 
   return (
     <div>
@@ -165,10 +190,10 @@ export function SentExamsView({ files }: { files: SentFileResponse[] }) {
               <tr className="border-b border-border">
                 <th className="px-4 py-3 text-left font-medium">Arquivo</th>
                 <th className="px-4 py-3 text-left font-medium">Status</th>
-                <th className="px-4 py-3 text-left font-medium">Enviado em</th>
-                <th className="px-4 py-3 text-left font-medium">Processado em</th>
                 <th className="px-4 py-3 text-left font-medium">Data do exame</th>
                 <th className="px-4 py-3 text-left font-medium">Médico solicitante</th>
+                <th className="px-4 py-3 text-left font-medium">Enviado em</th>
+                <th className="px-4 py-3 text-left font-medium">Processado em</th>
                 <th className="px-4 py-3 text-right font-medium">Download</th>
               </tr>
             </thead>
@@ -200,14 +225,14 @@ export function SentExamsView({ files }: { files: SentFileResponse[] }) {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 text-muted-foreground">{formatDate(file.sentAt)}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground">{formatDate(file.processedAt)}</td>
                     <td className="px-4 py-2.5 text-muted-foreground">
                       <ExtractedFieldCell file={file} value={file.examDate} format={formatExamDate} />
                     </td>
                     <td className="px-4 py-2.5 text-muted-foreground">
                       <ExtractedFieldCell file={file} value={file.requestingDoctor} format={(v) => v} />
                     </td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{formatDate(file.sentAt)}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{formatDate(file.processedAt)}</td>
                     <td className="px-4 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button

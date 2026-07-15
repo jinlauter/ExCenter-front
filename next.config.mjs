@@ -49,6 +49,15 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
 
+  // pdfjs-dist (usado por react-pdf pra visualizar PDF no celular) tenta condicionalmente
+  // carregar o pacote Node "canvas" pra renderização server-side, que não existe/não é
+  // necessário no bundle do browser — sem isso o webpack tenta resolver e empacotar esse
+  // caminho, o que causa erros de módulo no client bundle.
+  webpack: (config) => {
+    config.resolve.alias.canvas = false;
+    return config;
+  },
+
   async headers() {
     return [
       {
