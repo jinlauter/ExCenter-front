@@ -33,7 +33,7 @@ export function Sidebar({
     <aside className="flex h-full w-[250px] shrink-0 flex-col bg-primary p-4">
       {headerExtra}
       <div className="mb-2.5 mt-1.5 flex flex-col items-center px-1">
-        <div className="mb-3 flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-full bg-[#B5D4F4] text-[28px] font-semibold text-[#0C447C]">
+        <div className="mb-3 flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-full bg-primary-light text-[28px] font-semibold text-primary">
           {avatarUpdatedAt ? (
             <img
               src={`/api/users/avatar?v=${encodeURIComponent(avatarUpdatedAt)}`}

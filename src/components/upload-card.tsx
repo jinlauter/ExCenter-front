@@ -210,11 +210,11 @@ export function UploadCard() {
             </button>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+          <div className="flex flex-wrap gap-3">
             {selectedFiles.map((file, index) => (
               <div
                 key={`${file.name}-${file.size}-${index}`}
-                className="relative flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border border-border bg-background p-2 text-center"
+                className="relative flex h-24 w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-border bg-background p-2 text-center"
               >
                 <button
                   type="button"
