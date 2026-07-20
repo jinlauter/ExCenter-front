@@ -99,6 +99,10 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
   // Marca autofillDetected pra liberar o botão sem depender de ler o valor (que o Chrome esconde
   // até o gesto). Também tenta sincronizar o state a partir da ref — funciona em browsers que já
   // expõem o valor no autofill; onde não expõem, fica vazio aqui e o valor real só é lido no submit.
+  // Escuta tanto onAnimationStart quanto onAnimationIteration: com autofill sem NENHUMA interação
+  // do usuário, esse "start" pode disparar antes do React terminar de montar o listener (hidratação/
+  // chunk JS ainda carregando) e se perder pra sempre — a animação em loop (ver globals.css) garante
+  // que a iteração seguinte, meio segundo depois, ainda seja capturada.
   function syncAutofilledFields(e: React.AnimationEvent<HTMLInputElement>) {
     if (e.animationName !== 'autofill-detect') return;
     setAutofillDetected(true);
@@ -125,6 +129,7 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           onAnimationStart={syncAutofilledFields}
+          onAnimationIteration={syncAutofilledFields}
           disabled={isPending}
         />
       </div>
@@ -139,6 +144,7 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onAnimationStart={syncAutofilledFields}
+          onAnimationIteration={syncAutofilledFields}
           disabled={isPending}
         />
       </div>

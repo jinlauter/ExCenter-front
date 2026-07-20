@@ -61,6 +61,22 @@ describe('LoginForm', () => {
     expect(submit).toBeEnabled();
   });
 
+  it('habilita o botão via onAnimationIteration quando o 1º "start" se perde (autofill antes da hidratação)', () => {
+    render(<LoginForm />);
+
+    const emailInput = screen.getByLabelText('E-mail') as HTMLInputElement;
+    const passwordInput = screen.getByLabelText('Senha') as HTMLInputElement;
+    const submit = screen.getByRole('button', { name: 'Entrar' });
+
+    // Simula o pior caso: o autofill aconteceu tão cedo (zero interação) que o "animationstart"
+    // disparou antes do React terminar de montar o listener — só chega a próxima iteração do
+    // loop infinito (ver globals.css: animation-iteration-count: infinite).
+    fireEvent.animationIteration(emailInput, { animationName: 'autofill-detect' });
+    fireEvent.animationIteration(passwordInput, { animationName: 'autofill-detect' });
+
+    expect(submit).toBeEnabled();
+  });
+
   it('no submit após autofill, lê o valor real via ref (exposto pelo gesto) mesmo com value mascarado', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({ ok: true, status: 200 } as Response);
     render(<LoginForm />);

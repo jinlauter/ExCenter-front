@@ -62,7 +62,14 @@
  * interação do usuário na página — sem isso, estado controlado (React) fica dessincronizado
  * do valor visível no campo. A pseudo-classe :autofill, por outro lado, é aplicada de
  * imediato; usamos uma animação (imperceptível) só pra conseguir detectar esse momento via
- * onAnimationStart, sem depender do evento de input. */
+ * onAnimationStart, sem depender do evento de input.
+ *
+ * iteration-count infinite (não só uma vez): se o autofill acontecer com zero interação do
+ * usuário — antes da hidratação do React terminar, ou antes do chunk JS do form carregar —
+ * o primeiro disparo da animação é perdido pra sempre (CSS não espera o React estar pronto).
+ * Com a animação em loop, a PRÓXIMA iteração (meio segundo depois) ainda é capturada via
+ * onAnimationIteration assim que o listener estiver montado, então nunca fica travado
+ * esperando um clique do usuário pra sincronizar. */
 @keyframes autofill-detect {
   from {}
   to {}
@@ -71,5 +78,6 @@
 input:autofill,
 input:-webkit-autofill {
   animation-name: autofill-detect;
-  animation-duration: 0.01s;
+  animation-duration: 0.5s;
+  animation-iteration-count: infinite;
 }
