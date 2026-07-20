@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LoginForm } from '@/components/login-form';
 
@@ -40,6 +40,45 @@ describe('LoginForm', () => {
 
     await user.type(screen.getByLabelText('Senha'), 'senha123');
     expect(submit).toBeEnabled();
+  });
+
+  it('habilita o botão "Entrar" quando o browser autopreenche os campos, sem precisar de clique', () => {
+    render(<LoginForm />);
+
+    const emailInput = screen.getByLabelText('E-mail') as HTMLInputElement;
+    const passwordInput = screen.getByLabelText('Senha') as HTMLInputElement;
+    const submit = screen.getByRole('button', { name: 'Entrar' });
+
+    // Autofill do browser seta o valor direto no DOM via setter nativo, sem passar pelo
+    // onChange do React — é isso que deixava o botão travado até algum clique na tela.
+    const nativeValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!;
+    nativeValueSetter.call(emailInput, 'user@teste.dev');
+    nativeValueSetter.call(passwordInput, 'senha123');
+
+    expect(submit).toBeDisabled();
+
+    // CSS aplica :-webkit-autofill e dispara essa animação assim que o autofill acontece,
+    // independente de qualquer interação do usuário — é o gatilho que sincroniza o estado.
+    // jsdom não implementa AnimationEvent com o campo animationName, então montamos o evento
+    // manualmente pra garantir que a propriedade chega no handler como chegaria num browser real.
+    fireEvent.animationStart(emailInput, { animationName: 'autofill-detect' });
+    fireEvent.animationStart(passwordInput, { animationName: 'autofill-detect' });
+
+    expect(submit).toBeEnabled();
+  });
+
+  it('ignora animações que não são de detecção de autofill', () => {
+    render(<LoginForm />);
+
+    const emailInput = screen.getByLabelText('E-mail') as HTMLInputElement;
+    const submit = screen.getByRole('button', { name: 'Entrar' });
+
+    const nativeValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!;
+    nativeValueSetter.call(emailInput, 'user@teste.dev');
+
+    fireEvent.animationStart(emailInput, { animationName: 'outra-animacao-qualquer' });
+
+    expect(submit).toBeDisabled();
   });
 
   it('em sucesso, redireciona pra "from" validado e atualiza a sessão do server', async () => {

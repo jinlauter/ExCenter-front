@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
@@ -34,6 +34,8 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
+  const usernameRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   // Erro vindo do callback OAuth (?error=google|microsoft) tem prioridade na 1ª render.
   const [error, setError] = useState<string | null>(initialErrorFromQuery(search.get('error')));
   const [isPending, startTransition] = useTransition();
@@ -76,6 +78,18 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
     return () => console.info(`[TODO] ${feature} ainda não implementado`);
   }
 
+  // Autofill do browser não dispara o onChange do React de imediato (ver globals.css) — sincroniza
+  // o estado a partir do valor real dos campos assim que a animação de detecção roda em qualquer
+  // um deles. Sincronizar OS DOIS juntos (não só o campo que disparou) é necessário porque, se o
+  // browser autopreencheu email e senha juntos, sincronizar só o email primeiro dispara um
+  // re-render — e como o input de senha ainda é controlado pelo estado antigo (vazio), o React
+  // reseta o valor que o autofill acabou de colocar nele antes da animação da senha disparar.
+  function syncAutofilledFields(e: React.AnimationEvent<HTMLInputElement>) {
+    if (e.animationName !== 'autofill-detect') return;
+    if (usernameRef.current) setUsername(usernameRef.current.value);
+    if (passwordRef.current) setPassword(passwordRef.current.value);
+  }
+
   return (
     <form className="space-y-4" onSubmit={handleSubmit}>
       {error && (
@@ -87,12 +101,14 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
       <div className="space-y-1.5">
         <Label htmlFor="username">E-mail</Label>
         <Input
+          ref={usernameRef}
           id="username"
           type="text"
           placeholder="seu@email.com"
           autoComplete="username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
+          onAnimationStart={syncAutofilledFields}
           disabled={isPending}
         />
       </div>
@@ -100,11 +116,13 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
       <div className="space-y-1.5">
         <Label htmlFor="password">Senha</Label>
         <PasswordInput
+          ref={passwordRef}
           id="password"
           placeholder="••••••••"
           autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          onAnimationStart={syncAutofilledFields}
           disabled={isPending}
         />
       </div>

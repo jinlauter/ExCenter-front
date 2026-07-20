@@ -57,3 +57,19 @@
       'calt' 1;
   }
 }
+
+/* O evento input/change de um campo autopreenchido pelo browser só dispara após alguma
+ * interação do usuário na página — sem isso, estado controlado (React) fica dessincronizado
+ * do valor visível no campo. A pseudo-classe :autofill, por outro lado, é aplicada de
+ * imediato; usamos uma animação (imperceptível) só pra conseguir detectar esse momento via
+ * onAnimationStart, sem depender do evento de input. */
+@keyframes autofill-detect {
+  from {}
+  to {}
+}
+
+input:autofill,
+input:-webkit-autofill {
+  animation-name: autofill-detect;
+  animation-duration: 0.01s;
+}
