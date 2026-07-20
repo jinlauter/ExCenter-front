@@ -49,22 +49,58 @@ describe('LoginForm', () => {
     const passwordInput = screen.getByLabelText('Senha') as HTMLInputElement;
     const submit = screen.getByRole('button', { name: 'Entrar' });
 
-    // Autofill do browser seta o valor direto no DOM via setter nativo, sem passar pelo
-    // onChange do React — é isso que deixava o botão travado até algum clique na tela.
-    const nativeValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!;
-    nativeValueSetter.call(emailInput, 'user@teste.dev');
-    nativeValueSetter.call(passwordInput, 'senha123');
-
     expect(submit).toBeDisabled();
 
-    // CSS aplica :-webkit-autofill e dispara essa animação assim que o autofill acontece,
-    // independente de qualquer interação do usuário — é o gatilho que sincroniza o estado.
-    // jsdom não implementa AnimationEvent com o campo animationName, então montamos o evento
-    // manualmente pra garantir que a propriedade chega no handler como chegaria num browser real.
+    // Cenário REAL do Chrome: no autofill em page-load, o valor é preenchido visualmente mas fica
+    // MASCARADO pro JS (input.value === '') até o primeiro gesto do usuário. Só a animação CSS de
+    // :autofill dispara. Por isso NÃO setamos value aqui — simulamos o valor escondido — e mesmo
+    // assim o botão tem que habilitar (via autofillDetected), sem depender de ler o valor.
     fireEvent.animationStart(emailInput, { animationName: 'autofill-detect' });
     fireEvent.animationStart(passwordInput, { animationName: 'autofill-detect' });
 
     expect(submit).toBeEnabled();
+  });
+
+  it('no submit após autofill, lê o valor real via ref (exposto pelo gesto) mesmo com value mascarado', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: true, status: 200 } as Response);
+    render(<LoginForm />);
+
+    const emailInput = screen.getByLabelText('E-mail') as HTMLInputElement;
+    const passwordInput = screen.getByLabelText('Senha') as HTMLInputElement;
+    const submit = screen.getByRole('button', { name: 'Entrar' });
+
+    // autofill detectado (animação) habilita o botão, mas o state React continua vazio
+    fireEvent.animationStart(emailInput, { animationName: 'autofill-detect' });
+    fireEvent.animationStart(passwordInput, { animationName: 'autofill-detect' });
+    expect(submit).toBeEnabled();
+
+    // O clique do usuário é o gesto que "libera" os valores autopreenchidos pro JS — simulamos
+    // isso setando o value no DOM logo antes de submeter. handleSubmit deve lê-los via ref.
+    const nativeValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!;
+    nativeValueSetter.call(emailInput, 'auto@teste.dev');
+    nativeValueSetter.call(passwordInput, 'autoSenha1');
+    fireEvent.click(submit);
+
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string);
+    expect(body.username).toBe('auto@teste.dev');
+    expect(body.password).toBe('autoSenha1');
+  });
+
+  it('bloqueia submit com campos realmente vazios, mesmo com o botão habilitado por autofill', async () => {
+    render(<LoginForm />);
+
+    const emailInput = screen.getByLabelText('E-mail') as HTMLInputElement;
+    const submit = screen.getByRole('button', { name: 'Entrar' });
+
+    // autofill detectado habilita o botão, mas os campos seguem vazios de verdade (nenhum value)
+    fireEvent.animationStart(emailInput, { animationName: 'autofill-detect' });
+    expect(submit).toBeEnabled();
+
+    fireEvent.click(submit);
+
+    expect(await screen.findByText('Preencha e-mail e senha.')).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('ignora animações que não são de detecção de autofill', () => {
@@ -72,9 +108,6 @@ describe('LoginForm', () => {
 
     const emailInput = screen.getByLabelText('E-mail') as HTMLInputElement;
     const submit = screen.getByRole('button', { name: 'Entrar' });
-
-    const nativeValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!;
-    nativeValueSetter.call(emailInput, 'user@teste.dev');
 
     fireEvent.animationStart(emailInput, { animationName: 'outra-animacao-qualquer' });
 

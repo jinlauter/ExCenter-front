@@ -34,6 +34,12 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
+  // Ligado quando o browser autopreenche (detectado pela animação CSS, ver globals.css). O Chrome
+  // esconde do JS o VALOR de campos autopreenchidos até o primeiro gesto do usuário, então na hora
+  // do autofill não dá pra ler username/password pra habilitar o botão — mas dá pra SABER que houve
+  // autofill (a animação dispara mesmo assim). Usamos isso pra liberar o botão; o valor real só é
+  // lido no submit (o próprio clique já é o gesto que o Chrome exige pra expor o valor).
+  const [autofillDetected, setAutofillDetected] = useState(false);
   const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   // Erro vindo do callback OAuth (?error=google|microsoft) tem prioridade na 1ª render.
@@ -43,6 +49,17 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (isPending) return;
+
+    // Lê direto do DOM (ref), não do state: com autofill, o Chrome só expõe o valor após o gesto
+    // do usuário — e este submit já é esse gesto. O state React pode estar vazio porque o autofill
+    // não dispara onChange. Fallback pro state cobre browsers/casos onde a ref não estiver pronta.
+    const user = usernameRef.current?.value || username;
+    const pass = passwordRef.current?.value || password;
+
+    if (!user || !pass) {
+      setError('Preencha e-mail e senha.');
+      return;
+    }
     setError(null);
 
     startTransition(async () => {
@@ -50,7 +67,7 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
         const res = await fetch('/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password, remember }),
+          body: JSON.stringify({ username: user, password: pass, remember }),
         });
 
         if (res.status === 401) {
@@ -78,16 +95,15 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
     return () => console.info(`[TODO] ${feature} ainda não implementado`);
   }
 
-  // Autofill do browser não dispara o onChange do React de imediato (ver globals.css) — sincroniza
-  // o estado a partir do valor real dos campos assim que a animação de detecção roda em qualquer
-  // um deles. Sincronizar OS DOIS juntos (não só o campo que disparou) é necessário porque, se o
-  // browser autopreencheu email e senha juntos, sincronizar só o email primeiro dispara um
-  // re-render — e como o input de senha ainda é controlado pelo estado antigo (vazio), o React
-  // reseta o valor que o autofill acabou de colocar nele antes da animação da senha disparar.
+  // Dispara quando o browser autopreenche um campo (animação CSS em :autofill, ver globals.css).
+  // Marca autofillDetected pra liberar o botão sem depender de ler o valor (que o Chrome esconde
+  // até o gesto). Também tenta sincronizar o state a partir da ref — funciona em browsers que já
+  // expõem o valor no autofill; onde não expõem, fica vazio aqui e o valor real só é lido no submit.
   function syncAutofilledFields(e: React.AnimationEvent<HTMLInputElement>) {
     if (e.animationName !== 'autofill-detect') return;
-    if (usernameRef.current) setUsername(usernameRef.current.value);
-    if (passwordRef.current) setPassword(passwordRef.current.value);
+    setAutofillDetected(true);
+    if (usernameRef.current?.value) setUsername(usernameRef.current.value);
+    if (passwordRef.current?.value) setPassword(passwordRef.current.value);
   }
 
   return (
@@ -151,7 +167,11 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
         </Link>
       </div>
 
-      <Button type="submit" className="w-full" disabled={isPending || !username || !password}>
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={isPending || (!(username && password) && !autofillDetected)}
+      >
         {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Entrar'}
       </Button>
 
