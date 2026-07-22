@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { storePasswordCredential } from '@/lib/credentials';
 
 // =============================================================================
 // RegisterForm (client)
@@ -54,6 +55,10 @@ export function RegisterForm() {
           setError(body?.message ?? 'Não foi possível criar a conta. Tente novamente em instantes.');
           return;
         }
+
+        // Oferece salvar user/senha no gerenciador do browser antes de navegar (a navegação SPA
+        // sozinha não dispara o prompt do Chrome). Ver storePasswordCredential.
+        await storePasswordCredential(email, password, fullName);
 
         router.replace('/home');
         router.refresh();

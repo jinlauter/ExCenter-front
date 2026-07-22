@@ -14,6 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip } from '@/components/ui/tooltip';
 import { GoogleIcon, MicrosoftIcon } from '@/components/brand-icons';
 import { safeRedirectPath } from '@/lib/utils';
+import { storePasswordCredential } from '@/lib/credentials';
 
 // =============================================================================
 // LoginForm (client)
@@ -82,6 +83,10 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
           setError('Não foi possível entrar. Tente novamente em instantes.');
           return;
         }
+
+        // Oferece salvar/atualizar user/senha no gerenciador do browser antes de navegar (a
+        // navegação SPA sozinha não dispara o prompt do Chrome). Ver storePasswordCredential.
+        await storePasswordCredential(user, pass);
 
         router.replace(safeRedirectPath(search.get('from')));
         router.refresh(); // força server components a relerem a sessão
