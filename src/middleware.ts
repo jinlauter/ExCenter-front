@@ -41,7 +41,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(homeUrl);
   }
 
-  return NextResponse.next();
+  // Propaga o pathname atual num header pra server components lerem (backendFetchOrRedirect usa
+  // pra montar o return do /api/session/refresh). NextResponse.next() sem isso não expõe a rota
+  // atual pro render.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', pathname);
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {

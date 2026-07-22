@@ -3,6 +3,7 @@ import 'server-only';
 import { cache } from 'react';
 import { decodeJwt } from 'jose';
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { env } from './env';
 import { getSession, getSessionForLogin, type SessionData } from './session';
 import type { LoginResponse } from '@/types/api';
@@ -97,14 +98,61 @@ export async function backendFetch<T>(path: string, options: FetchOptions = {}):
  * intermediária apaga o cookie de verdade antes de redirecionar.
  */
 export async function backendFetchOrRedirect<T>(path: string, options: FetchOptions = {}): Promise<T> {
+  const session = await getSession();
+
+  // Access token expirado mas com refresh disponível → desvia pra Route Handler que renova E
+  // PERSISTE o cookie. Server component não pode salvar cookie durante o render; renovar inline
+  // aqui deixaria o refresh token (que o back rotaciona a cada uso) só em memória, com o cookie
+  // preso no token antigo já invalidado — é o próximo request (ex.: abrir um exame) que herdava
+  // esse cookie envenenado e caía em "Sessão expirada". Ver /api/session/refresh.
+  if (isAccessTokenExpired(session) && session.refreshToken) {
+    redirect(sessionRefreshUrl(await currentPathname()));
+  }
+
   try {
-    return await backendFetch<T>(path, options);
+    // skipRefresh: nunca renova inline no caminho de server component (não consegue persistir).
+    return await backendFetch<T>(path, { ...options, skipRefresh: true });
   } catch (err) {
     if (err instanceof UnauthenticatedError) {
+      // Access parecia válido mas o back recusou; se ainda há refresh token, renova via route
+      // handler. Sem refresh token → expira a sessão de vez e manda pro login.
+      if (session.refreshToken) {
+        redirect(sessionRefreshUrl(await currentPathname()));
+      }
       redirect('/api/session/expire');
     }
     throw err;
   }
+}
+
+/**
+ * Renova o access token E persiste no cookie. Só pode ser chamado de uma Route Handler (onde
+ * session.save() é permitido) — é por isso que server components desviam pra /api/session/refresh
+ * em vez de renovar inline. Retorna false se não há refresh token ou o refresh falhou.
+ */
+export async function refreshSessionAndSave(): Promise<boolean> {
+  const session = await getSession();
+  if (!session.refreshToken) return false;
+  return tryRefresh(session);
+}
+
+// Renova um pouco ANTES do vencimento real pra evitar 401 numa borda de expiração (o back valida
+// o access token com ClockSkew=0).
+const ACCESS_EXPIRY_BUFFER_MS = 30_000;
+
+function isAccessTokenExpired(session: SessionData): boolean {
+  if (!session.accessToken) return true;
+  if (!session.accessExpiresAt) return false; // sem info de expiração, deixa a chamada decidir
+  return new Date(session.accessExpiresAt).getTime() - ACCESS_EXPIRY_BUFFER_MS <= Date.now();
+}
+
+async function currentPathname(): Promise<string> {
+  const h = await headers();
+  return h.get('x-pathname') ?? '/home';
+}
+
+function sessionRefreshUrl(returnPath: string): string {
+  return `/api/session/refresh?return=${encodeURIComponent(returnPath)}`;
 }
 
 /**
