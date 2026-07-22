@@ -119,7 +119,7 @@ describe('UploadCard — revisão antes do envio', () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       status: 202,
-      json: async () => ({ batchId: 'b1', fileCount: 20, message: 'ok' }),
+      json: async () => ({ batchId: 'b1', fileCount: 20, duplicateCount: 0, message: 'ok' }),
     } as Response);
     render(<UploadCard />);
 
@@ -144,7 +144,7 @@ describe('UploadCard — revisão antes do envio', () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       status: 202,
-      json: async () => ({ batchId: 'b1', fileCount: 1, message: 'ok' }),
+      json: async () => ({ batchId: 'b1', fileCount: 1, duplicateCount: 0, message: 'ok' }),
     } as Response);
     render(<UploadCard />);
 
@@ -152,6 +152,58 @@ describe('UploadCard — revisão antes do envio', () => {
     clickEnviar();
 
     expect(await screen.findByText(/1 arquivo\(s\) enviado\(s\)/)).toBeInTheDocument();
+  });
+
+  // ── Duplicatas (detectadas pelo back via hash de conteúdo) ─────────────────
+
+  it('quando parte dos arquivos já existia, avisa quantos foram enviados e quantos eram duplicata', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 202,
+      json: async () => ({ batchId: 'b1', fileCount: 2, duplicateCount: 1, message: 'ok' }),
+    } as Response);
+    render(<UploadCard />);
+
+    await selectFiles([makeFile('a.pdf', 1000), makeFile('b.pdf', 1000), makeFile('c.pdf', 1000)]);
+    clickEnviar();
+
+    expect(await screen.findByText(/2 arquivo\(s\) enviado\(s\)/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/1 arquivo\(s\) já haviam sido enviados antes e não foram reprocessados/),
+    ).toBeInTheDocument();
+  });
+
+  it('quando todos os arquivos já existiam, avisa que nenhum foi reprocessado', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 202,
+      json: async () => ({ batchId: null, fileCount: 0, duplicateCount: 2, message: 'ok' }),
+    } as Response);
+    render(<UploadCard />);
+
+    await selectFiles([makeFile('a.pdf', 1000), makeFile('b.pdf', 1000)]);
+    clickEnviar();
+
+    expect(
+      await screen.findByText(/Todos os arquivos selecionados já haviam sido enviados e processados anteriormente/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/arquivo\(s\) enviado\(s\)/)).not.toBeInTheDocument();
+  });
+
+  it('quando só 1 arquivo já existia (de 1 só), avisa no singular', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 202,
+      json: async () => ({ batchId: null, fileCount: 0, duplicateCount: 1, message: 'ok' }),
+    } as Response);
+    render(<UploadCard />);
+
+    await selectFiles([makeFile('a.pdf', 1000)]);
+    clickEnviar();
+
+    expect(
+      await screen.findByText(/Esse arquivo já havia sido enviado e processado anteriormente/),
+    ).toBeInTheDocument();
   });
 
   it('mostra a mensagem do back quando ele rejeita (defesa em profundidade)', async () => {

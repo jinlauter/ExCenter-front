@@ -40,8 +40,10 @@ export interface MeResponse {
 // ── Blood tests ────────────────────────────────────────────────────────────
 
 export interface UploadBatchResponse {
-  batchId: string;
+  // Nulo quando todos os arquivos enviados eram duplicatas — nenhum batch chega a ser criado.
+  batchId: string | null;
   fileCount: number;
+  duplicateCount: number;
   message: string;
 }
 

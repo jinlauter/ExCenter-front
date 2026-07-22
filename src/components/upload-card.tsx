@@ -38,6 +38,21 @@ function formatFileSize(bytes: number) {
   return `${formatMegabytes(bytes)} MB`;
 }
 
+// O back detecta duplicata pelo hash do conteúdo (arquivo já enviado antes) e nunca chega a
+// processá-la de novo — aqui só traduzimos os três desfechos possíveis pro usuário.
+function buildUploadFeedbackMessage(fileCount: number, duplicateCount: number): string {
+  if (fileCount === 0) {
+    return duplicateCount === 1
+      ? 'Esse arquivo já havia sido enviado e processado anteriormente.'
+      : 'Todos os arquivos selecionados já haviam sido enviados e processados anteriormente.';
+  }
+
+  const sentPart = `${fileCount} arquivo(s) enviado(s). O processamento ocorre em segundo plano — acompanhe em "Exames enviados".`;
+  if (duplicateCount === 0) return sentPart;
+
+  return `${sentPart} ${duplicateCount} arquivo(s) já haviam sido enviados antes e não foram reprocessados.`;
+}
+
 interface Feedback {
   type: 'success' | 'error';
   message: string;
@@ -136,7 +151,7 @@ export function UploadCard() {
 
         setFeedback({
           type: 'success',
-          message: `${data.fileCount} arquivo(s) enviado(s). O processamento ocorre em segundo plano — acompanhe em "Exames enviados".`,
+          message: buildUploadFeedbackMessage(data.fileCount, data.duplicateCount),
         });
         setSelectedFiles([]);
       } catch {
