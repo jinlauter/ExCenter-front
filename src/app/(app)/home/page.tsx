@@ -3,14 +3,15 @@ import Link from 'next/link';
 import { backendFetchOrRedirect } from '@/lib/backend';
 import { UploadCard } from '@/components/upload-card';
 import { HomeGreeting } from '@/components/home-greeting';
-import type { SentFileResponse, UserProfileResponse } from '@/types/api';
+import type { SentFilesPageResponse, UserProfileResponse } from '@/types/api';
 
 // Home — server component. Busca o perfil (nome atualizado + sexo biológico,
-// que flexiona a saudação) e a contagem de exames enviados pro card de resumo.
+// que flexiona a saudação) e a contagem de exames enviados pro card de resumo
+// (pageSize=1: só o totalCount importa — não faz sentido baixar a lista inteira).
 export default async function HomePage() {
-  const [profile, files] = await Promise.all([
+  const [profile, sentFiles] = await Promise.all([
     backendFetchOrRedirect<UserProfileResponse>('/api/users/me'),
-    backendFetchOrRedirect<SentFileResponse[]>('/api/bloodtests/files'),
+    backendFetchOrRedirect<SentFilesPageResponse>('/api/bloodtests/files?page=1&pageSize=1'),
   ]);
 
   return (
@@ -27,7 +28,7 @@ export default async function HomePage() {
       <div className="mb-2 inline-flex items-center gap-4 rounded-lg border border-border bg-card p-4">
         <FileText className="h-8 w-8 shrink-0 text-primary" strokeWidth={1.75} />
         <div>
-          <p className="text-[22px] font-semibold leading-none">{files.length}</p>
+          <p className="text-[22px] font-semibold leading-none">{sentFiles.totalCount}</p>
           <p className="text-xs text-muted-foreground">Exames enviados</p>
         </div>
       </div>

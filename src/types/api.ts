@@ -47,6 +47,16 @@ export interface UploadBatchResponse {
   message: string;
 }
 
+// Página de "Exames enviados" — paginação/ordenação/busca acontecem no back
+// (GET /api/bloodtests/files?page=&pageSize=&sortBy=&sortDir=&search=).
+export interface SentFilesPageResponse {
+  items: SentFileResponse[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 export interface BatchFileStatusDto {
   fileName: string;
   status: string;

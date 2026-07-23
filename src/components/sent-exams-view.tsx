@@ -1,17 +1,32 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Search, RefreshCw, Download, Eye, Info, CloudUpload, ArrowRight } from 'lucide-react';
+import {
+  Search,
+  RefreshCw,
+  Download,
+  Eye,
+  Info,
+  CloudUpload,
+  ArrowRight,
+  ArrowUp,
+  ArrowDown,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 import { Tooltip } from '@/components/ui/tooltip';
 import { FilePreviewModal } from '@/components/file-preview-modal';
 import { cn } from '@/lib/utils';
-import type { SentFileResponse } from '@/types/api';
+import type { SentFileResponse, SentFilesPageResponse } from '@/types/api';
 
 const FILE_NAME_MAX_LENGTH = 50;
+const DEFAULT_PAGE_SIZE = 20;
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 function truncateFileName(name: string) {
   if (!name || name.length <= FILE_NAME_MAX_LENGTH) return name;
@@ -64,31 +79,6 @@ function formatExamDate(value: string) {
   return new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
 }
 
-function compareNullableDatesDesc(a?: string | null, b?: string | null): number {
-  if (!a && !b) return 0;
-  if (!a) return 1; // sem data do exame vai pro fim
-  if (!b) return -1;
-  return new Date(b).getTime() - new Date(a).getTime();
-}
-
-function compareNullableStringsAsc(a?: string | null, b?: string | null): number {
-  if (!a && !b) return 0;
-  if (!a) return 1; // sem médico solicitante vai pro fim
-  if (!b) return -1;
-  return a.localeCompare(b, 'pt-BR');
-}
-
-// Ordem: data do exame desc (mais recente primeiro), médico solicitante asc, data de envio asc.
-function compareFiles(a: SentFileResponse, b: SentFileResponse): number {
-  const examCmp = compareNullableDatesDesc(a.examDate, b.examDate);
-  if (examCmp !== 0) return examCmp;
-
-  const doctorCmp = compareNullableStringsAsc(a.requestingDoctor, b.requestingDoctor);
-  if (doctorCmp !== 0) return doctorCmp;
-
-  return new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime();
-}
-
 const IN_PROGRESS_STATUSES = new Set(['pending', 'processing', 'retrying']);
 
 // "Data do exame" e "Médico solicitante" vêm da extração por IA, então cada célula depende do
@@ -125,15 +115,78 @@ function ExtractedFieldCell({
   );
 }
 
-export function SentExamsView({ files }: { files: SentFileResponse[] }) {
+// Colunas ordenáveis — a chave é a aceita pelo back (whitelist SentFileSortField). Direção
+// default por coluna: datas começam desc (mais recente primeiro é o que se quer ver), textos asc.
+const SORTABLE_COLUMNS: { key: string; label: string; defaultDir: 'asc' | 'desc' }[] = [
+  { key: 'fileName', label: 'Arquivo', defaultDir: 'asc' },
+  { key: 'status', label: 'Status', defaultDir: 'asc' },
+  { key: 'examDate', label: 'Data do exame', defaultDir: 'desc' },
+  { key: 'requestingDoctor', label: 'Médico solicitante', defaultDir: 'asc' },
+  { key: 'sentAt', label: 'Enviado em', defaultDir: 'desc' },
+  { key: 'processedAt', label: 'Processado em', defaultDir: 'desc' },
+];
+
+interface SentExamsViewProps {
+  data: SentFilesPageResponse;
+  sortBy: string;
+  sortDir: 'asc' | 'desc';
+  search: string;
+}
+
+// Paginação/ordenação/busca são SERVER-SIDE (o back nunca devolve tudo) e vivem na URL —
+// cabeçalho clicado, página trocada ou busca digitada viram router.push de searchParams, o
+// server component refaz a query e este componente re-renderiza com a página nova. URL
+// compartilhável e sem estado duplicado entre client e servidor.
+export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewProps) {
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(search);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [isRefreshing, startRefresh] = useTransition();
+  const [isNavigating, startNavigation] = useTransition();
   const [previewFile, setPreviewFile] = useState<SentFileResponse | null>(null);
 
-  const filteredFiles = files
-    .filter((file) => file.fileName.toLowerCase().includes(searchTerm.trim().toLowerCase()))
-    .sort(compareFiles);
+  function pushParams(next: Partial<{ page: number; pageSize: number; sortBy: string; sortDir: string; q: string }>) {
+    const merged = {
+      page: data.page,
+      pageSize: data.pageSize,
+      sortBy,
+      sortDir,
+      q: search,
+      ...next,
+    };
+
+    // Só o que difere do default entra na URL — mantém endereços limpos e compartilháveis.
+    const qs = new URLSearchParams();
+    if (merged.page > 1) qs.set('page', String(merged.page));
+    if (merged.pageSize !== DEFAULT_PAGE_SIZE) qs.set('pageSize', String(merged.pageSize));
+    if (merged.sortBy !== 'examDate' || merged.sortDir !== 'desc') {
+      qs.set('sortBy', merged.sortBy);
+      qs.set('sortDir', merged.sortDir);
+    }
+    if (merged.q) qs.set('q', merged.q);
+
+    const query = qs.toString();
+    startNavigation(() => router.push(query ? `/exames-enviados?${query}` : '/exames-enviados'));
+  }
+
+  function toggleSort(column: (typeof SORTABLE_COLUMNS)[number]) {
+    if (sortBy === column.key) {
+      pushParams({ sortDir: sortDir === 'asc' ? 'desc' : 'asc', page: 1 });
+    } else {
+      pushParams({ sortBy: column.key, sortDir: column.defaultDir, page: 1 });
+    }
+  }
+
+  function onSearchChange(value: string) {
+    setSearchTerm(value);
+    clearTimeout(searchDebounceRef.current);
+    // Debounce: uma navegação (e uma query no back) por pausa de digitação, não por tecla.
+    searchDebounceRef.current = setTimeout(() => pushParams({ q: value.trim(), page: 1 }), 400);
+  }
+
+  const neverSentAnything = data.totalCount === 0 && !search;
+  const rangeStart = (data.page - 1) * data.pageSize + 1;
+  const rangeEnd = Math.min(data.page * data.pageSize, data.totalCount);
 
   return (
     <div>
@@ -158,7 +211,7 @@ export function SentExamsView({ files }: { files: SentFileResponse[] }) {
       {/* Atalho permanente pro upload: quem acompanha processamento aqui é quem tem exame novo
           pra mandar — sem isso, o caminho de volta pro envio (na home) fica escondido. Só some
           no estado vazio, que já tem o próprio convite de envio. */}
-      {files.length > 0 && (
+      {!neverSentAnything && (
         <Link
           href="/home"
           className="mb-4 flex items-center gap-3 rounded-xl border border-dashed border-primary-lighter bg-primary-light/30 px-4 py-3 transition-colors hover:bg-primary-light/60"
@@ -176,17 +229,19 @@ export function SentExamsView({ files }: { files: SentFileResponse[] }) {
         </Link>
       )}
 
-      <div className="relative mb-4">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nome do arquivo..."
-          className="bg-card pl-9"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
+      {!neverSentAnything && (
+        <div className="relative mb-4">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome do arquivo..."
+            className="bg-card pl-9"
+            value={searchTerm}
+            onChange={(e) => onSearchChange(e.target.value)}
+          />
+        </div>
+      )}
 
-      {files.length === 0 ? (
+      {neverSentAnything ? (
         <div className="rounded-lg border border-border bg-card p-10 text-center">
           <h2 className="text-base font-medium">Nenhum exame enviado ainda</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
@@ -197,89 +252,160 @@ export function SentExamsView({ files }: { files: SentFileResponse[] }) {
             Clique aqui para enviar exames
           </Link>
         </div>
-      ) : filteredFiles.length === 0 ? (
+      ) : data.totalCount === 0 ? (
         <div className="rounded-lg border border-border bg-card p-10 text-center">
           <h2 className="text-base font-medium">Nenhum arquivo encontrado</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-            Nenhum arquivo corresponde à busca &ldquo;{searchTerm}&rdquo;.
+            Nenhum arquivo corresponde à busca &ldquo;{search}&rdquo;.
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border bg-card">
-          <table className="w-full min-w-[900px] text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="px-4 py-3 text-left font-medium">Arquivo</th>
-                <th className="px-4 py-3 text-left font-medium">Status</th>
-                <th className="px-4 py-3 text-left font-medium">Data do exame</th>
-                <th className="px-4 py-3 text-left font-medium">Médico solicitante</th>
-                <th className="px-4 py-3 text-left font-medium">Enviado em</th>
-                <th className="px-4 py-3 text-left font-medium">Processado em</th>
-                <th className="px-4 py-3 text-right font-medium">Download</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredFiles.map((file) => {
-                const statusDisplay = getStatusDisplay(file);
-                const isInvalidExam = file.status === 'done' && file.isValidExam === false;
-                const statusReason = isInvalidExam ? file.invalidReason : null;
-
-                return (
-                  <tr key={file.fileId} className="border-b border-border last:border-0 hover:bg-muted/30">
-                    <td className="px-4 py-2.5" title={file.fileName}>
-                      {truncateFileName(file.fileName)}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusDisplay.className}`}
-                        >
-                          {statusDisplay.label}
-                        </span>
-                        {statusReason && (
-                          <span
-                            title={`O sistema interpretou que este arquivo é: "${statusReason}"`}
-                            className="cursor-help"
-                          >
-                            <Info className="h-3.5 w-3.5 text-amber-600" />
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-2.5 text-muted-foreground">
-                      <ExtractedFieldCell file={file} value={file.examDate} format={formatExamDate} />
-                    </td>
-                    <td className="px-4 py-2.5 text-muted-foreground">
-                      <ExtractedFieldCell file={file} value={file.requestingDoctor} format={(v) => v} />
-                    </td>
-                    <td className="px-4 py-2.5 text-muted-foreground">{formatDate(file.sentAt)}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground">{formatDate(file.processedAt)}</td>
-                    <td className="px-4 py-2.5 text-right">
-                      <div className="flex items-center justify-end gap-1">
+        <>
+          <div
+            className={cn(
+              'overflow-x-auto rounded-lg border border-border bg-card transition-opacity',
+              isNavigating && 'opacity-60',
+            )}
+          >
+            <table className="w-full min-w-[900px] text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  {SORTABLE_COLUMNS.map((column) => {
+                    const isActive = sortBy === column.key;
+                    return (
+                      <th key={column.key} className="px-4 py-3 text-left font-medium">
                         <button
                           type="button"
-                          title="Visualizar arquivo"
-                          onClick={() => setPreviewFile(file)}
-                          className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-8 w-8 text-primary')}
+                          onClick={() => toggleSort(column)}
+                          className={cn(
+                            'inline-flex items-center gap-1 font-medium transition-colors hover:text-primary',
+                            isActive && 'text-primary',
+                          )}
                         >
-                          <Eye className="h-4 w-4" />
+                          {column.label}
+                          {isActive &&
+                            (sortDir === 'asc' ? (
+                              <ArrowUp className="h-3.5 w-3.5" />
+                            ) : (
+                              <ArrowDown className="h-3.5 w-3.5" />
+                            ))}
                         </button>
-                        <a
-                          href={`/api/bloodtests/files/${file.fileId}/download`}
-                          download={file.fileName}
-                          title="Baixar arquivo original"
-                          className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-8 w-8 text-primary')}
-                        >
-                          <Download className="h-4 w-4" />
-                        </a>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </th>
+                    );
+                  })}
+                  <th className="px-4 py-3 text-right font-medium">Download</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.items.map((file) => {
+                  const statusDisplay = getStatusDisplay(file);
+                  const isInvalidExam = file.status === 'done' && file.isValidExam === false;
+                  const statusReason = isInvalidExam ? file.invalidReason : null;
+
+                  return (
+                    <tr key={file.fileId} className="border-b border-border last:border-0 hover:bg-muted/30">
+                      <td className="px-4 py-2.5" title={file.fileName}>
+                        {truncateFileName(file.fileName)}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusDisplay.className}`}
+                          >
+                            {statusDisplay.label}
+                          </span>
+                          {statusReason && (
+                            <span
+                              title={`O sistema interpretou que este arquivo é: "${statusReason}"`}
+                              className="cursor-help"
+                            >
+                              <Info className="h-3.5 w-3.5 text-amber-600" />
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-muted-foreground">
+                        <ExtractedFieldCell file={file} value={file.examDate} format={formatExamDate} />
+                      </td>
+                      <td className="px-4 py-2.5 text-muted-foreground">
+                        <ExtractedFieldCell file={file} value={file.requestingDoctor} format={(v) => v} />
+                      </td>
+                      <td className="px-4 py-2.5 text-muted-foreground">{formatDate(file.sentAt)}</td>
+                      <td className="px-4 py-2.5 text-muted-foreground">{formatDate(file.processedAt)}</td>
+                      <td className="px-4 py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            title="Visualizar arquivo"
+                            onClick={() => setPreviewFile(file)}
+                            className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-8 w-8 text-primary')}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <a
+                            href={`/api/bloodtests/files/${file.fileId}/download`}
+                            download={file.fileName}
+                            title="Baixar arquivo original"
+                            className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-8 w-8 text-primary')}
+                          >
+                            <Download className="h-4 w-4" />
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+            <span>
+              Mostrando {rangeStart}–{rangeEnd} de {data.totalCount}
+            </span>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2">
+                Por página
+                <Select
+                  className="h-8 w-[72px]"
+                  value={String(data.pageSize)}
+                  onChange={(e) => pushParams({ pageSize: Number(e.target.value), page: 1 })}
+                >
+                  {PAGE_SIZE_OPTIONS.map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  title="Página anterior"
+                  disabled={data.page <= 1 || isNavigating}
+                  onClick={() => pushParams({ page: data.page - 1 })}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="min-w-[90px] text-center">
+                  Página {data.page} de {Math.max(data.totalPages, 1)}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  title="Próxima página"
+                  disabled={data.page >= data.totalPages || isNavigating}
+                  onClick={() => pushParams({ page: data.page + 1 })}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {previewFile && (
