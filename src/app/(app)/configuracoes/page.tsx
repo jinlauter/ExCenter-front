@@ -1,5 +1,6 @@
 import { backendFetchOrRedirect } from '@/lib/backend';
 import { ProfileSettingsForm } from '@/components/profile-settings-form';
+import { ClearDataSection } from '@/components/clear-data-section';
 import type { UserProfileResponse } from '@/types/api';
 
 // Configurações — server component. Busca o perfil server-side e passa como
@@ -15,6 +16,10 @@ export default async function ConfiguracoesPage() {
       </p>
 
       <ProfileSettingsForm initialProfile={profile} />
+
+      <div className="pt-4">
+        <ClearDataSection />
+      </div>
     </div>
   );
 }
