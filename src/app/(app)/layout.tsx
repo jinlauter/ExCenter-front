@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/session';
 import { backendFetchOrRedirect } from '@/lib/backend';
 import { SidebarShell } from '@/components/sidebar-shell';
+import { SessionExpiredWatcher } from '@/components/session-expired-watcher';
 import type { UserProfileResponse } from '@/types/api';
 
 // Layout das rotas autenticadas — busca a sessão server-side e passa o
@@ -25,6 +26,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         avatarUpdatedAt={profile.avatarUpdatedAt}
       />
       <main className="flex-1 p-6 md:p-10">{children}</main>
+      {/* Aviso proativo de sessão morta — sem ele, o usuário só descobre quando a
+          próxima ação falha com erro seco. Ver comentário no componente. */}
+      <SessionExpiredWatcher />
     </div>
   );
 }

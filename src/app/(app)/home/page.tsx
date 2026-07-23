@@ -1,23 +1,27 @@
 import { FileText, LineChart } from 'lucide-react';
 import Link from 'next/link';
-import { getSession } from '@/lib/session';
 import { backendFetchOrRedirect } from '@/lib/backend';
 import { UploadCard } from '@/components/upload-card';
 import { HomeGreeting } from '@/components/home-greeting';
-import type { SentFileResponse } from '@/types/api';
+import type { SentFileResponse, UserProfileResponse } from '@/types/api';
 
-// Home — server component. Pega o nome da sessão para a saudação e a
-// contagem de exames enviados pro card de resumo.
+// Home — server component. Busca o perfil (nome atualizado + sexo biológico,
+// que flexiona a saudação) e a contagem de exames enviados pro card de resumo.
 export default async function HomePage() {
-  const session = await getSession();
-  const username = session.username ?? 'usuário';
-  const files = await backendFetchOrRedirect<SentFileResponse[]>('/api/bloodtests/files');
+  const [profile, files] = await Promise.all([
+    backendFetchOrRedirect<UserProfileResponse>('/api/users/me'),
+    backendFetchOrRedirect<SentFileResponse[]>('/api/bloodtests/files'),
+  ]);
 
   return (
     <div className="space-y-4">
       <header>
-        <HomeGreeting username={username} />
-        <p className="mt-0.5 text-sm text-muted-foreground">Pronto para acompanhar sua saúde?</p>
+        <HomeGreeting username={profile.username} biologicalSex={profile.biologicalSex} />
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          {profile.biologicalSex?.toLowerCase() === 'feminino'
+            ? 'Pronta para acompanhar sua saúde?'
+            : 'Pronto para acompanhar sua saúde?'}
+        </p>
       </header>
 
       <div className="mb-2 inline-flex items-center gap-4 rounded-lg border border-border bg-card p-4">

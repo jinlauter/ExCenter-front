@@ -26,7 +26,6 @@ export interface HistoryAnalysis {
   trendable: ParamSeries[];
   latestExam: ExamInfo | null;
   groups: Map<string, ResultWithDelta[]>;
-  laboratories: string[];
 }
 
 // Mesmo nome de parâmetro pode aparecer com unidades diferentes no mesmo exame (ex:
@@ -99,7 +98,5 @@ export function computeHistoryAnalysis(results: BloodTestResultQueryResponse[]):
     groups.get(key)!.push({ ...r, delta });
   }
 
-  const laboratories = [...new Set(examsSorted.map((e) => e.laboratoryName).filter(Boolean))] as string[];
-
-  return { examsSorted, trendable, latestExam, groups, laboratories };
+  return { examsSorted, trendable, latestExam, groups };
 }

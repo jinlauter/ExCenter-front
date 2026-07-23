@@ -64,12 +64,6 @@ export function HistoryView({ results }: { results: BloodTestResultQueryResponse
           </p>
           <p className="text-xs text-muted-foreground">Período coberto</p>
         </Card>
-        {analysis.laboratories.length > 0 && (
-          <Card className="min-w-[200px] border-border p-4">
-            <p className="text-sm font-semibold leading-tight">{analysis.laboratories.join(', ')}</p>
-            <p className="text-xs text-muted-foreground">Laboratório(s)</p>
-          </Card>
-        )}
       </div>
 
       {analysis.trendable.length > 0 ? (

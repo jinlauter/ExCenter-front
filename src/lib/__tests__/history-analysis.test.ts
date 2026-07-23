@@ -115,15 +115,4 @@ describe('computeHistoryAnalysis', () => {
     expect(analysis.trendable).toEqual([]);
   });
 
-  it('lista laboratórios únicos, ignorando nulos', () => {
-    const results = [
-      makeResult({ testId: 'e1', testDate: '2026-01-01T00:00:00Z', laboratoryName: 'Lab A' }),
-      makeResult({ testId: 'e2', testDate: '2026-02-01T00:00:00Z', laboratoryName: 'Lab A' }),
-      makeResult({ testId: 'e3', testDate: '2026-03-01T00:00:00Z', laboratoryName: null }),
-    ];
-
-    const analysis = computeHistoryAnalysis(results);
-
-    expect(analysis.laboratories).toEqual(['Lab A']);
-  });
 });
