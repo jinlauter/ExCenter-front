@@ -23,6 +23,12 @@ function formatDateShort(date: Date) {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
+// Formato compacto só pro eixo X ("01/02/18") — o formato por extenso ocupa ~85px por rótulo e
+// vira sopa de texto sobreposto com vários exames; o tooltip continua usando o formato longo.
+function formatDateAxis(date: Date) {
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
 function formatValue(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, '');
 }
@@ -78,6 +84,23 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
     return { xScale, yScale, yTicks, bandY: bandTop, bandH: bandBottom - bandTop };
   }, [points, referenceRange]);
 
+  // Rotula só pontos com folga horizontal mínima entre si (varredura da esquerda pra direita).
+  // Um rótulo por ponto sobrepõe texto assim que os exames passam de ~6 ou têm datas próximas —
+  // era o bug do desktop. O eixo é um guia; a data exata de cada ponto continua no hover.
+  const labeledIndices = useMemo(() => {
+    const MIN_LABEL_GAP = 64; // px do viewBox: "01/02/18" a fontSize 10 ≈ 46px + respiro
+    const chosen = new Set<number>();
+    let lastX = -Infinity;
+    points.forEach((p, i) => {
+      const x = xScale(p.date.getTime());
+      if (x - lastX >= MIN_LABEL_GAP) {
+        chosen.add(i);
+        lastX = x;
+      }
+    });
+    return chosen;
+  }, [points, xScale]);
+
   const path = points
     .map((p, i) => `${i === 0 ? 'M' : 'L'} ${xScale(p.date.getTime())} ${yScale(p.value)}`)
     .join(' ');
@@ -102,7 +125,10 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
   const referenceCaption = formatReferenceCaption(referenceRange, unit);
 
   return (
-    <div className="relative w-full">
+    // max-w trava o SVG perto do tamanho nativo do viewBox (680px): sem isso, em monitor largo o
+    // `w-full` escalava o gráfico ~3x (fonte, pontos, tudo) — o "gráfico gigante" do desktop.
+    // Em telas menores que o teto, segue 100% fluido (o responsivo mobile continua igual).
+    <div className="relative w-full max-w-[760px]">
       {referenceCaption && <p className="mb-1 text-[11px] text-muted-foreground">{referenceCaption}</p>}
       <svg
         ref={svgRef}
@@ -159,19 +185,21 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
             </g>
           ))}
 
-          {points.map((p, i) => (
-            <text
-              key={i}
-              x={xScale(p.date.getTime())}
-              y={PLOT_H + 20}
-              textAnchor="middle"
-              fontSize={10}
-              fill={PRIMARY_DARK}
-              opacity={0.6}
-            >
-              {formatDateShort(p.date)}
-            </text>
-          ))}
+          {points.map((p, i) =>
+            labeledIndices.has(i) ? (
+              <text
+                key={i}
+                x={xScale(p.date.getTime())}
+                y={PLOT_H + 20}
+                textAnchor="middle"
+                fontSize={10}
+                fill={PRIMARY_DARK}
+                opacity={0.6}
+              >
+                {formatDateAxis(p.date)}
+              </text>
+            ) : null,
+          )}
 
           <path d={path} fill="none" stroke={PRIMARY} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
 
@@ -187,7 +215,16 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
             />
           ))}
 
-          <text x={xScale(last!.date.getTime()) + 10} y={yScale(last!.value) - 10} fontSize={12} fontWeight={600} fill={PRIMARY_DARK}>
+          {/* Ancorado no fim (right-aligned na borda direita do viewBox) — com anchor no início a
+              partir do último ponto, o texto estourava a margem direita e era cortado ("109 mg/"). */}
+          <text
+            x={PLOT_W + MARGIN.right - 2}
+            y={yScale(last!.value) - 10}
+            textAnchor="end"
+            fontSize={12}
+            fontWeight={600}
+            fill={PRIMARY_DARK}
+          >
             {formatValue(last!.value)}
             {unit ? ` ${unit}` : ''}
           </text>

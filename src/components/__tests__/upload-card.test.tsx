@@ -84,6 +84,43 @@ describe('UploadCard — revisão antes do envio', () => {
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50');
   });
 
+  it('selecionar mais arquivos ACUMULA na seleção existente (não substitui)', async () => {
+    render(<UploadCard />);
+
+    await selectFiles([makeFile('a.pdf', 1024)]);
+    await selectFiles([makeFile('b.pdf', 2048)]);
+
+    expect(screen.getByText('a.pdf')).toBeInTheDocument();
+    expect(screen.getByText('b.pdf')).toBeInTheDocument();
+    expect(screen.getByText('2 de 20 arquivos selecionados')).toBeInTheDocument();
+  });
+
+  it('não duplica o mesmo arquivo reselecionado (dedupe por nome+tamanho)', async () => {
+    render(<UploadCard />);
+
+    await selectFiles([makeFile('a.pdf', 1024)]);
+    await selectFiles([makeFile('a.pdf', 1024), makeFile('b.pdf', 512)]);
+
+    expect(screen.getByText('2 de 20 arquivos selecionados')).toBeInTheDocument();
+  });
+
+  it('mostra o quadrado "Selecionar mais" junto dos arquivos, sem o antigo "Trocar seleção"', async () => {
+    render(<UploadCard />);
+
+    await selectFiles([makeFile('a.pdf', 1024)]);
+
+    expect(screen.getByRole('button', { name: /Selecionar mais/ })).toBeInTheDocument();
+    expect(screen.queryByText('Trocar seleção')).not.toBeInTheDocument();
+  });
+
+  it('esconde o "Selecionar mais" quando a seleção atinge o limite de 20', async () => {
+    render(<UploadCard />);
+
+    await selectFiles(Array.from({ length: 20 }, (_, i) => makeFile(`exame${i}.pdf`, 1000)));
+
+    expect(screen.queryByRole('button', { name: /Selecionar mais/ })).not.toBeInTheDocument();
+  });
+
   it('remover um arquivo tira ele da seleção e atualiza a contagem', async () => {
     render(<UploadCard />);
     await selectFiles([makeFile('a.pdf', 1024), makeFile('b.pdf', 1024)]);

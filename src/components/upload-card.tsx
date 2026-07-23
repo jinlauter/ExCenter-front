@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { CloudUpload, FileText, Loader2, X } from 'lucide-react';
+import { CloudUpload, FileText, Loader2, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -80,12 +80,22 @@ export function UploadCard() {
     inputRef.current?.click();
   }
 
+  // ACUMULA na seleção existente (não substitui): o quadrado "+" reabre o seletor nativo, que
+  // só devolve os arquivos da nova escolha — sem o merge aqui, escolher mais arquivos apagaria
+  // os já selecionados. Dedupe por nome+tamanho cobre o usuário reselecionando o mesmo arquivo.
   function handleFiles(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = ''; // permite reselecionar mesmo arquivo
-    if (files.length === 0) return;
+    const picked = Array.from(event.target.files ?? []);
+    event.target.value = ''; // permite reselecionar mesmo arquivo depois de removê-lo
+    if (picked.length === 0) return;
 
-    const rejected = files.filter((file) => !hasAcceptedExtension(file.name));
+    const rejected = picked.filter((file) => !hasAcceptedExtension(file.name));
+    const accepted = picked.filter((file) => hasAcceptedExtension(file.name));
+
+    setSelectedFiles((prev) => {
+      const existing = new Set(prev.map((f) => `${f.name}-${f.size}`));
+      return [...prev, ...accepted.filter((f) => !existing.has(`${f.name}-${f.size}`))];
+    });
+
     if (rejected.length > 0) {
       setFeedback({
         type: 'error',
@@ -93,13 +103,10 @@ export function UploadCard() {
           .map((f) => f.name)
           .join(', ')}.`,
       });
-      const accepted = files.filter((file) => hasAcceptedExtension(file.name));
-      setSelectedFiles(accepted);
       return;
     }
 
     setFeedback(null);
-    setSelectedFiles(files);
   }
 
   function removeFile(index: number) {
@@ -210,20 +217,10 @@ export function UploadCard() {
         </div>
       ) : (
         <div className="space-y-4 rounded-3xl border border-border bg-card p-5">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-medium">
-              {fileCount} de {MAX_FILES} arquivo{fileCount === 1 ? '' : 's'} selecionado
-              {fileCount === 1 ? '' : 's'}
-            </h2>
-            <button
-              type="button"
-              onClick={trigger}
-              disabled={isPending}
-              className="text-xs font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Trocar seleção
-            </button>
-          </div>
+          <h2 className="text-sm font-medium">
+            {fileCount} de {MAX_FILES} arquivo{fileCount === 1 ? '' : 's'} selecionado
+            {fileCount === 1 ? '' : 's'}
+          </h2>
 
           <div className="flex flex-wrap gap-3">
             {selectedFiles.map((file, index) => (
@@ -247,6 +244,20 @@ export function UploadCard() {
                 <p className="text-[11px] text-muted-foreground">{formatFileSize(file.size)}</p>
               </div>
             ))}
+
+            {/* Quadrado "+" no fim da fileira: reabre o seletor e ACUMULA (ver handleFiles). Some
+                quando a seleção atinge o limite — adicionar mais só gearia o erro de contagem. */}
+            {fileCount < MAX_FILES && (
+              <button
+                type="button"
+                onClick={trigger}
+                disabled={isPending}
+                className="flex h-24 w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-primary-lighter bg-primary-light/30 p-2 text-center text-primary transition-colors hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Plus className="h-7 w-7" strokeWidth={1.5} />
+                <span className="px-1 text-xs font-medium leading-tight">Selecionar mais</span>
+              </button>
+            )}
           </div>
 
           {selectionError && (

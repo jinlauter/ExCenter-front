@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Search, RefreshCw, Download, Eye, Info } from 'lucide-react';
+import { Search, RefreshCw, Download, Eye, Info, CloudUpload, ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -154,6 +154,27 @@ export function SentExamsView({ files }: { files: SentFileResponse[] }) {
           <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
         </Button>
       </div>
+
+      {/* Atalho permanente pro upload: quem acompanha processamento aqui é quem tem exame novo
+          pra mandar — sem isso, o caminho de volta pro envio (na home) fica escondido. Só some
+          no estado vazio, que já tem o próprio convite de envio. */}
+      {files.length > 0 && (
+        <Link
+          href="/home"
+          className="mb-4 flex items-center gap-3 rounded-xl border border-dashed border-primary-lighter bg-primary-light/30 px-4 py-3 transition-colors hover:bg-primary-light/60"
+        >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-light">
+            <CloudUpload className="h-5 w-5 text-primary" strokeWidth={1.5} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">Tem mais exames pra enviar?</p>
+            <p className="text-xs text-muted-foreground">
+              Envie novos PDFs ou imagens — o processamento começa na hora e você acompanha por aqui.
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 shrink-0 text-primary" />
+        </Link>
+      )}
 
       <div className="relative mb-4">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
