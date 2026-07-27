@@ -1,8 +1,12 @@
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { backendFetchOrRedirect } from '@/lib/backend';
 import { HistoryView } from '@/components/history-view';
 import type { BloodTestResultQueryResponse } from '@/types/api';
 
-export default async function HistoryPage() {
+// Visão "geral" do histórico: todos os parâmetros de todos os exames, cruzados, com gráficos
+// de evolução. A visão exame-a-exame (a principal, que o médico usa) vive em /resultados.
+export default async function GeneralHistoryPage() {
   const results = await backendFetchOrRedirect<BloodTestResultQueryResponse[]>('/api/bloodtests/results/query', {
     method: 'POST',
     body: {},
@@ -11,9 +15,16 @@ export default async function HistoryPage() {
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-2xl font-medium">Histórico de exames</h1>
+        <Link
+          href="/resultados"
+          className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Voltar para Resultado de exames
+        </Link>
+        <h1 className="text-2xl font-medium">Histórico geral</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Visualize a evolução dos seus parâmetros ao longo do tempo.
+          Visualize a evolução dos seus parâmetros ao longo do tempo, cruzando todos os exames.
         </p>
       </header>
 

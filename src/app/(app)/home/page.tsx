@@ -50,14 +50,14 @@ export default async function HomePage() {
         </Link>
 
         <Link
-          href="/historico"
+          href="/resultados"
           className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary-lighter"
         >
           <div className="flex items-start gap-2">
             <LineChart className="h-[38px] w-[38px] shrink-0 text-primary" strokeWidth={1.75} />
             <div>
-              <p className="text-[13px] font-medium leading-tight">Histórico</p>
-              <p className="text-xs text-muted-foreground">Veja seus gráficos ao longo do tempo</p>
+              <p className="text-[13px] font-medium leading-tight">Resultado de exames</p>
+              <p className="text-xs text-muted-foreground">Veja o resultado de cada exame processado</p>
             </div>
           </div>
         </Link>

@@ -131,7 +131,7 @@ describe('LoginForm', () => {
   });
 
   it('em sucesso, redireciona pra "from" validado e atualiza a sessão do server', async () => {
-    searchParams = new URLSearchParams({ from: '/historico' });
+    searchParams = new URLSearchParams({ from: '/resultados' });
     vi.mocked(fetch).mockResolvedValueOnce({ ok: true, status: 200 } as Response);
     const user = userEvent.setup();
     render(<LoginForm />);
@@ -140,7 +140,7 @@ describe('LoginForm', () => {
     await user.type(screen.getByLabelText('Senha'), 'senha123');
     await user.click(screen.getByRole('button', { name: 'Entrar' }));
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/historico'));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/resultados'));
     expect(refresh).toHaveBeenCalled();
   });
 

@@ -119,6 +119,27 @@ export interface SentFileResponse {
   requestingDoctor?: string | null;
 }
 
+// ── Resultado de exames (tela principal do médico/usuário) ─────────────────
+
+export interface ProcessedExamListItem {
+  testId: string;
+  examDate?: string | null;
+  requestingDoctor?: string | null;
+  laboratoryName?: string | null;
+  /** Painéis/exames do laudo (ex: "Hemograma"), deduplicados, na ordem do documento. */
+  includedExams: string[];
+  resultCount: number;
+  abnormalCount: number;
+}
+
+export interface ProcessedExamsPageResponse {
+  items: ProcessedExamListItem[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 // ── User profile (tela de Configurações) ───────────────────────────────────
 
 export interface UserProfileResponse {

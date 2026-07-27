@@ -9,7 +9,9 @@ import { cn } from '@/lib/utils';
 const ITEMS = [
   { href: '/home', label: 'Início', Icon: Home },
   { href: '/exames-enviados', label: 'Exames enviados', Icon: FileText },
-  { href: '/historico', label: 'Histórico de exames', Icon: LineChart },
+  // O startsWith do estado ativo cobre as sub-rotas: /resultados/geral e
+  // /resultados/[testId] mantêm este item aceso.
+  { href: '/resultados', label: 'Resultado de exames', Icon: LineChart },
   { href: '/configuracoes', label: 'Configurações', Icon: Settings },
 ] as const;
 

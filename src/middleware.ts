@@ -17,7 +17,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 const DEFAULT_COOKIE_NAME = 'excenter-session';
 const COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? DEFAULT_COOKIE_NAME;
 
-const PROTECTED_PREFIXES = ['/home', '/exames-enviados', '/historico', '/configuracoes'];
+const PROTECTED_PREFIXES = ['/home', '/exames-enviados', '/resultados', '/configuracoes'];
 const AUTH_ROUTES = ['/login', '/registrar'];
 
 export function middleware(request: NextRequest) {

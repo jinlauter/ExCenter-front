@@ -27,6 +27,6 @@ describe('safeRedirectPath', () => {
 
   it('aceita caminhos internos válidos', () => {
     expect(safeRedirectPath('/configuracoes')).toBe('/configuracoes');
-    expect(safeRedirectPath('/historico?tab=recentes')).toBe('/historico?tab=recentes');
+    expect(safeRedirectPath('/resultados?page=2')).toBe('/resultados?page=2');
   });
 });
