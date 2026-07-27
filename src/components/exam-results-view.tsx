@@ -22,12 +22,42 @@ import type { ProcessedExamListItem, ProcessedExamsPageResponse } from '@/types/
 const DEFAULT_PAGE_SIZE = 20;
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
+// Mesmo corte da tela de Exames enviados: 22 caracteres com o nome completo no tooltip.
+// Consistência entre telas E largura — sem isso a coluna do médico empurra "Ações" pra fora
+// numa tela de notebook.
+const DOCTOR_NAME_MAX_LENGTH = 22;
+
 // Quantos exames/painéis aparecem direto na célula — o restante vai pro tooltip. Três é o
 // máximo que cabe sem disputar largura com as outras colunas num laudo típico.
 const INLINE_EXAM_NAMES = 3;
+// Orçamento de caracteres da célula: nomes de exame brasileiros são compridos ("Hemograma
+// com Contagem de Plaquetas", "Transaminase oxalacética - TGO...") e três deles quebravam a
+// célula em 5-6 linhas, deixando as alturas da tabela desiguais. A regra vira: até 3 nomes,
+// MAS só enquanto couberem no orçamento — senão 2, senão 1 (cortado, se nem sozinho couber).
+const INLINE_CHAR_BUDGET = 52;
 // Teto do tooltip: laudos grandes têm 15+ painéis; acima disso a lista vira poluição e a
 // linha final "..." já comunica que existe mais.
 const TOOLTIP_EXAM_NAMES = 10;
+
+// Decide o que aparece inline: o maior prefixo (até 3 nomes) que cabe no orçamento, sempre
+// mostrando ao menos 1 — nome gigante solitário é cortado no orçamento com reticências.
+export function pickInlineExams(names: string[]): { inline: string; truncated: boolean } {
+  if (names.length === 0) return { inline: '', truncated: false };
+
+  let shown = 0;
+  let joined = '';
+  for (const name of names.slice(0, INLINE_EXAM_NAMES)) {
+    const candidate = shown === 0 ? name : `${joined}, ${name}`;
+    if (shown > 0 && candidate.length > INLINE_CHAR_BUDGET) break;
+    joined = candidate;
+    shown += 1;
+  }
+
+  if (joined.length > INLINE_CHAR_BUDGET) {
+    return { inline: `${joined.slice(0, INLINE_CHAR_BUDGET)}...`, truncated: true };
+  }
+  return { inline: joined, truncated: shown < names.length };
+}
 
 function formatExamDate(value?: string | null) {
   if (!value) return null;
@@ -57,10 +87,11 @@ function MissingValue({ label }: { label: string }) {
 function IncludedExamsCell({ names }: { names: string[] }) {
   if (names.length === 0) return <MissingValue label="os exames" />;
 
-  const inline = names.slice(0, INLINE_EXAM_NAMES).join(', ');
-  const hasMore = names.length > INLINE_EXAM_NAMES;
+  const { inline, truncated } = pickInlineExams(names);
 
-  if (!hasMore) return <span>{inline}</span>;
+  // whitespace-nowrap é o que garante alturas de linha uniformes na tabela — o orçamento de
+  // caracteres já assegurou que o conteúdo cabe sem quebrar.
+  if (!truncated) return <span className="whitespace-nowrap">{inline}</span>;
 
   const tooltipContent = (
     <>
@@ -75,8 +106,8 @@ function IncludedExamsCell({ names }: { names: string[] }) {
 
   return (
     <Tooltip content={tooltipContent} placement="right">
-      <span className="inline-flex cursor-help items-center gap-1.5">
-        <span>{inline}...</span>
+      <span className="inline-flex cursor-help items-center gap-1.5 whitespace-nowrap">
+        <span>{inline.endsWith('...') ? inline : `${inline}...`}</span>
         <Info className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       </span>
     </Tooltip>
@@ -220,7 +251,19 @@ export function ExamResultsView({ data }: ExamResultsViewProps) {
                         {formatExamDate(exam.examDate) ?? <MissingValue label="a data" />}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2.5 text-muted-foreground">
-                        {exam.requestingDoctor ?? <MissingValue label="o médico solicitante" />}
+                        {exam.requestingDoctor ? (
+                          exam.requestingDoctor.length > DOCTOR_NAME_MAX_LENGTH ? (
+                            <Tooltip content={exam.requestingDoctor}>
+                              <span className="cursor-help">
+                                {`${exam.requestingDoctor.slice(0, DOCTOR_NAME_MAX_LENGTH)}...`}
+                              </span>
+                            </Tooltip>
+                          ) : (
+                            exam.requestingDoctor
+                          )
+                        ) : (
+                          <MissingValue label="o médico solicitante" />
+                        )}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2.5 text-muted-foreground">
                         {exam.laboratoryName ?? <MissingValue label="o laboratório" />}

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ExamResultsView } from '@/components/exam-results-view';
+import { ExamResultsView, pickInlineExams } from '@/components/exam-results-view';
 import type { ProcessedExamListItem, ProcessedExamsPageResponse } from '@/types/api';
 
 const push = vi.fn();
@@ -68,15 +68,20 @@ describe('ExamResultsView — colunas principais', () => {
 
   // Data/médico/lab vêm da extração por IA e podem legitimamente faltar — "—" com tooltip
   // explicando, nunca célula vazia sem contexto (tratamento combinado no planejamento).
-  it('campos não extraídos mostram "—" com tooltip explicativo', () => {
+  it('campos não extraídos mostram "—" com tooltip explicativo', async () => {
     const { container } = renderView([
       makeExam({ examDate: null, requestingDoctor: null, laboratoryName: null }),
     ]);
 
+    // O tooltip só monta no DOM durante o hover (ver ui/tooltip.tsx) — pairar em cada célula.
     for (const col of [0, 1, 2]) {
       const cell = dataCell(container, col);
       expect(cell.textContent).toContain('—');
-      expect(cell.querySelector('[role="tooltip"]')?.textContent).toMatch(/Não foi possível extrair/);
+
+      const trigger = cell.querySelector('.cursor-help')!;
+      await userEvent.hover(trigger);
+      expect(await screen.findByRole('tooltip')).toHaveTextContent(/Não foi possível extrair/);
+      await userEvent.unhover(trigger);
     }
   });
 });
@@ -90,27 +95,66 @@ describe('ExamResultsView — célula "Exames incluídos"', () => {
     expect(cell.querySelector('[role="tooltip"]')).toBeNull();
   });
 
-  it('mais de 3: mostra 3 + "..." e tooltip à direita com a lista completa', () => {
+  it('mais de 3: mostra 3 + "..." e tooltip à direita com a lista completa', async () => {
     const names = ['Hemograma', 'Ferritina', 'Glicose', 'TSH', 'Vitamina D'];
     const { container } = renderView([makeExam({ includedExams: names })]);
 
     const cell = dataCell(container, 3);
     expect(cell.textContent).toContain('Hemograma, Ferritina, Glicose...');
 
-    const tooltip = cell.querySelector('[role="tooltip"]')!;
+    await userEvent.hover(cell.querySelector('.cursor-help')!);
+    const tooltip = await screen.findByRole('tooltip');
     for (const name of names) expect(tooltip.textContent).toContain(name);
   });
 
   // Laudo grande: tooltip lista só 10 e sinaliza que há mais com uma linha "..." — o teto
   // existe pra lista não virar um poste; a completude fica pra página de detalhe.
-  it('mais de 10: tooltip corta em 10 e adiciona linha "..."', () => {
+  it('mais de 10: tooltip corta em 10 e adiciona linha "..."', async () => {
     const names = Array.from({ length: 14 }, (_, i) => `Painel ${i + 1}`);
     const { container } = renderView([makeExam({ includedExams: names })]);
 
-    const tooltip = dataCell(container, 3).querySelector('[role="tooltip"]')!;
+    const cell = dataCell(container, 3);
+    await userEvent.hover(cell.querySelector('.cursor-help')!);
+    const tooltip = await screen.findByRole('tooltip');
     expect(tooltip.textContent).toContain('Painel 10');
     expect(tooltip.textContent).not.toContain('Painel 11');
     expect(tooltip.textContent).toMatch(/\.\.\.$/);
+  });
+});
+
+// Orçamento de caracteres da célula: nomes brasileiros de exame são longos, e 3 deles
+// quebravam a célula em 5-6 linhas — as alturas da tabela ficavam desiguais (visto em tela
+// com dados reais). A regra: até 3 nomes, MAS só enquanto couberem no orçamento.
+describe('pickInlineExams — orçamento de caracteres', () => {
+  it('3 nomes curtos cabem inteiros', () => {
+    expect(pickInlineExams(['Hemograma', 'Ferritina', 'Glicose'])).toEqual({
+      inline: 'Hemograma, Ferritina, Glicose',
+      truncated: false,
+    });
+  });
+
+  it('nomes longos derrubam pra 2 (ou 1) em vez de quebrar linha', () => {
+    const { inline, truncated } = pickInlineExams([
+      'Hemograma com Contagem de Plaquetas',
+      'Transaminase oxalacética - TGO (Aspartato amino transferase)',
+      'Colesterol Total',
+    ]);
+
+    expect(inline).toBe('Hemograma com Contagem de Plaquetas');
+    expect(truncated).toBe(true);
+  });
+
+  it('um único nome gigante é cortado no orçamento', () => {
+    const gigante = 'Detecção qualitativa de Coronavírus (SARS-CoV-2) por RT-PCR em tempo real';
+    const { inline, truncated } = pickInlineExams([gigante]);
+
+    expect(inline.length).toBeLessThanOrEqual(55); // orçamento + "..."
+    expect(inline.endsWith('...')).toBe(true);
+    expect(truncated).toBe(true);
+  });
+
+  it('truncated=true quando há mais nomes que os exibidos, mesmo todos curtos', () => {
+    expect(pickInlineExams(['A', 'B', 'C', 'D']).truncated).toBe(true);
   });
 });
 

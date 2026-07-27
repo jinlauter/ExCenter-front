@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SentExamsView } from '@/components/sent-exams-view';
 import type { SentFileResponse, SentFilesPageResponse } from '@/types/api';
@@ -72,15 +72,18 @@ beforeEach(() => {
 describe('SentExamsView — colunas de data do exame e médico solicitante', () => {
   it.each(['pending', 'processing', 'retrying'])(
     'status=%s sem valor: mostra tooltip de "ainda em processamento"',
-    (status) => {
+    async (status) => {
       const { container } = renderView([
         makeFile({ status, isValidExam: undefined, examDate: null, requestingDoctor: null }),
       ]);
 
-      expect(dataCell(container, 2).textContent).toContain('—');
-      expect(
-        screen.getAllByText('Ainda em processamento — se essa informação estiver no exame, será preenchida automaticamente.'),
-      ).toHaveLength(2); // uma pra cada coluna (data do exame + médico solicitante)
+      // As DUAS colunas extraídas por IA (data do exame + médico) têm o gatilho de tooltip.
+      expect(dataCell(container, 2).querySelector('.cursor-help')).not.toBeNull();
+      expect(dataCell(container, 3).querySelector('.cursor-help')).not.toBeNull();
+
+      // O tooltip só monta no DOM durante o hover (ver ui/tooltip.tsx).
+      await userEvent.hover(dataCell(container, 2).querySelector('.cursor-help')!);
+      expect(await screen.findByRole('tooltip')).toHaveTextContent('Ainda em processamento');
     },
   );
 
@@ -96,7 +99,7 @@ describe('SentExamsView — colunas de data do exame e médico solicitante', () 
   // O nome vem inteiro do laudo e é a coluna que mais empurrava a largura da tabela. Corta na
   // exibição, mas o valor completo continua alcançável pelo tooltip — e o corte NÃO pode
   // alterar o dado, que é chave de agrupamento/ordenação no banco.
-  it('médico com nome longo: corta na exibição e mostra o nome inteiro no tooltip', () => {
+  it('médico com nome longo: corta na exibição e mostra o nome inteiro no tooltip', async () => {
     const { container } = renderView([
       makeFile({
         status: 'done',
@@ -108,7 +111,10 @@ describe('SentExamsView — colunas de data do exame e médico solicitante', () 
 
     const cell = dataCell(container, 3);
     expect(cell.textContent).toContain('Luis Eduardo Agner Mac...');
-    expect(cell.querySelector('[role="tooltip"]')).toHaveTextContent('Luis Eduardo Agner Machado Martins');
+
+    // O tooltip só entra no DOM durante o hover (ver ui/tooltip.tsx) — pairar é parte do teste.
+    await userEvent.hover(cell.querySelector('.cursor-help')!);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Luis Eduardo Agner Machado Martins');
   });
 
   it('médico com nome curto: exibe inteiro e sem tooltip (nada foi escondido)', () => {
@@ -126,13 +132,14 @@ describe('SentExamsView — colunas de data do exame e médico solicitante', () 
     expect(cell.querySelectorAll('[role="tooltip"]')).toHaveLength(0);
   });
 
-  it('done + exame válido + campos vazios: mostra tooltip de "não foi possível extrair"', () => {
+  it('done + exame válido + campos vazios: mostra tooltip de "não foi possível extrair"', async () => {
     const { container } = renderView([
       makeFile({ status: 'done', isValidExam: true, examDate: null, requestingDoctor: null }),
     ]);
 
     expect(dataCell(container, 2).textContent).toContain('—');
-    expect(screen.getAllByText('Não foi possível extrair essa informação do exame.')).toHaveLength(2);
+    await userEvent.hover(dataCell(container, 2).querySelector('.cursor-help')!);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Não foi possível extrair essa informação do exame.');
   });
 
   it('status=failed: colunas ficam em branco, sem tooltip', () => {
@@ -476,9 +483,13 @@ describe('SentExamsView — exclusão de arquivo', () => {
 
     const trash = screen.getByRole('button', { name: 'Excluir arquivo' });
     expect(trash).toBeDisabled();
-    expect(
-      screen.getByText(/Não é possível excluir enquanto o exame está sendo processado/),
-    ).toBeInTheDocument();
+
+    // A explicação mora num tooltip, que só monta no hover (o wrapper captura o hover
+    // mesmo com o botão desabilitado — é o motivo de o Tooltip envolver o botão).
+    await userEvent.hover(trash.parentElement!);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(
+      /Não é possível excluir enquanto o exame está sendo processado/,
+    );
 
     await userEvent.click(trash);
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();

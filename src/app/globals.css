@@ -117,3 +117,10 @@ input:-webkit-autofill {
     50% { opacity: 1; transform: none; }
   }
 }
+
+/* Entrada do Tooltip (ui/tooltip.tsx) — a bolha só monta no DOM durante o hover, então o
+ * fade de entrada precisa ser animação de mount, não transition de opacity. */
+@keyframes tooltip-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
