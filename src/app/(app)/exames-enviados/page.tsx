@@ -19,16 +19,22 @@ export default async function SentExamsPage({
   const page = Math.max(1, Number.parseInt(first(params.page) ?? '1', 10) || 1);
   const requestedSize = Number.parseInt(first(params.pageSize) ?? '', 10);
   const pageSize = PAGE_SIZE_OPTIONS.includes(requestedSize) ? requestedSize : DEFAULT_PAGE_SIZE;
-  const sortBy = first(params.sortBy) ?? 'examDate';
+  // AUSÊNCIA de sortBy é significativa: quer dizer "ninguém clicou em cabeçalho nenhum", e o
+  // back responde com a visão inicial da tela — agrupada por status (pendente primeiro, concluído
+  // por último) e, dentro de cada grupo, exame mais recente primeiro. Por isso não tem default
+  // aqui: mandar sortBy=examDate faria a tela abrir já ordenada por uma coluna específica.
+  const sortBy = first(params.sortBy) ?? null;
   const sortDir = first(params.sortDir) === 'asc' ? 'asc' : 'desc';
   const search = first(params.q)?.trim() ?? '';
 
   const query = new URLSearchParams({
     page: String(page),
     pageSize: String(pageSize),
-    sortBy,
-    sortDir,
   });
+  if (sortBy) {
+    query.set('sortBy', sortBy);
+    query.set('sortDir', sortDir);
+  }
   if (search) query.set('search', search);
 
   const data = await backendFetchOrRedirect<SentFilesPageResponse>(`/api/bloodtests/files?${query}`);

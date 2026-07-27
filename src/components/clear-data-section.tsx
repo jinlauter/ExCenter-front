@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Trash2, TriangleAlert } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 // =============================================================================
 // ClearDataSection (client) — "danger zone" das Configurações
@@ -75,38 +76,21 @@ export function ClearDataSection() {
       </Button>
 
       {phase === 'confirming' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-sm">
-          <div
-            role="alertdialog"
-            aria-label="Confirmar limpeza de dados"
-            className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-lg"
-          >
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10">
-              <TriangleAlert className="h-6 w-6 text-destructive" />
-            </div>
-            <h3 className="text-base font-medium">Apagar todos os seus dados de exames?</h3>
-            <p className="mb-5 mt-1 text-sm text-muted-foreground">
+        <ConfirmDialog
+          title="Apagar todos os seus dados de exames?"
+          description={
+            <>
               Essa ação é <span className="font-medium text-foreground">irreversível</span>: todos
               os arquivos enviados, exames e resultados processados serão apagados de forma
               permanente. Não tem como recuperar depois.
-            </p>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setPhase('idle')} disabled={isPending}>
-                Cancelar
-              </Button>
-              <Button variant="destructive" onClick={confirmErase} disabled={isPending}>
-                {isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Apagando…
-                  </>
-                ) : (
-                  'Sim, apagar tudo'
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+          confirmLabel="Sim, apagar tudo"
+          cancelLabel="Cancelar"
+          isLoading={isPending}
+          onConfirm={confirmErase}
+          onCancel={() => setPhase('idle')}
+        />
       )}
     </section>
   );

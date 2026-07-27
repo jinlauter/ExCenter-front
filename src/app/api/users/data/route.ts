@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { backendFetch, UnauthenticatedError } from '@/lib/backend';
+import { rejectCrossSite } from '@/lib/csrf';
 
 // =============================================================================
 // DELETE /api/users/data (Next BFF)
@@ -10,6 +11,9 @@ import { backendFetch, UnauthenticatedError } from '@/lib/backend';
 // =============================================================================
 
 export async function DELETE() {
+  const blocked = await rejectCrossSite();
+  if (blocked) return blocked;
+
   try {
     await backendFetch<void>('/api/users/me/data', { method: 'DELETE' });
     return new NextResponse(null, { status: 204 });

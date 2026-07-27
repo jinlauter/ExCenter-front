@@ -15,22 +15,30 @@ import {
   ArrowDown,
   ChevronLeft,
   ChevronRight,
+  Trash2,
+  FileText,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Tooltip } from '@/components/ui/tooltip';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { FilePreviewModal } from '@/components/file-preview-modal';
 import { cn } from '@/lib/utils';
 import type { SentFileResponse, SentFilesPageResponse } from '@/types/api';
 
 const FILE_NAME_MAX_LENGTH = 50;
+// 22 caracteres cabem "Jean Rodrigo Tafarel" e "Marcela Robl" inteiros — nomes com dois
+// sobrenomes é que passam ("Luis Eduardo Agner Machado Martins"). Sem o corte, essa coluna
+// era a que mais empurrava a largura da tabela, já que o nome vem inteiro do laudo.
+const DOCTOR_NAME_MAX_LENGTH = 22;
 const DEFAULT_PAGE_SIZE = 20;
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
-function truncateFileName(name: string) {
-  if (!name || name.length <= FILE_NAME_MAX_LENGTH) return name;
-  return `${name.slice(0, FILE_NAME_MAX_LENGTH)}...`;
+function truncate(value: string, maxLength: number) {
+  if (!value || value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength)}...`;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -93,7 +101,8 @@ function ExtractedFieldCell({
 }: {
   file: SentFileResponse;
   value?: string | null;
-  format: (value: string) => string;
+  /** Devolve ReactNode (não string) porque a célula do médico envolve o valor num Tooltip. */
+  format: (value: string) => React.ReactNode;
 }) {
   const isInvalidExam = file.status === 'done' && file.isValidExam === false;
   if (file.status === 'failed' || isInvalidExam) return null;
@@ -126,9 +135,43 @@ const SORTABLE_COLUMNS: { key: string; label: string; defaultDir: 'asc' | 'desc'
   { key: 'processedAt', label: 'Processado em', defaultDir: 'desc' },
 ];
 
+// Só arquivo parado pode ser excluído. Processing = o worker está com ele agora; Retrying = ele
+// volta pra fila e pode ser reivindicado a qualquer momento. Apagar nesses estados deixaria o
+// processamento gravar um exame sem arquivo por trás, visível no Histórico e impossível de
+// excluir pela interface. O back aplica a mesma regra (409) — aqui é só pra avisar antes.
+const UNDELETABLE_STATUSES = new Set(['processing', 'retrying']);
+
+// Textos da confirmação por situação do arquivo. O contador de espera aparece SÓ no exame
+// processado com sucesso: é o único caso em que existe dado extraído (resultados, histórico,
+// gráficos) que some junto. Exigir 3 segundos de espera pra apagar um PDF que a IA nem
+// reconheceu como exame seria atrito sem motivo — e atrito sem motivo é o que faz o usuário
+// parar de ler as confirmações que importam.
+function buildDeleteCopy(file: SentFileResponse) {
+  const isProcessedExam = file.status === 'done' && file.isValidExam === true;
+
+  if (isProcessedExam) {
+    return {
+      title: 'Excluir este exame?',
+      description:
+        'O arquivo e todos os resultados extraídos dele serão apagados de forma permanente. Não tem como recuperar depois.',
+      countdownSeconds: 3,
+    };
+  }
+
+  const isInvalidExam = file.status === 'done' && file.isValidExam === false;
+  return {
+    title: 'Excluir este arquivo?',
+    description: isInvalidExam && file.invalidReason
+      ? `O sistema interpretou que este arquivo é: "${file.invalidReason}". Tem certeza que deseja excluir?`
+      : 'Tem certeza que deseja excluir?',
+    countdownSeconds: 0,
+  };
+}
+
 interface SentExamsViewProps {
   data: SentFilesPageResponse;
-  sortBy: string;
+  /** null = nenhum cabeçalho clicado; o back devolve a visão agrupada por status. */
+  sortBy: string | null;
   sortDir: 'asc' | 'desc';
   search: string;
 }
@@ -144,8 +187,13 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
   const [isRefreshing, startRefresh] = useTransition();
   const [isNavigating, startNavigation] = useTransition();
   const [previewFile, setPreviewFile] = useState<SentFileResponse | null>(null);
+  const [fileToDelete, setFileToDelete] = useState<SentFileResponse | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  function pushParams(next: Partial<{ page: number; pageSize: number; sortBy: string; sortDir: string; q: string }>) {
+  function pushParams(
+    next: Partial<{ page: number; pageSize: number; sortBy: string | null; sortDir: string; q: string }>,
+  ) {
     const merged = {
       page: data.page,
       pageSize: data.pageSize,
@@ -156,10 +204,11 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
     };
 
     // Só o que difere do default entra na URL — mantém endereços limpos e compartilháveis.
+    // Sem sortBy = ordenação padrão do back: a ausência do parâmetro É o valor.
     const qs = new URLSearchParams();
     if (merged.page > 1) qs.set('page', String(merged.page));
     if (merged.pageSize !== DEFAULT_PAGE_SIZE) qs.set('pageSize', String(merged.pageSize));
-    if (merged.sortBy !== 'examDate' || merged.sortDir !== 'desc') {
+    if (merged.sortBy) {
       qs.set('sortBy', merged.sortBy);
       qs.set('sortDir', merged.sortDir);
     }
@@ -167,6 +216,40 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
 
     const query = qs.toString();
     startNavigation(() => router.push(query ? `/exames-enviados?${query}` : '/exames-enviados'));
+  }
+
+  async function confirmDelete() {
+    if (!fileToDelete) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/bloodtests/files/${fileToDelete.fileId}`, { method: 'DELETE' });
+
+      if (res.status !== 204) {
+        const body = (await res.json().catch(() => null)) as { message?: string } | null;
+        setDeleteError(body?.message ?? 'Não foi possível excluir o arquivo. Tente novamente.');
+        return;
+      }
+
+      // Excluir o último item de uma página que não é a primeira deixaria o usuário numa página
+      // vazia ("Mostrando 21–20 de 20"), sem nada e sem entender por quê — o certo é recuar uma.
+      const wasLastItemOfPage = data.items.length === 1 && data.page > 1;
+      if (wasLastItemOfPage) {
+        pushParams({ page: data.page - 1 });
+      } else {
+        startRefresh(() => router.refresh());
+      }
+    } catch {
+      setDeleteError('Falha de rede. Verifique sua conexão e tente novamente.');
+    } finally {
+      setIsDeleting(false);
+      // Fecha SEMPRE, inclusive no erro: a mensagem é renderizada ao lado da tabela, e mantendo
+      // o diálogo aberto ela ficaria escondida atrás do overlay — o usuário clicaria no "Sim"
+      // repetidamente sem nunca ver o motivo da recusa (409 de arquivo em processamento, por
+      // exemplo). Fechando, ele lê o aviso e decide se tenta de novo.
+      setFileToDelete(null);
+    }
   }
 
   function toggleSort(column: (typeof SORTABLE_COLUMNS)[number]) {
@@ -241,6 +324,15 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
         </div>
       )}
 
+      {/* Fica FORA do ConfirmDialog de propósito: o diálogo fecha ao confirmar, e um erro
+          renderizado dentro dele sumiria junto — o usuário veria a linha continuar na lista
+          sem nenhuma explicação. Aqui a mensagem sobrevive e fica ao lado da tabela. */}
+      {deleteError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>{deleteError}</AlertDescription>
+        </Alert>
+      )}
+
       {neverSentAnything ? (
         <div className="rounded-lg border border-border bg-card p-10 text-center">
           <h2 className="text-base font-medium">Nenhum exame enviado ainda</h2>
@@ -293,7 +385,12 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
                       </th>
                     );
                   })}
-                  <th className="px-4 py-3 text-right font-medium">Download</th>
+                  {/* Cabeçalho e ícones CENTRALIZADOS na mesma coluna, em vez de ambos
+                      alinhados à direita: alinhar pela borda desencontra os dois, porque cada
+                      botão é w-8 (32px) com ícone de 16px no meio, então a borda do grupo fica
+                      8px além do último ícone visível. Centralizar os dois resolve sem número
+                      mágico e continua correto se um ícone for adicionado ou removido. */}
+                  <th className="px-4 py-3 text-center font-medium">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -305,12 +402,18 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
                   return (
                     <tr key={file.fileId} className="border-b border-border last:border-0 hover:bg-muted/30">
                       <td className="px-4 py-2.5" title={file.fileName}>
-                        {truncateFileName(file.fileName)}
+                        {truncate(file.fileName, FILE_NAME_MAX_LENGTH)}
                       </td>
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-1.5">
+                          {/* whitespace-nowrap é obrigatório junto com rounded-full: numa coluna
+                              estreita (tela pequena, ou "Não é exame de sangue" espremido entre
+                              nomes de arquivo longos) o texto quebrava em 4 linhas e o raio de
+                              9999px transformava a pílula numa elipse, esticando a linha inteira
+                              da tabela. A tabela já tem min-w-[900px] com overflow-x-auto, então
+                              o custo de não quebrar é rolagem horizontal — que já é o padrão aqui. */}
                           <span
-                            className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusDisplay.className}`}
+                            className={`inline-block whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium ${statusDisplay.className}`}
                           >
                             {statusDisplay.label}
                           </span>
@@ -327,13 +430,34 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
                       <td className="px-4 py-2.5 text-muted-foreground">
                         <ExtractedFieldCell file={file} value={file.examDate} format={formatExamDate} />
                       </td>
-                      <td className="px-4 py-2.5 text-muted-foreground">
-                        <ExtractedFieldCell file={file} value={file.requestingDoctor} format={(v) => v} />
+                      <td className="whitespace-nowrap px-4 py-2.5 text-muted-foreground">
+                        <ExtractedFieldCell
+                          file={file}
+                          value={file.requestingDoctor}
+                          format={(doctor) =>
+                            // Tooltip só quando algo foi de fato escondido — pendurar um tooltip
+                            // num nome inteiro visível é ruído, e ainda faria o cursor virar
+                            // "help" sem ter ajuda nenhuma a dar.
+                            doctor.length > DOCTOR_NAME_MAX_LENGTH ? (
+                              <Tooltip content={doctor}>
+                                <span className="cursor-help">
+                                  {truncate(doctor, DOCTOR_NAME_MAX_LENGTH)}
+                                </span>
+                              </Tooltip>
+                            ) : (
+                              doctor
+                            )
+                          }
+                        />
                       </td>
-                      <td className="px-4 py-2.5 text-muted-foreground">{formatDate(file.sentAt)}</td>
-                      <td className="px-4 py-2.5 text-muted-foreground">{formatDate(file.processedAt)}</td>
-                      <td className="px-4 py-2.5 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                      <td className="whitespace-nowrap px-4 py-2.5 text-muted-foreground">
+                        {formatDate(file.sentAt)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-muted-foreground">
+                        {formatDate(file.processedAt)}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
                             title="Visualizar arquivo"
@@ -350,6 +474,37 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
                           >
                             <Download className="h-4 w-4" />
                           </a>
+                          {UNDELETABLE_STATUSES.has(file.status) ? (
+                            <Tooltip content="Não é possível excluir enquanto o exame está sendo processado. Aguarde o processamento terminar.">
+                              <button
+                                type="button"
+                                disabled
+                                aria-label="Excluir arquivo"
+                                className={cn(
+                                  buttonVariants({ variant: 'ghost', size: 'icon' }),
+                                  'h-8 w-8 cursor-not-allowed text-destructive',
+                                )}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </Tooltip>
+                          ) : (
+                            <button
+                              type="button"
+                              title="Excluir arquivo"
+                              aria-label="Excluir arquivo"
+                              onClick={() => {
+                                setDeleteError(null);
+                                setFileToDelete(file);
+                              }}
+                              className={cn(
+                                buttonVariants({ variant: 'ghost', size: 'icon' }),
+                                'h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive',
+                              )}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -413,6 +568,24 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
           fileId={previewFile.fileId}
           fileName={previewFile.fileName}
           onClose={() => setPreviewFile(null)}
+        />
+      )}
+
+      {fileToDelete && (
+        <ConfirmDialog
+          {...buildDeleteCopy(fileToDelete)}
+          icon={<Trash2 className="h-5 w-5 text-destructive" />}
+          highlight={
+            <div className="flex items-center gap-2.5 overflow-hidden rounded-lg border border-border bg-background px-3 py-2.5">
+              <FileText className="h-[18px] w-[18px] shrink-0 text-primary" strokeWidth={1.75} />
+              <span className="truncate text-sm" title={fileToDelete.fileName}>
+                {fileToDelete.fileName}
+              </span>
+            </div>
+          }
+          isLoading={isDeleting}
+          onConfirm={confirmDelete}
+          onCancel={() => setFileToDelete(null)}
         />
       )}
     </div>

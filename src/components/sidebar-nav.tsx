@@ -50,12 +50,19 @@ export function SidebarNav() {
               active
                 ? // "Entalhe" nos dois cantos direitos: o item ativo funde visualmente com o
                   // fundo da área de conteúdo (bg-background), como se fosse uma aba conectada.
+                  // O raio do gradiente (15px) é MENOR que a caixa do pseudo-elemento (16px) de
+                  // propósito. Com o corte exatamente em 16px ele caía em cima da borda direita
+                  // da caixa, que é também a borda da sidebar — e o antialiasing do navegador
+                  // pintava esse limite com um fio verde escapando por cima do fundo claro do
+                  // conteúdo. Terminando o verde em 15px (com meio pixel de transição), a última
+                  // coluna da caixa é fundo puro e a emenda com a área de conteúdo fica limpa.
+                  // A diferença de 1px no raio da curva é imperceptível.
                   cn(
                     'z-10 -mr-4 rounded-l-md rounded-r-none bg-background font-semibold text-primary',
                     "before:absolute before:-top-4 before:right-0 before:h-4 before:w-4 before:content-['']",
-                    'before:[background:radial-gradient(circle_at_0_0,hsl(var(--primary))_16px,hsl(var(--background))_16px)]',
+                    'before:[background:radial-gradient(circle_at_0_0,hsl(var(--primary))_15px,hsl(var(--background))_15.5px)]',
                     "after:absolute after:-bottom-4 after:right-0 after:h-4 after:w-4 after:content-['']",
-                    'after:[background:radial-gradient(circle_at_0_100%,hsl(var(--primary))_16px,hsl(var(--background))_16px)]',
+                    'after:[background:radial-gradient(circle_at_0_100%,hsl(var(--primary))_15px,hsl(var(--background))_15.5px)]',
                   )
                 : 'rounded-md text-white/85 hover:bg-white/10',
             )}

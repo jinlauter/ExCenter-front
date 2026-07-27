@@ -40,9 +40,13 @@ export function SidebarShell(props: {
         />
       )}
 
+      {/* Fechada, a gaveta é empurrada 2px ALÉM da largura dela, não exatamente 100%: com
+          -translate-x-full ela para encostada na borda da viewport (right = 0) e o
+          arredondamento de subpixel deixa escapar um fio verde na coluna x=0, sobre o fundo
+          claro do conteúdo. Os 2px extras são invisíveis na animação e matam a sobra. */}
       <div
         className={cn(
-          'fixed inset-y-0 left-0 z-50 -translate-x-full transition-transform duration-200 ease-out md:static md:z-auto md:translate-x-0',
+          'fixed inset-y-0 left-0 z-50 -translate-x-[calc(100%+2px)] transition-transform duration-200 ease-out md:static md:z-auto md:translate-x-0',
           open && 'translate-x-0',
         )}
       >

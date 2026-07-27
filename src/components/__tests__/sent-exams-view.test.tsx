@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SentExamsView } from '@/components/sent-exams-view';
 import type { SentFileResponse, SentFilesPageResponse } from '@/types/api';
@@ -40,15 +40,18 @@ function makePage(
   };
 }
 
+// sortBy default = null porque é assim que a tela ABRE: sem cabeçalho clicado, a ordenação é a
+// visão agrupada por status que o back monta (ver page.tsx). Testes de coluna específica passam
+// sortBy explícito.
 function renderView(
   files: SentFileResponse[],
   pageOverrides: Partial<SentFilesPageResponse> = {},
-  viewProps: Partial<{ sortBy: string; sortDir: 'asc' | 'desc'; search: string }> = {},
+  viewProps: Partial<{ sortBy: string | null; sortDir: 'asc' | 'desc'; search: string }> = {},
 ) {
   return render(
     <SentExamsView
       data={makePage(files, pageOverrides)}
-      sortBy={viewProps.sortBy ?? 'examDate'}
+      sortBy={viewProps.sortBy ?? null}
       sortDir={viewProps.sortDir ?? 'desc'}
       search={viewProps.search ?? ''}
     />,
@@ -56,7 +59,7 @@ function renderView(
 }
 
 // Colunas na ordem em que aparecem na tabela: Arquivo(0) Status(1) Data do exame(2)
-// Médico solicitante(3) Enviado em(4) Processado em(5) Download(6).
+// Médico solicitante(3) Enviado em(4) Processado em(5) Ações(6).
 function dataCell(container: HTMLElement, columnIndex: number) {
   const row = container.querySelector('tbody tr')!;
   return row.children[columnIndex] as HTMLElement;
@@ -90,6 +93,39 @@ describe('SentExamsView — colunas de data do exame e médico solicitante', () 
     expect(dataCell(container, 3).textContent).toBe('Dr. João Silva');
   });
 
+  // O nome vem inteiro do laudo e é a coluna que mais empurrava a largura da tabela. Corta na
+  // exibição, mas o valor completo continua alcançável pelo tooltip — e o corte NÃO pode
+  // alterar o dado, que é chave de agrupamento/ordenação no banco.
+  it('médico com nome longo: corta na exibição e mostra o nome inteiro no tooltip', () => {
+    const { container } = renderView([
+      makeFile({
+        status: 'done',
+        isValidExam: true,
+        examDate: '2026-03-10T00:00:00Z',
+        requestingDoctor: 'Luis Eduardo Agner Machado Martins',
+      }),
+    ]);
+
+    const cell = dataCell(container, 3);
+    expect(cell.textContent).toContain('Luis Eduardo Agner Mac...');
+    expect(cell.querySelector('[role="tooltip"]')).toHaveTextContent('Luis Eduardo Agner Machado Martins');
+  });
+
+  it('médico com nome curto: exibe inteiro e sem tooltip (nada foi escondido)', () => {
+    const { container } = renderView([
+      makeFile({
+        status: 'done',
+        isValidExam: true,
+        examDate: '2026-03-10T00:00:00Z',
+        requestingDoctor: 'Marcela Robl',
+      }),
+    ]);
+
+    const cell = dataCell(container, 3);
+    expect(cell.textContent).toBe('Marcela Robl');
+    expect(cell.querySelectorAll('[role="tooltip"]')).toHaveLength(0);
+  });
+
   it('done + exame válido + campos vazios: mostra tooltip de "não foi possível extrair"', () => {
     const { container } = renderView([
       makeFile({ status: 'done', isValidExam: true, examDate: null, requestingDoctor: null }),
@@ -119,7 +155,45 @@ describe('SentExamsView — colunas de data do exame e médico solicitante', () 
   });
 });
 
+// Guardas de regressão de layout. Assertar classe CSS normalmente é frágil, mas estes três
+// casos vêm de defeitos reais vistos em tela: sem eles, a próxima refatoração de estilo
+// reintroduz o bug sem ninguém perceber até alguém abrir a tela num celular.
+describe('SentExamsView — layout em telas estreitas', () => {
+  // "Não é exame de sangue" numa coluna espremida quebrava em 4 linhas, e o rounded-full
+  // (raio 9999px) transformava a pílula numa elipse, esticando a linha da tabela pro dobro.
+  it('badge de status nunca quebra linha', () => {
+    const { container } = renderView([makeFile({ status: 'done', isValidExam: false, invalidReason: 'Conta de luz' })]);
+
+    const badge = dataCell(container, 1).querySelector('span');
+    expect(badge).toHaveClass('whitespace-nowrap');
+    expect(badge).toHaveTextContent('Não é exame de sangue');
+  });
+
+  it('colunas de data não quebram linha', () => {
+    const { container } = renderView([makeFile()]);
+
+    expect(dataCell(container, 4)).toHaveClass('whitespace-nowrap'); // Enviado em
+    expect(dataCell(container, 5)).toHaveClass('whitespace-nowrap'); // Processado em
+  });
+
+  it('coluna de médico não quebra linha', () => {
+    const { container } = renderView([
+      makeFile({ status: 'done', isValidExam: true, requestingDoctor: 'Luis Eduardo Agner Machado Martins' }),
+    ]);
+
+    expect(dataCell(container, 3)).toHaveClass('whitespace-nowrap');
+  });
+});
+
 describe('SentExamsView — ordenação server-side via URL', () => {
+  // A tela abre agrupada por status: nenhuma coluna aparece como ativa, e a URL fica sem
+  // sortBy — é a AUSÊNCIA do parâmetro que o back lê como "visão inicial".
+  it('sem cabeçalho clicado, nenhuma coluna aparece ordenada', () => {
+    const { container } = renderView([makeFile()]);
+
+    expect(container.querySelectorAll('thead svg')).toHaveLength(0);
+  });
+
   it('clicar num cabeçalho inativo ordena por ele na direção default (texto asc)', async () => {
     renderView([makeFile()]);
 
@@ -129,11 +203,29 @@ describe('SentExamsView — ordenação server-side via URL', () => {
   });
 
   it('clicar no cabeçalho ativo inverte a direção', async () => {
-    renderView([makeFile()]); // ativo = examDate desc (default)
+    renderView([makeFile()], {}, { sortBy: 'examDate', sortDir: 'desc' });
 
     await userEvent.click(screen.getByRole('button', { name: 'Data do exame' }));
 
     expect(pushMock).toHaveBeenCalledWith('/exames-enviados?sortBy=examDate&sortDir=asc');
+  });
+
+  // Paginar/buscar dentro da visão agrupada não pode "inventar" um sortBy: se inventasse, a
+  // simples troca de página trocaria silenciosamente a ordem da lista inteira.
+  it('trocar de página na visão agrupada mantém a URL sem sortBy', async () => {
+    renderView([makeFile()], { page: 1, totalCount: 45, totalPages: 3 });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Próxima página' }));
+
+    expect(pushMock).toHaveBeenCalledWith('/exames-enviados?page=2');
+  });
+
+  it('paginar com coluna ordenada preserva a ordenação escolhida', async () => {
+    renderView([makeFile()], { page: 1, totalCount: 45, totalPages: 3 }, { sortBy: 'fileName', sortDir: 'asc' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Próxima página' }));
+
+    expect(pushMock).toHaveBeenCalledWith('/exames-enviados?page=2&sortBy=fileName&sortDir=asc');
   });
 
   it('trocar a ordenação volta pra página 1', async () => {
@@ -214,5 +306,125 @@ describe('SentExamsView — visualização do arquivo (olhinho)', () => {
     renderView([makeFile({ status: 'pending', isValidExam: undefined })]);
 
     expect(screen.getByRole('button', { name: 'Visualizar arquivo' })).toBeInTheDocument();
+  });
+});
+
+describe('SentExamsView — exclusão de arquivo', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  it('abrir a confirmação NÃO exclui nada', async () => {
+    renderView([makeFile()]);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Excluir arquivo' }));
+
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('"Não" fecha a confirmação sem excluir', async () => {
+    renderView([makeFile({ status: 'failed', isValidExam: undefined })]);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Excluir arquivo' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Não' }));
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  // Exame processado é o único caso com resultado extraído pra perder junto — e o único com
+  // contador de espera. O botão nasce travado mostrando a contagem.
+  it('exame concluído e válido: título de exame e "Sim" travado pelo contador', async () => {
+    renderView([makeFile({ status: 'done', isValidExam: true })]);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Excluir arquivo' }));
+
+    expect(screen.getByText('Excluir este exame?')).toBeInTheDocument();
+    expect(screen.getByText(/resultados extraídos/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Sim \(\d\)$/ })).toBeDisabled();
+  });
+
+  // O contador em si (zerar e liberar o botão) é testado em ui/__tests__/confirm-dialog.test.tsx
+  // — lá, isolado, dá pra usar fake timers sem contaminar os outros testes deste arquivo.
+
+  // Sem exame processado por trás, não há o que "perder" além do próprio arquivo: mensagem
+  // curta e "Sim" liberado de cara.
+  it.each([
+    ['failed', undefined],
+    ['pending', undefined],
+  ])('status=%s: confirmação simples, sem contador', async (status, isValidExam) => {
+    renderView([makeFile({ status, isValidExam })]);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Excluir arquivo' }));
+
+    expect(screen.getByText('Excluir este arquivo?')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sim' })).toBeEnabled();
+  });
+
+  it('arquivo que não é exame: mostra o que o sistema entendeu que ele é', async () => {
+    renderView([makeFile({ status: 'done', isValidExam: false, invalidReason: 'Conta de luz da Energisa' })]);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Excluir arquivo' }));
+
+    expect(screen.getByText('Excluir este arquivo?')).toBeInTheDocument();
+    expect(screen.getByText(/Conta de luz da Energisa/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sim' })).toBeEnabled();
+  });
+
+  it('confirmar chama DELETE e atualiza a lista', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ status: 204 } as Response);
+    renderView([makeFile({ fileId: 'abc-123', status: 'failed', isValidExam: undefined })]);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Excluir arquivo' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sim' }));
+
+    expect(fetch).toHaveBeenCalledWith('/api/bloodtests/files/abc-123', { method: 'DELETE' });
+  });
+
+  // O 409 do back precisa chegar legível: é o caso em que o worker pegou o arquivo entre o
+  // clique e a requisição, e o usuário só precisa tentar de novo depois.
+  it('recusa do back aparece pro usuário e a confirmação fecha', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      status: 409,
+      json: async () => ({ message: 'Este arquivo está sendo processado. Aguarde o processamento terminar para excluí-lo.' }),
+    } as Response);
+    renderView([makeFile({ status: 'pending', isValidExam: undefined })]);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Excluir arquivo' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sim' }));
+
+    expect(await screen.findByText(/Este arquivo está sendo processado/)).toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  // Regra espelhada no back (409): enquanto o worker pode estar com o arquivo, excluir criaria
+  // um exame órfão no Histórico.
+  it.each(['processing', 'retrying'])('status=%s: lixeira desabilitada com explicação', async (status) => {
+    renderView([makeFile({ status, isValidExam: undefined })]);
+
+    const trash = screen.getByRole('button', { name: 'Excluir arquivo' });
+    expect(trash).toBeDisabled();
+    expect(
+      screen.getByText(/Não é possível excluir enquanto o exame está sendo processado/),
+    ).toBeInTheDocument();
+
+    await userEvent.click(trash);
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  // Apagar o último item de uma página interna deixaria o usuário olhando pra uma página vazia.
+  it('excluir o último item de uma página interna volta uma página', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ status: 204 } as Response);
+    renderView([makeFile({ status: 'failed', isValidExam: undefined })], {
+      page: 3,
+      totalCount: 41,
+      totalPages: 3,
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Excluir arquivo' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sim' }));
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/exames-enviados?page=2'));
   });
 });
