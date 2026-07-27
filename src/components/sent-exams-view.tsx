@@ -24,8 +24,10 @@ import { Select } from '@/components/ui/select';
 import { Tooltip } from '@/components/ui/tooltip';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Toast } from '@/components/ui/toast';
 import { FilePreviewModal } from '@/components/file-preview-modal';
 import { cn } from '@/lib/utils';
+import { useDelayedFlag } from '@/lib/use-delayed-flag';
 import type { SentFileResponse, SentFilesPageResponse } from '@/types/api';
 
 const FILE_NAME_MAX_LENGTH = 50;
@@ -190,6 +192,13 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
   const [fileToDelete, setFileToDelete] = useState<SentFileResponse | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletedMessage, setDeletedMessage] = useState<string | null>(null);
+  // Remoção otimista: o back já confirmou (204), mas o router.refresh() ainda vai levar ~2s
+  // pra buscar a página nova do servidor. Sem isto, a linha excluída fica visível nesse
+  // intervalo e o usuário acha que o clique não funcionou. Guardamos os ids já apagados e
+  // filtramos na renderização — quando os dados novos chegam, eles já não trazem esses ids
+  // e o filtro vira inofensivo.
+  const [deletedIds, setDeletedIds] = useState<string[]>([]);
 
   function pushParams(
     next: Partial<{ page: number; pageSize: number; sortBy: string | null; sortDir: string; q: string }>,
@@ -223,6 +232,7 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
 
     setIsDeleting(true);
     setDeleteError(null);
+    setDeletedMessage(null);
     try {
       const res = await fetch(`/api/bloodtests/files/${fileToDelete.fileId}`, { method: 'DELETE' });
 
@@ -231,6 +241,12 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
         setDeleteError(body?.message ?? 'Não foi possível excluir o arquivo. Tente novamente.');
         return;
       }
+
+      // Some com a linha AGORA. O 204 já é a confirmação do back; esperar o router.refresh()
+      // só pra tirar a linha da tela faria o usuário encarar por ~2s um arquivo que ele acabou
+      // de mandar excluir — que foi exatamente a queixa.
+      setDeletedIds((ids) => [...ids, fileToDelete.fileId]);
+      setDeletedMessage(`"${fileToDelete.fileName}" foi excluído.`);
 
       // Excluir o último item de uma página que não é a primeira deixaria o usuário numa página
       // vazia ("Mostrando 21–20 de 20"), sem nada e sem entender por quê — o certo é recuar uma.
@@ -267,9 +283,19 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
     searchDebounceRef.current = setTimeout(() => pushParams({ q: value.trim(), page: 1 }), 400);
   }
 
-  const neverSentAnything = data.totalCount === 0 && !search;
+  // Carregamento rápido não mostra indicador nenhum — ver useDelayedFlag.
+  const isGridLoading = useDelayedFlag(isNavigating || isRefreshing);
+
+  // Linhas já excluídas somem da renderização antes mesmo dos dados novos chegarem do servidor.
+  const visibleItems = data.items.filter((file) => !deletedIds.includes(file.fileId));
+  // Contagens acompanham a remoção otimista pelo mesmo motivo: sem isso o rodapé continuaria
+  // dizendo "de 20" com 19 linhas na tela, e o usuário duvidaria do que acabou de ver.
+  const pendingDeletions = data.items.length - visibleItems.length;
+  const totalCount = Math.max(0, data.totalCount - pendingDeletions);
+
+  const neverSentAnything = totalCount === 0 && !search;
   const rangeStart = (data.page - 1) * data.pageSize + 1;
-  const rangeEnd = Math.min(data.page * data.pageSize, data.totalCount);
+  const rangeEnd = Math.min((data.page - 1) * data.pageSize + visibleItems.length, totalCount);
 
   return (
     <div>
@@ -333,6 +359,7 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
         </Alert>
       )}
 
+
       {neverSentAnything ? (
         <div className="rounded-lg border border-border bg-card p-10 text-center">
           <h2 className="text-base font-medium">Nenhum exame enviado ainda</h2>
@@ -344,7 +371,7 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
             Clique aqui para enviar exames
           </Link>
         </div>
-      ) : data.totalCount === 0 ? (
+      ) : totalCount === 0 ? (
         <div className="rounded-lg border border-border bg-card p-10 text-center">
           <h2 className="text-base font-medium">Nenhum arquivo encontrado</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
@@ -353,13 +380,30 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
         </div>
       ) : (
         <>
-          <div
-            className={cn(
-              'overflow-x-auto rounded-lg border border-border bg-card transition-opacity',
-              isNavigating && 'opacity-60',
+          {/* A barra fica no topo da grid em vez de escurecê-la: durante um recarregamento o
+              usuário quer justamente LER a lista pra conferir o efeito da ação que tomou, e
+              baixar a opacidade deixa ilegível exatamente nesse momento. A lista permanece
+              nítida e utilizável; só a barra indica que há sincronização em curso. */}
+          <div className="relative overflow-hidden rounded-lg border border-border bg-card">
+            {isGridLoading && (
+              <>
+                {/* Véu SOBRE a tabela, não opacidade NA tabela: opacity-60 no contêiner
+                    desbotava o próprio texto e deixava a lista ilegível. Uma camada por cima
+                    tinge a superfície mantendo as letras em opacidade cheia — dá o sinal de
+                    "recarregando" sem custar legibilidade. pointer-events-none pra tabela
+                    continuar rolável enquanto atualiza. */}
+                <div className="pointer-events-none absolute inset-0 z-10 bg-foreground/10" aria-hidden="true" />
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-0 z-20 h-0.5 overflow-hidden bg-primary-light"
+                  role="status"
+                  aria-label="Atualizando a lista"
+                >
+                  <div className="h-full w-1/4 bg-primary motion-safe:animate-[grid-loading-bar_1.1s_ease-in-out_infinite]" />
+                </div>
+              </>
             )}
-          >
-            <table className="w-full min-w-[900px] text-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="border-b border-border">
                   {SORTABLE_COLUMNS.map((column) => {
@@ -394,7 +438,7 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
                 </tr>
               </thead>
               <tbody>
-                {data.items.map((file) => {
+                {visibleItems.map((file) => {
                   const statusDisplay = getStatusDisplay(file);
                   const isInvalidExam = file.status === 'done' && file.isValidExam === false;
                   const statusReason = isInvalidExam ? file.invalidReason : null;
@@ -511,12 +555,13 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
                   );
                 })}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
             <span>
-              Mostrando {rangeStart}–{rangeEnd} de {data.totalCount}
+              Mostrando {rangeStart}–{rangeEnd} de {totalCount}
             </span>
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2">
@@ -570,6 +615,11 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
           onClose={() => setPreviewFile(null)}
         />
       )}
+
+      {/* Confirmação passageira: some sozinha, não empurra a tabela pra baixo e não exige
+          fechar. O sucesso já está evidente na tela (a linha sumiu) — o toast só nomeia o
+          arquivo pra tirar a ambiguidade de "sumiu porque apagou ou porque reordenou". */}
+      {deletedMessage && <Toast message={deletedMessage} onDismiss={() => setDeletedMessage(null)} />}
 
       {fileToDelete && (
         <ConfirmDialog

@@ -239,11 +239,21 @@ describe('SentExamsView — ordenação server-side via URL', () => {
 });
 
 describe('SentExamsView — paginação server-side via URL', () => {
+  // Página cheia de verdade: o intervalo exibido conta as linhas realmente renderizadas, então
+  // o teste precisa das 20 — com 1 item só, "21–40" seria uma afirmação falsa sobre a tela.
   it('mostra o intervalo visível e o total', () => {
-    renderView([makeFile()], { page: 2, pageSize: 20, totalCount: 45, totalPages: 3 });
+    const paginaCheia = Array.from({ length: 20 }, (_, i) => makeFile({ fileId: `f-${i}` }));
+    renderView(paginaCheia, { page: 2, pageSize: 20, totalCount: 45, totalPages: 3 });
 
     expect(screen.getByText('Mostrando 21–40 de 45')).toBeInTheDocument();
     expect(screen.getByText('Página 2 de 3')).toBeInTheDocument();
+  });
+
+  it('última página parcial mostra o intervalo real, não a página cheia', () => {
+    const ultimaPagina = Array.from({ length: 5 }, (_, i) => makeFile({ fileId: `f-${i}` }));
+    renderView(ultimaPagina, { page: 3, pageSize: 20, totalCount: 45, totalPages: 3 });
+
+    expect(screen.getByText('Mostrando 41–45 de 45')).toBeInTheDocument();
   });
 
   it('próxima página empurra page+1 na URL', async () => {
@@ -380,6 +390,67 @@ describe('SentExamsView — exclusão de arquivo', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Sim' }));
 
     expect(fetch).toHaveBeenCalledWith('/api/bloodtests/files/abc-123', { method: 'DELETE' });
+  });
+
+  // O router.refresh() leva ~2s pra trazer a página nova do servidor. A linha não pode ficar
+  // visível nesse intervalo: o usuário acabou de mandar excluir e acharia que falhou.
+  it('a linha some na hora, sem esperar os dados novos do servidor', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ status: 204 } as Response);
+    renderView([
+      makeFile({ fileId: 'a', fileName: 'apagar.pdf', status: 'failed', isValidExam: undefined }),
+      makeFile({ fileId: 'b', fileName: 'manter.pdf', status: 'failed', isValidExam: undefined }),
+    ]);
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Excluir arquivo' })[0]!);
+    await userEvent.click(screen.getByRole('button', { name: 'Sim' }));
+
+    // As props ainda trazem os 2 arquivos (o servidor não respondeu de novo), mas a linha
+    // excluída já não é renderizada.
+    await waitFor(() => expect(screen.queryByText('apagar.pdf')).not.toBeInTheDocument());
+    expect(screen.getByText('manter.pdf')).toBeInTheDocument();
+  });
+
+  it('mostra confirmação nomeando o arquivo excluído', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ status: 204 } as Response);
+    renderView([makeFile({ fileName: 'laudo-antigo.pdf', status: 'failed', isValidExam: undefined })]);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Excluir arquivo' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sim' }));
+
+    expect(await screen.findByText('"laudo-antigo.pdf" foi excluído.')).toBeInTheDocument();
+  });
+
+  // Sem isso o rodapé diria "de 2" com uma linha só na tela, e o usuário duvidaria do que viu.
+  it('as contagens acompanham a remoção imediata', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ status: 204 } as Response);
+    renderView(
+      [
+        makeFile({ fileId: 'a', status: 'failed', isValidExam: undefined }),
+        makeFile({ fileId: 'b', status: 'failed', isValidExam: undefined }),
+      ],
+      { totalCount: 2, totalPages: 1 },
+    );
+
+    expect(screen.getByText('Mostrando 1–2 de 2')).toBeInTheDocument();
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Excluir arquivo' })[0]!);
+    await userEvent.click(screen.getByRole('button', { name: 'Sim' }));
+
+    expect(await screen.findByText('Mostrando 1–1 de 1')).toBeInTheDocument();
+  });
+
+  it('erro do back não remove a linha da tela', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      status: 409,
+      json: async () => ({ message: 'Este arquivo está sendo processado.' }),
+    } as Response);
+    renderView([makeFile({ fileName: 'continua.pdf', status: 'pending', isValidExam: undefined })]);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Excluir arquivo' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sim' }));
+
+    expect(await screen.findByText(/Este arquivo está sendo processado/)).toBeInTheDocument();
+    expect(screen.getByText('continua.pdf')).toBeInTheDocument();
   });
 
   // O 409 do back precisa chegar legível: é o caso em que o worker pegou o arquivo entre o
