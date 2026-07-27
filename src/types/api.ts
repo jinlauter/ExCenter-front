@@ -140,6 +140,45 @@ export interface ProcessedExamsPageResponse {
   totalPages: number;
 }
 
+// ── Detalhe de um exame (template estilo laudo, /resultados/[testId]) ──────
+
+export interface ExamHistoryPoint {
+  date: string;
+  value: number;
+  referenceValue?: string | null;
+}
+
+export interface ExamDetailResult {
+  resultId: string;
+  parameterName: string;
+  numericResultValue?: number | null;
+  stringResultValue?: string | null;
+  unit?: string | null;
+  referenceValue?: string | null;
+  isAbnormal?: boolean | null;
+  /** Série histórica do usuário (nome+unidade exatos), ordenada por data, com este exame incluso. */
+  history: ExamHistoryPoint[];
+}
+
+export interface ExamDetailGroup {
+  name: string;
+  /** true = exame avulso (o "grupo" é o próprio exame, não repetir o nome no corpo). */
+  isSingle: boolean;
+  material?: string | null;
+  method?: string | null;
+  results: ExamDetailResult[];
+}
+
+export interface ExamDetailResponse {
+  testId: string;
+  examDate?: string | null;
+  requestingDoctor?: string | null;
+  laboratoryName?: string | null;
+  abnormalCount: number;
+  resultCount: number;
+  groups: ExamDetailGroup[];
+}
+
 // ── User profile (tela de Configurações) ───────────────────────────────────
 
 export interface UserProfileResponse {
