@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useTransition } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { CloudUpload, FileText, Loader2, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -63,6 +63,8 @@ export function UploadCard() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isNavigatingToSent, startNavigateToSent] = useTransition();
+  const router = useRouter();
 
   const fileCount = selectedFiles.length;
   const totalBytes = selectedFiles.reduce((sum, file) => sum + file.size, 0);
@@ -179,12 +181,18 @@ export function UploadCard() {
             {feedback.type === 'success' && (
               <>
                 {' '}
-                <Link
-                  href="/exames-enviados"
-                  className="font-medium text-primary hover:underline"
+                {/* Botão com estado, não <Link> puro: a página de destino é renderizada no
+                    servidor (consulta o back) e leva 1-2s — sem o spinner, o clique parecia
+                    ter falhado e o usuário clicava de novo achando que errou. */}
+                <button
+                  type="button"
+                  disabled={isNavigatingToSent}
+                  onClick={() => startNavigateToSent(() => router.push('/exames-enviados'))}
+                  className="inline-flex items-center gap-1 font-medium text-primary hover:underline disabled:opacity-70"
                 >
-                  Ver agora
-                </Link>
+                  {isNavigatingToSent && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {isNavigatingToSent ? 'Abrindo...' : 'Ver agora'}
+                </button>
                 .
               </>
             )}

@@ -2,8 +2,10 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { UploadCard } from '@/components/upload-card';
 
-vi.mock('next/link', () => ({
-  default: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,
+const push = vi.fn();
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push, replace: vi.fn(), refresh: vi.fn() }),
 }));
 
 function makeFile(name: string, sizeBytes: number, type = 'application/pdf'): File {
@@ -165,6 +167,25 @@ describe('UploadCard — revisão antes do envio', () => {
     clickEnviar();
 
     expect(await screen.findByText(/20 arquivo\(s\) enviado\(s\)/)).toBeInTheDocument();
+  });
+
+  // "Ver agora" leva pra uma página renderizada no servidor (1-2s de espera) — sem feedback
+  // imediato no clique, parecia clique perdido e o usuário clicava de novo.
+  it('sucesso: "Ver agora" navega e mostra estado de carregamento no próprio clique', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 202,
+      json: async () => ({ batchId: 'b1', fileCount: 1, duplicateCount: 0, message: 'ok' }),
+    } as Response);
+    render(<UploadCard />);
+
+    await selectFiles([makeFile('exame.pdf', 1000)]);
+    clickEnviar();
+
+    const verAgora = await screen.findByRole('button', { name: 'Ver agora' });
+    fireEvent.click(verAgora);
+
+    expect(push).toHaveBeenCalledWith('/exames-enviados');
   });
 
   it('bloqueia o envio quando o total passa de 4MB, sem chamar a API', async () => {
