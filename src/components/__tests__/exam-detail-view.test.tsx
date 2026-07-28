@@ -4,6 +4,13 @@ import userEvent from '@testing-library/user-event';
 import { ExamDetailView } from '@/components/exam-detail-view';
 import type { ExamDetailResponse, ExamDetailResult } from '@/types/api';
 
+const push = vi.fn();
+
+// BackLink usa useRouter — sem o mock, o React lança "app router to be mounted".
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push, replace: vi.fn(), refresh: vi.fn() }),
+}));
+
 vi.mock('next/link', () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode } & Record<string, unknown>) => (
     <a href={href} {...rest}>
@@ -60,10 +67,14 @@ describe('ExamDetailView — cabeçalho do laudo', () => {
     expect(screen.getAllByText('—')).toHaveLength(3);
   });
 
-  it('link de voltar aponta pra lista', () => {
+  // Voltar é um BackLink (botão com estado de pendência), não <Link> — o destino é
+  // renderizado no servidor e precisa dar feedback no clique.
+  it('voltar navega pra lista de resultados', async () => {
     render(<ExamDetailView exam={makeExam()} />);
 
-    expect(screen.getByText('Voltar para Resultado de exames').closest('a')).toHaveAttribute('href', '/resultados');
+    await userEvent.click(screen.getByText('Voltar para Resultado de exames'));
+
+    expect(push).toHaveBeenCalledWith('/resultados');
   });
 });
 

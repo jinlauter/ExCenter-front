@@ -267,18 +267,24 @@ export function ExamResultsView({ data }: ExamResultsViewProps) {
                       </td>
                       <td className="px-4 py-2.5">
                         <div className="flex items-center justify-center">
-                          <Link
-                            href={`/resultados/${exam.testId}`}
+                          {/* Botão (não <Link>) chamando o MESMO openExam da linha: como <Link>
+                              com stopPropagation, o olhinho navegava por fora do useTransition
+                              e escapava do indicador de carregamento que a linha já mostra. */}
+                          <button
+                            type="button"
                             title="Ver resultado do exame"
                             aria-label="Ver resultado do exame"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openExam(exam.testId);
+                            }}
                             className={cn(
                               buttonVariants({ variant: 'ghost', size: 'icon' }),
                               'h-8 w-8 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground',
                             )}
                           >
                             <Eye className="h-4 w-4" />
-                          </Link>
+                          </button>
                         </div>
                       </td>
                     </tr>

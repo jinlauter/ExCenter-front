@@ -184,11 +184,15 @@ describe('ExamResultsView — navegação pro detalhe', () => {
     expect(push).toHaveBeenCalledWith('/resultados/abc-123');
   });
 
-  it('o olhinho é um link pro mesmo destino (padrão das outras telas)', () => {
+  // O olhinho navega pelo MESMO caminho da linha (useTransition), e não por <Link>: como
+  // link com stopPropagation ele escapava do indicador de carregamento da grid.
+  it('o olhinho leva ao mesmo destino da linha, com indicador de carregamento', async () => {
     renderView([makeExam({ testId: 'abc-123' })]);
 
-    const eye = screen.getByLabelText('Ver resultado do exame');
-    expect(eye).toHaveAttribute('href', '/resultados/abc-123');
+    await userEvent.click(screen.getByLabelText('Ver resultado do exame'));
+
+    expect(push).toHaveBeenCalledWith('/resultados/abc-123');
+    expect(push).toHaveBeenCalledTimes(1); // stopPropagation: o clique não dispara a linha também
   });
 });
 

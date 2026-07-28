@@ -1,6 +1,5 @@
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 import { backendFetchOrRedirect } from '@/lib/backend';
+import { BackLink } from '@/components/back-link';
 import { HistoryView } from '@/components/history-view';
 import type { BloodTestResultQueryResponse } from '@/types/api';
 
@@ -15,13 +14,7 @@ export default async function GeneralHistoryPage() {
   return (
     <div className="space-y-4">
       <header>
-        <Link
-          href="/resultados"
-          className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar para Resultado de exames
-        </Link>
+        <BackLink href="/resultados" label="Voltar para Resultado de exames" />
         <h1 className="text-2xl font-medium">Histórico geral</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Visualize a evolução dos seus parâmetros ao longo do tempo, cruzando todos os exames.

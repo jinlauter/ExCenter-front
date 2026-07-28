@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, ChevronDown, LineChart } from 'lucide-react';
+import { ChevronDown, LineChart } from 'lucide-react';
+import { BackLink } from '@/components/back-link';
 import { Card } from '@/components/ui/card';
 import { Tooltip } from '@/components/ui/tooltip';
 import { TrendChart } from '@/components/trend-chart';
@@ -151,13 +151,7 @@ export function ExamDetailView({ exam }: { exam: ExamDetailResponse }) {
   return (
     <div className="space-y-4">
       <header>
-        <Link
-          href="/resultados"
-          className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar para Resultado de exames
-        </Link>
+        <BackLink href="/resultados" label="Voltar para Resultado de exames" />
         <h1 className="text-2xl font-medium">Resultado do exame</h1>
       </header>
 
