@@ -10,7 +10,6 @@ import {
   Eye,
   Info,
   CloudUpload,
-  ArrowRight,
   ArrowUp,
   ArrowDown,
   ChevronLeft,
@@ -26,6 +25,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Toast } from '@/components/ui/toast';
 import { FilePreviewModal } from '@/components/file-preview-modal';
+import { NavBanner } from '@/components/nav-banner';
 import { cn } from '@/lib/utils';
 import { useDelayedFlag } from '@/lib/use-delayed-flag';
 import type { SentFileResponse, SentFilesPageResponse } from '@/types/api';
@@ -321,21 +321,12 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
           pra mandar — sem isso, o caminho de volta pro envio (na home) fica escondido. Só some
           no estado vazio, que já tem o próprio convite de envio. */}
       {!neverSentAnything && (
-        <Link
+        <NavBanner
           href="/home"
-          className="mb-4 flex items-center gap-3 rounded-xl border border-dashed border-primary-lighter bg-primary-light/30 px-4 py-3 transition-colors hover:bg-primary-light/60"
-        >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-light">
-            <CloudUpload className="h-5 w-5 text-primary" strokeWidth={1.5} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium">Tem mais exames pra enviar?</p>
-            <p className="text-xs text-muted-foreground">
-              Envie novos PDFs ou imagens — o processamento começa na hora e você acompanha por aqui.
-            </p>
-          </div>
-          <ArrowRight className="h-4 w-4 shrink-0 text-primary" />
-        </Link>
+          icon={CloudUpload}
+          title="Tem mais exames pra enviar?"
+          description="Envie novos PDFs ou imagens — o processamento começa na hora e você acompanha por aqui."
+        />
       )}
 
       {!neverSentAnything && (

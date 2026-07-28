@@ -193,13 +193,14 @@ describe('ExamResultsView — navegação pro detalhe', () => {
 });
 
 describe('ExamResultsView — card de histórico geral e estados', () => {
-  it('card no topo leva pra /resultados/geral', () => {
+  // O card é um NavBanner (botão com estado de pendência), não um <Link> — o destino é
+  // renderizado no servidor e precisa dar feedback no clique.
+  it('card no topo leva pra /resultados/geral', async () => {
     renderView([makeExam()]);
 
-    expect(screen.getByText('Visualizar histórico geral').closest('a')).toHaveAttribute(
-      'href',
-      '/resultados/geral',
-    );
+    await userEvent.click(screen.getByText('Visualizar histórico geral'));
+
+    expect(push).toHaveBeenCalledWith('/resultados/geral');
   });
 
   it('sem exames: estado vazio com convite pra enviar', () => {

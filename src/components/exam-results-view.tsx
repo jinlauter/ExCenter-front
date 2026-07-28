@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowRight,
   ChevronLeft,
   ChevronRight,
   Eye,
@@ -17,6 +16,7 @@ import { Select } from '@/components/ui/select';
 import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useDelayedFlag } from '@/lib/use-delayed-flag';
+import { NavBanner } from '@/components/nav-banner';
 import type { ProcessedExamListItem, ProcessedExamsPageResponse } from '@/types/api';
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -183,21 +183,12 @@ export function ExamResultsView({ data }: ExamResultsViewProps) {
 
       {/* Mesmo padrão visual do atalho de upload em Exames enviados — é o "outro modo" da
           tela: em vez de exame a exame, a evolução de todos os parâmetros cruzando laudos. */}
-      <Link
+      <NavBanner
         href="/resultados/geral"
-        className="mb-4 flex items-center gap-3 rounded-xl border border-dashed border-primary-lighter bg-primary-light/30 px-4 py-3 transition-colors hover:bg-primary-light/60"
-      >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-light">
-          <LineChart className="h-5 w-5 text-primary" strokeWidth={1.5} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium">Visualizar histórico geral</p>
-          <p className="text-xs text-muted-foreground">
-            A evolução dos seus parâmetros ao longo do tempo, cruzando todos os exames enviados.
-          </p>
-        </div>
-        <ArrowRight className="h-4 w-4 shrink-0 text-primary" />
-      </Link>
+        icon={LineChart}
+        title="Visualizar histórico geral"
+        description="A evolução dos seus parâmetros ao longo do tempo, cruzando todos os exames enviados."
+      />
 
       {data.totalCount === 0 ? (
         <div className="rounded-lg border border-border bg-card p-10 text-center">
