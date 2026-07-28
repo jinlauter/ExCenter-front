@@ -3,9 +3,10 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { UploadCard } from '@/components/upload-card';
 
 const push = vi.fn();
+const refresh = vi.fn();
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push, replace: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push, replace: vi.fn(), refresh }),
 }));
 
 function makeFile(name: string, sizeBytes: number, type = 'application/pdf'): File {
@@ -28,6 +29,8 @@ function clickEnviar() {
 describe('UploadCard — revisão antes do envio', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
+    push.mockClear();
+    refresh.mockClear();
   });
 
   it('mostra os limites visíveis pro usuário antes de selecionar', () => {
@@ -167,6 +170,38 @@ describe('UploadCard — revisão antes do envio', () => {
     clickEnviar();
 
     expect(await screen.findByText(/20 arquivo\(s\) enviado\(s\)/)).toBeInTheDocument();
+  });
+
+  // O card de resumo da home é renderizado no servidor: sem o refresh, o contador só mudava
+  // quando o usuário recarregava a página na mão.
+  it('sucesso: pede refresh pra home reexibir a contagem nova', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 202,
+      json: async () => ({ batchId: 'b1', fileCount: 2, duplicateCount: 0, message: 'ok' }),
+    } as Response);
+    render(<UploadCard />);
+
+    await selectFiles([makeFile('a.pdf', 1000), makeFile('b.pdf', 1000)]);
+    clickEnviar();
+
+    await screen.findByText(/2 arquivo\(s\) enviado\(s\)/);
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it('erro no envio: NÃO pede refresh (contagem não mudou)', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ message: 'Arquivo inválido.' }),
+    } as Response);
+    render(<UploadCard />);
+
+    await selectFiles([makeFile('a.pdf', 1000)]);
+    clickEnviar();
+
+    await screen.findByText('Arquivo inválido.');
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   // "Ver agora" leva pra uma página renderizada no servidor (1-2s de espera) — sem feedback

@@ -163,6 +163,13 @@ export function UploadCard() {
           message: buildUploadFeedbackMessage(data.fileCount, data.duplicateCount),
         });
         setSelectedFiles([]);
+
+        // O card de resumo é renderizado no SERVIDOR (a home busca /files/summary), então o
+        // upload — que acontece aqui no cliente — não o atualiza sozinho: o contador só mudava
+        // se o usuário recarregasse a página. router.refresh() reexecuta o server component e
+        // traz a contagem nova, sem perder o estado desta tela (o aviso de sucesso continua).
+        // Só no sucesso: envio recusado não muda contagem nenhuma.
+        router.refresh();
       } catch {
         setFeedback({
           type: 'error',
