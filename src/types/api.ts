@@ -47,6 +47,19 @@ export interface UploadBatchResponse {
   message: string;
 }
 
+// Resumo dos arquivos enviados (card da home). Fala em ARQUIVOS: nem todo arquivo vira exame.
+export interface SentFilesSummaryResponse {
+  total: number;
+  pending: number;
+  processing: number;
+  retrying: number;
+  failed: number;
+  /** Processado com sucesso E reconhecido como exame de sangue. */
+  done: number;
+  /** Processado, mas a IA concluiu que o documento não é exame de sangue. */
+  notExam: number;
+}
+
 // Página de "Exames enviados" — paginação/ordenação/busca acontecem no back
 // (GET /api/bloodtests/files?page=&pageSize=&sortBy=&sortDir=&search=).
 export interface SentFilesPageResponse {

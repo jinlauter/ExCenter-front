@@ -28,6 +28,7 @@ import { FilePreviewModal } from '@/components/file-preview-modal';
 import { NavBanner } from '@/components/nav-banner';
 import { cn } from '@/lib/utils';
 import { useDelayedFlag } from '@/lib/use-delayed-flag';
+import { STATUS_CLASS, STATUS_LABEL, NOT_EXAM_CLASS, NOT_EXAM_LABEL } from '@/lib/exam-status';
 import type { SentFileResponse, SentFilesPageResponse } from '@/types/api';
 
 const FILE_NAME_MAX_LENGTH = 50;
@@ -43,27 +44,9 @@ function truncate(value: string, maxLength: number) {
   return `${value.slice(0, maxLength)}...`;
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: 'Pendente',
-  processing: 'Processando',
-  retrying: 'Tentando novamente',
-  done: 'Concluído',
-  failed: 'Falhou',
-};
-
-// Cores no padrão dos tokens do tema (ver globals.css) — "retrying" e "processing"
-// usam âmbar/azul do Tailwind, já que não há token semântico dedicado pra eles.
-const STATUS_CLASS: Record<string, string> = {
-  pending: 'border-border bg-transparent text-muted-foreground',
-  processing: 'border-blue-200 bg-blue-50 text-blue-700',
-  retrying: 'border-amber-300 bg-amber-50 text-amber-700',
-  done: 'border-success/30 bg-success/10 text-success',
-  failed: 'border-destructive/30 bg-destructive/10 text-destructive',
-};
-
 function getStatusDisplay(file: SentFileResponse) {
   if (file.status === 'done' && file.isValidExam === false) {
-    return { label: 'Não é exame de sangue', className: STATUS_CLASS.retrying };
+    return { label: NOT_EXAM_LABEL, className: NOT_EXAM_CLASS };
   }
   return {
     label: STATUS_LABEL[file.status] ?? file.status,
