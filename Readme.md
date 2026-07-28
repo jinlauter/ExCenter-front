@@ -81,9 +81,12 @@ src/
     (auth)/login/page.tsx     # tela de login (server)
     (app)/
       layout.tsx              # carrega sessão server-side, renderiza Sidebar
-      home/page.tsx           # saudação + upload + atalhos
-      exames-enviados/page.tsx  # PLACEHOLDER
-      historico/page.tsx        # PLACEHOLDER
+      home/page.tsx             # saudação + upload + atalhos
+      exames-enviados/page.tsx      # lista paginada dos envios + status + ações
+      resultados/page.tsx           # "Resultado de exames" — visão principal
+      resultados/geral/page.tsx     # histórico geral (até 3 gráficos comparados)
+      resultados/[testId]/page.tsx  # template estilo laudo do exame
+      configuracoes/page.tsx        # perfil, senha, idioma, limpar dados
     api/
       login/route.ts          # POST → autentica e cria sessão
       logout/route.ts         # POST → limpa sessão + notifica back
@@ -91,6 +94,8 @@ src/
       session/route.ts        # GET  → estado de sessão para client components
       bloodtests/
         upload/route.ts       # POST → repassa multipart pro back com Bearer
+        files/[fileId]/route.ts          # DELETE → exclui arquivo enviado
+        files/[fileId]/download/route.ts # GET → proxy autenticado do arquivo
   components/
     ui/                       # shadcn (button, input, card, alert, ...)
     login-form.tsx            # client — chama /api/login
@@ -107,7 +112,7 @@ src/
     utils.ts                  # cn helper
   types/
     api.ts                    # DTOs do back tipados
-  middleware.ts               # protege /home, /exames-enviados, /historico
+  middleware.ts               # protege /home, /exames-enviados, /resultados, /configuracoes
 ```
 
 ## Scripts
