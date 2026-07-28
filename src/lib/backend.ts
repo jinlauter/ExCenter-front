@@ -1,11 +1,11 @@
 import 'server-only';
 
-import { cache } from 'react';
 import { decodeJwt } from 'jose';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { env } from './env';
 import { getSession, getSessionForLogin, type SessionData } from './session';
+import { singleFlight } from './single-flight';
 import type { LoginResponse } from '@/types/api';
 
 // =============================================================================
@@ -64,11 +64,15 @@ export async function backendFetch<T>(path: string, options: FetchOptions = {}):
 
   let response = await callBackend(path, options, session.accessToken);
 
-  // Se acesso negado e ainda temos refresh, tentamos renovar uma vez.
+  // Se acesso negado e ainda temos refresh, tentamos renovar uma vez. 'unavailable' (rede,
+  // 5xx — deploy/cold start do back) NÃO destrói a sessão: indisponibilidade é transitória,
+  // e matar a sessão aqui era o que deslogava o usuário toda vez que o back reiniciava.
   if (response.status === 401 && !options.skipRefresh && session.refreshToken) {
-    const refreshed = await tryRefresh(session);
-    if (refreshed) {
+    const outcome = await tryRefresh(session);
+    if (outcome === 'renewed') {
       response = await callBackend(path, options, session.accessToken);
+    } else if (outcome === 'unavailable') {
+      throw new BackendError(503, { message: 'Servidor temporariamente indisponível.' });
     }
   }
 
@@ -128,11 +132,12 @@ export async function backendFetchOrRedirect<T>(path: string, options: FetchOpti
 /**
  * Renova o access token E persiste no cookie. Só pode ser chamado de uma Route Handler (onde
  * session.save() é permitido) — é por isso que server components desviam pra /api/session/refresh
- * em vez de renovar inline. Retorna false se não há refresh token ou o refresh falhou.
+ * em vez de renovar inline. 'dead' = refresh token expirado/rotacionado (sessão acabou de
+ * verdade); 'unavailable' = back fora do ar (a sessão NÃO deve ser destruída por isso).
  */
-export async function refreshSessionAndSave(): Promise<boolean> {
+export async function refreshSessionAndSave(): Promise<RefreshOutcomeKind> {
   const session = await getSession();
-  if (!session.refreshToken) return false;
+  if (!session.refreshToken) return 'dead';
   return tryRefresh(session);
 }
 
@@ -169,9 +174,11 @@ export async function backendFetchRaw(
   let response = await callBackend(path, options, session.accessToken);
 
   if (response.status === 401 && !options.skipRefresh && session.refreshToken) {
-    const refreshed = await tryRefresh(session);
-    if (refreshed) {
+    const outcome = await tryRefresh(session);
+    if (outcome === 'renewed') {
       response = await callBackend(path, options, session.accessToken);
+    } else if (outcome === 'unavailable') {
+      throw new BackendError(503, { message: 'Servidor temporariamente indisponível.' });
     }
   }
 
@@ -212,41 +219,61 @@ async function callBackend(
   });
 }
 
+type RefreshOutcomeKind = 'renewed' | 'dead' | 'unavailable';
+type RefreshOutcome =
+  | { kind: 'renewed'; data: LoginResponse }
+  | { kind: 'dead' }
+  | { kind: 'unavailable' };
+
+// Renovações em voo/recém-resolvidas, por refresh token. Escopo de MÓDULO de propósito: o
+// refresh token do back é de uso único (rotacionado a cada renovação), e a corrida real é
+// entre REQUESTS concorrentes — watcher de sessão + navegação, layout + page, duas abas.
+// Todos chegam com o MESMO token antigo; sem o single-flight, o primeiro rotaciona e os
+// demais queimam um token morto → 401 → a sessão VÁLIDA era destruída. O React cache()
+// (solução anterior) deduplica só dentro de um request e não cobre nada disso. A retenção
+// de 10s cobre o retardatário que chega logo depois de a renovação terminar.
+const inflightRefreshes = new Map<string, Promise<RefreshOutcome>>();
+
 /**
- * Chamada de refresh ao back, dedupada por request via React cache(). Necessário porque
- * layout + page fazem CADA UM sua própria leitura de sessão (getSession() não é
- * memoizado — duas chamadas decodificam o cookie em dois objetos independentes). Sem essa
- * dedupe, layout e page acabam disparando dois refreshes concorrentes com o MESMO
- * refreshToken (ambos ainda leem o cookie antigo, já que a mutação de um não é visível pro
- * outro); o back rotaciona o refresh token a cada uso, então o segundo refresh falha com
- * 401 — o usuário via tryRefresh retornando false e sendo redirecionado pro login mesmo
- * com uma sessão válida. cache() garante que chamadas concorrentes com o mesmo
- * refreshToken, dentro do mesmo request, reaproveitam a mesma promise/resultado.
+ * Chamada de refresh ao back. NUNCA rejeita (contrato do singleFlight) — erros viram
+ * 'unavailable' ou 'dead'. Só 401/403 do back significam sessão morta; qualquer outra
+ * falha (rede, 5xx de deploy/cold start) é transitória e não pode custar a sessão.
  */
-const refreshTokens = cache(async (refreshToken: string): Promise<LoginResponse | null> => {
-  const response = await fetch(`${env.BACKEND_URL}/api/auth/refresh`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${refreshToken}`,
-    },
-    cache: 'no-store',
+function refreshTokens(refreshToken: string): Promise<RefreshOutcome> {
+  return singleFlight(inflightRefreshes, refreshToken, async () => {
+    let response: Response;
+    try {
+      response = await fetch(`${env.BACKEND_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${refreshToken}`,
+        },
+        cache: 'no-store',
+      });
+    } catch {
+      return { kind: 'unavailable' };
+    }
+
+    if (response.status === 401 || response.status === 403) return { kind: 'dead' };
+    if (!response.ok) return { kind: 'unavailable' };
+
+    const data = (await response.json().catch(() => null)) as LoginResponse | null;
+    // Resposta 200 sem refreshToken = back sem o modo BFF — contrato quebrado, não transitório.
+    if (!data?.refreshToken) return { kind: 'dead' };
+    return { kind: 'renewed', data };
   });
-
-  if (!response.ok) return null;
-
-  const data = (await response.json()) as LoginResponse;
-  return data.refreshToken ? data : null;
-});
+}
 
 /**
  * Tenta renovar o access token usando o refresh_token guardado na sessão.
  */
-async function tryRefresh(session: Awaited<ReturnType<typeof getSession>>): Promise<boolean> {
-  if (!session.refreshToken) return false;
+async function tryRefresh(session: Awaited<ReturnType<typeof getSession>>): Promise<RefreshOutcomeKind> {
+  if (!session.refreshToken) return 'dead';
 
-  const data = await refreshTokens(session.refreshToken);
-  if (!data) return false;
+  const outcome = await refreshTokens(session.refreshToken);
+  if (outcome.kind !== 'renewed') return outcome.kind;
 
+  const data = outcome.data;
   session.accessToken = data.accessToken;
   session.accessExpiresAt = data.expiresAt;
   session.refreshToken = data.refreshToken!;
@@ -265,7 +292,7 @@ async function tryRefresh(session: Awaited<ReturnType<typeof getSession>>): Prom
     // Esperado quando chamado durante o render de um server component.
   }
 
-  return true;
+  return 'renewed';
 }
 
 /**

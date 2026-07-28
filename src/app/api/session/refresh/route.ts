@@ -27,11 +27,23 @@ function safeReturnPath(raw: string | null): string {
 export async function GET(request: Request) {
   const returnPath = safeReturnPath(new URL(request.url).searchParams.get('return'));
 
-  const ok = await refreshSessionAndSave();
-  if (!ok) {
+  const outcome = await refreshSessionAndSave();
+
+  // Só 'dead' (refresh token expirado/rotacionado de verdade) destrói a sessão. Back fora
+  // do ar ('unavailable' — deploy, cold start) NÃO pode custar a sessão do usuário: devolve
+  // 503 sem tocar no cookie, e a próxima tentativa renova normalmente. Redirecionar de volta
+  // pro returnPath aqui viraria loop (a página detectaria o access vencido e voltaria).
+  if (outcome === 'dead') {
     const session = await getSession();
     session.destroy();
     return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  if (outcome === 'unavailable') {
+    return NextResponse.json(
+      { message: 'Servidor temporariamente indisponível. Tente novamente em instantes.' },
+      { status: 503 },
+    );
   }
 
   return NextResponse.redirect(new URL(returnPath, request.url));
