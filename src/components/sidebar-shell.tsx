@@ -4,19 +4,53 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { Sidebar } from '@/components/sidebar';
+import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 // No mobile a sidebar vira uma gaveta (off-canvas) escondida por padrão, aberta pelo
-// hambúrguer da barra superior. Em md+ ela volta a ser o <aside> estático de sempre.
+// hambúrguer da barra superior. Em md+ ela volta a ser o <aside> estático de sempre — mas
+// minimizável para um trilho de ícones: em tela de notebook, os 250px cheios comem espaço
+// demais. O conteúdo cresce sozinho quando ela encolhe (flex do layout).
+//
+// O estado minimizado persiste num COOKIE (não localStorage) de propósito: o layout é server
+// component e lê o cookie pra renderizar já no estado certo — com localStorage, todo reload
+// abriria expandido e "pulava" pro minimizado depois da hidratação.
 export function SidebarShell(props: {
   username: string;
   dateOfBirth?: string | null;
   avatarUpdatedAt?: string | null;
+  initialCollapsed?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(props.initialCollapsed ?? false);
   const pathname = usePathname();
 
   useEffect(() => setOpen(false), [pathname]);
+
+  function toggleCollapsed() {
+    setCollapsed((current) => {
+      const next = !current;
+      document.cookie = `sidebar-collapsed=${next}; path=/; max-age=31536000; samesite=lax`;
+      return next;
+    });
+  }
+
+  // Hambúrguer dentro de um círculo (pedido do design) — o MESMO desenho nos dois estados;
+  // quem diz a ação é o aria-label/tooltip. Ícone diferente por estado faria o botão "pular"
+  // de forma entre cliques.
+  const collapseButton = (
+    <button
+      type="button"
+      onClick={toggleCollapsed}
+      aria-label={collapsed ? 'Expandir menu' : 'Minimizar menu'}
+      className={cn(
+        'hidden h-8 w-8 items-center justify-center rounded-full border border-white/30 text-white/80 transition-colors hover:bg-white/10 hover:text-white md:flex',
+        collapsed ? 'mx-auto mb-1' : 'mb-1 self-end',
+      )}
+    >
+      <Menu className="h-4 w-4" strokeWidth={1.75} />
+    </button>
+  );
 
   return (
     <>
@@ -52,15 +86,27 @@ export function SidebarShell(props: {
       >
         <Sidebar
           {...props}
+          // A gaveta mobile abre sempre CHEIA: minimizada ela não teria razão de existir — no
+          // mobile o menu já fica escondido por padrão.
+          collapsed={open ? false : collapsed}
           headerExtra={
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Fechar menu"
-              className="mb-1 self-end text-white/70 hover:text-white md:hidden"
-            >
-              <X className="h-5 w-5" strokeWidth={1.75} />
-            </button>
+            <>
+              {collapsed && !open ? (
+                <Tooltip content="Expandir menu" placement="right" className="mx-auto">
+                  {collapseButton}
+                </Tooltip>
+              ) : (
+                collapseButton
+              )}
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Fechar menu"
+                className="mb-1 self-end text-white/70 hover:text-white md:hidden"
+              >
+                <X className="h-5 w-5" strokeWidth={1.75} />
+              </button>
+            </>
           }
         />
       </div>

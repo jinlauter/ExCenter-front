@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { getSession } from '@/lib/session';
 import { backendFetchOrRedirect } from '@/lib/backend';
 import { SidebarShell } from '@/components/sidebar-shell';
@@ -18,12 +19,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // router.refresh() após salvar reexecuta este layout e sincroniza a Sidebar.
   const profile = await backendFetchOrRedirect<UserProfileResponse>('/api/users/me');
 
+  // Lido AQUI (server) pro primeiro paint já sair no estado certo — com localStorage o menu
+  // abriria expandido e pularia pro minimizado depois da hidratação, a cada reload.
+  const cookieStore = await cookies();
+  const sidebarCollapsed = cookieStore.get('sidebar-collapsed')?.value === 'true';
+
   return (
     <div className="flex min-h-screen flex-col bg-background md:flex-row">
       <SidebarShell
         username={profile.username}
         dateOfBirth={profile.dateOfBirth}
         avatarUpdatedAt={profile.avatarUpdatedAt}
+        initialCollapsed={sidebarCollapsed}
       />
       <main className="flex-1 p-6 md:p-10">{children}</main>
       {/* Aviso proativo de sessão morta — sem ele, o usuário só descobre quando a
