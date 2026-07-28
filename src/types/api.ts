@@ -43,6 +43,9 @@ export interface UploadBatchResponse {
   // Nulo quando todos os arquivos enviados eram duplicatas — nenhum batch chega a ser criado.
   batchId: string | null;
   fileCount: number;
+  /** Nomes dos arquivos barrados por já terem sido enviados antes, na ordem de seleção. */
+  duplicateFileNames: string[];
+  /** Derivado de duplicateFileNames no back — os dois nunca divergem. */
   duplicateCount: number;
   message: string;
 }

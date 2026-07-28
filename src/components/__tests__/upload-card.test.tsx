@@ -169,7 +169,7 @@ describe('UploadCard — revisão antes do envio', () => {
     await selectFiles(files);
     clickEnviar();
 
-    expect(await screen.findByText(/20 arquivo\(s\) enviado\(s\)/)).toBeInTheDocument();
+    expect(await screen.findByText(/20 arquivos enviados/)).toBeInTheDocument();
   });
 
   // O card de resumo da home é renderizado no servidor: sem o refresh, o contador só mudava
@@ -185,7 +185,7 @@ describe('UploadCard — revisão antes do envio', () => {
     await selectFiles([makeFile('a.pdf', 1000), makeFile('b.pdf', 1000)]);
     clickEnviar();
 
-    await screen.findByText(/2 arquivo\(s\) enviado\(s\)/);
+    await screen.findByText(/2 arquivos enviados/);
     expect(refresh).toHaveBeenCalled();
   });
 
@@ -244,50 +244,76 @@ describe('UploadCard — revisão antes do envio', () => {
     await selectFiles([makeFile('exato.pdf', 4 * 1024 * 1024)]);
     clickEnviar();
 
-    expect(await screen.findByText(/1 arquivo\(s\) enviado\(s\)/)).toBeInTheDocument();
+    expect(await screen.findByText(/1 arquivo enviado\./)).toBeInTheDocument();
   });
 
   // ── Duplicatas (detectadas pelo back via hash de conteúdo) ─────────────────
+  //
+  // Envio com duplicata é um desfecho DIFERENTE de sucesso: antes os dois caíam no mesmo alerta
+  // verde e o aviso da duplicata passava batido. O alerta agora é âmbar, o que não entrou vira
+  // título, e os nomes dos arquivos barrados são listados.
 
-  it('quando parte dos arquivos já existia, avisa quantos foram enviados e quantos eram duplicata', async () => {
+  it('quando parte dos arquivos já existia: alerta âmbar, título do que não entrou e o nome do arquivo', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       status: 202,
-      json: async () => ({ batchId: 'b1', fileCount: 2, duplicateCount: 1, message: 'ok' }),
+      json: async () => ({
+        batchId: 'b1',
+        fileCount: 2,
+        duplicateFileNames: ['c.pdf'],
+        duplicateCount: 1,
+        message: 'ok',
+      }),
     } as Response);
     render(<UploadCard />);
 
     await selectFiles([makeFile('a.pdf', 1000), makeFile('b.pdf', 1000), makeFile('c.pdf', 1000)]);
     clickEnviar();
 
-    expect(await screen.findByText(/2 arquivo\(s\) enviado\(s\)/)).toBeInTheDocument();
-    expect(
-      screen.getByText(/1 arquivo\(s\) já haviam sido enviados antes e não foram reprocessados/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('1 arquivo não foi enviado')).toBeInTheDocument();
+    expect(screen.getByText(/2 arquivos de 3 foram enviados/)).toBeInTheDocument();
+    expect(screen.getByText('c.pdf')).toBeInTheDocument();
+    // Cor: o alerta não pode continuar verde de sucesso.
+    expect(screen.getByRole('alert').className).toContain('amber');
   });
 
-  it('quando todos os arquivos já existiam, avisa que nenhum foi reprocessado', async () => {
+  it('quando todos os arquivos já existiam: título diz que nenhum entrou e lista os dois nomes', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       status: 202,
-      json: async () => ({ batchId: null, fileCount: 0, duplicateCount: 2, message: 'ok' }),
+      json: async () => ({
+        batchId: null,
+        fileCount: 0,
+        duplicateFileNames: ['a.pdf', 'b.pdf'],
+        duplicateCount: 2,
+        message: 'ok',
+      }),
     } as Response);
     render(<UploadCard />);
 
     await selectFiles([makeFile('a.pdf', 1000), makeFile('b.pdf', 1000)]);
     clickEnviar();
 
+    expect(await screen.findByText('Nenhum arquivo foi enviado')).toBeInTheDocument();
     expect(
-      await screen.findByText(/Todos os arquivos selecionados já haviam sido enviados e processados anteriormente/),
+      screen.getByText(/Todos os arquivos selecionados já haviam sido enviados e processados anteriormente/),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/arquivo\(s\) enviado\(s\)/)).not.toBeInTheDocument();
+    expect(screen.getByText('a.pdf')).toBeInTheDocument();
+    expect(screen.getByText('b.pdf')).toBeInTheDocument();
   });
 
-  it('quando só 1 arquivo já existia (de 1 só), avisa no singular', async () => {
+  // Nada entrou na fila — mandar "ver agora" uma lista sem novidade é prometer o que não há.
+  it('quando nada foi enviado, não oferece "Ver agora"', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       status: 202,
-      json: async () => ({ batchId: null, fileCount: 0, duplicateCount: 1, message: 'ok' }),
+      json: async () => ({
+        batchId: null,
+        fileCount: 0,
+        duplicateFileNames: ['a.pdf'],
+        duplicateCount: 1,
+        message: 'ok',
+      }),
     } as Response);
     render(<UploadCard />);
 
@@ -297,6 +323,50 @@ describe('UploadCard — revisão antes do envio', () => {
     expect(
       await screen.findByText(/Esse arquivo já havia sido enviado e processado anteriormente/),
     ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ver agora' })).not.toBeInTheDocument();
+  });
+
+  // Envio parcial ainda colocou arquivos na fila: o atalho pra lista continua fazendo sentido.
+  it('envio parcial mantém o "Ver agora"', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 202,
+      json: async () => ({
+        batchId: 'b1',
+        fileCount: 1,
+        duplicateFileNames: ['b.pdf'],
+        duplicateCount: 1,
+        message: 'ok',
+      }),
+    } as Response);
+    render(<UploadCard />);
+
+    await selectFiles([makeFile('a.pdf', 1000), makeFile('b.pdf', 1000)]);
+    clickEnviar();
+
+    expect(await screen.findByRole('button', { name: 'Ver agora' })).toBeInTheDocument();
+  });
+
+  it('envio limpo continua verde, sem título de alerta', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 202,
+      json: async () => ({
+        batchId: 'b1',
+        fileCount: 2,
+        duplicateFileNames: [],
+        duplicateCount: 0,
+        message: 'ok',
+      }),
+    } as Response);
+    render(<UploadCard />);
+
+    await selectFiles([makeFile('a.pdf', 1000), makeFile('b.pdf', 1000)]);
+    clickEnviar();
+
+    expect(await screen.findByText(/2 arquivos enviados\./)).toBeInTheDocument();
+    expect(screen.getByRole('alert').className).toContain('success');
+    expect(screen.queryByText(/não foi enviado/)).not.toBeInTheDocument();
   });
 
   it('mostra a mensagem do back quando ele rejeita (defesa em profundidade)', async () => {

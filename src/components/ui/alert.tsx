@@ -11,6 +11,10 @@ const alertVariants = cva(
         destructive:
           'border-destructive/50 bg-destructive/10 text-destructive [&>svg]:text-destructive',
         success: 'border-success/30 bg-success/10 text-success [&>svg]:text-success',
+        // Desfecho que não é erro nem sucesso limpo — "foi, mas não tudo". Âmbar do Tailwind e
+        // não um token do tema porque não existe --warning em globals.css; é o mesmo tom já
+        // usado nos badges de "fora da faixa" e "não é exame" (ver lib/exam-status.ts).
+        warning: 'border-amber-300 bg-amber-50 text-amber-800 [&>svg]:text-amber-600',
       },
     },
     defaultVariants: { variant: 'default' },

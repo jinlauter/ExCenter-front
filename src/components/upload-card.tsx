@@ -4,8 +4,12 @@ import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { CloudUpload, FileText, Loader2, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
+import {
+  buildUploadFeedback,
+  UploadFeedbackAlert,
+  type UploadFeedback,
+} from '@/components/upload-feedback-alert';
 import type { UploadBatchResponse } from '@/types/api';
 
 const ACCEPTED_MIME = 'application/pdf,image/jpeg,image/jpg,image/png';
@@ -38,30 +42,15 @@ function formatFileSize(bytes: number) {
   return `${formatMegabytes(bytes)} MB`;
 }
 
-// O back detecta duplicata pelo hash do conteúdo (arquivo já enviado antes) e nunca chega a
-// processá-la de novo — aqui só traduzimos os três desfechos possíveis pro usuário.
-function buildUploadFeedbackMessage(fileCount: number, duplicateCount: number): string {
-  if (fileCount === 0) {
-    return duplicateCount === 1
-      ? 'Esse arquivo já havia sido enviado e processado anteriormente.'
-      : 'Todos os arquivos selecionados já haviam sido enviados e processados anteriormente.';
-  }
-
-  const sentPart = `${fileCount} arquivo(s) enviado(s). O processamento ocorre em segundo plano — acompanhe em "Exames enviados".`;
-  if (duplicateCount === 0) return sentPart;
-
-  return `${sentPart} ${duplicateCount} arquivo(s) já haviam sido enviados antes e não foram reprocessados.`;
-}
-
-interface Feedback {
-  type: 'success' | 'error';
-  message: string;
+/** Erro é sempre o mesmo formato: mensagem seca, sem título nem lista. */
+function errorFeedback(message: string): UploadFeedback {
+  return { type: 'error', message };
 }
 
 export function UploadCard() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [feedback, setFeedback] = useState<UploadFeedback | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isNavigatingToSent, startNavigateToSent] = useTransition();
   const router = useRouter();
@@ -99,12 +88,11 @@ export function UploadCard() {
     });
 
     if (rejected.length > 0) {
-      setFeedback({
-        type: 'error',
-        message: `Só aceitamos PDF e imagens (JPG, PNG). Não dá pra enviar: ${rejected
-          .map((f) => f.name)
-          .join(', ')}.`,
-      });
+      setFeedback(
+        errorFeedback(
+          `Só aceitamos PDF e imagens (JPG, PNG). Não dá pra enviar: ${rejected.map((f) => f.name).join(', ')}.`,
+        ),
+      );
       return;
     }
 
@@ -135,10 +123,7 @@ export function UploadCard() {
         });
 
         if (res.status === 401) {
-          setFeedback({
-            type: 'error',
-            message: 'Sua sessão expirou. Recarregue a página e faça login novamente.',
-          });
+          setFeedback(errorFeedback('Sua sessão expirou. Recarregue a página e faça login novamente.'));
           return;
         }
 
@@ -149,19 +134,16 @@ export function UploadCard() {
 
         if (!res.ok || !data || !('fileCount' in data)) {
           const backendMessage = data && 'message' in data && data.message;
-          setFeedback({
-            type: 'error',
-            message:
+          setFeedback(
+            errorFeedback(
               backendMessage ||
-              `Não foi possível enviar os exames. Verifique se são no máximo ${MAX_FILES} arquivos e 4 MB no total, e tente novamente.`,
-          });
+                `Não foi possível enviar os exames. Verifique se são no máximo ${MAX_FILES} arquivos e 4 MB no total, e tente novamente.`,
+            ),
+          );
           return;
         }
 
-        setFeedback({
-          type: 'success',
-          message: buildUploadFeedbackMessage(data.fileCount, data.duplicateCount),
-        });
+        setFeedback(buildUploadFeedback(data.fileCount, data.duplicateFileNames ?? []));
         setSelectedFiles([]);
 
         // O card de resumo é renderizado no SERVIDOR (a home busca /files/summary), então o
@@ -171,10 +153,7 @@ export function UploadCard() {
         // Só no sucesso: envio recusado não muda contagem nenhuma.
         router.refresh();
       } catch {
-        setFeedback({
-          type: 'error',
-          message: 'Falha de rede ao enviar. Verifique sua conexão.',
-        });
+        setFeedback(errorFeedback('Falha de rede ao enviar. Verifique sua conexão.'));
       }
     });
   }
@@ -182,29 +161,11 @@ export function UploadCard() {
   return (
     <div className="space-y-2">
       {feedback && (
-        <Alert variant={feedback.type === 'success' ? 'success' : 'destructive'}>
-          <AlertDescription>
-            {feedback.message}
-            {feedback.type === 'success' && (
-              <>
-                {' '}
-                {/* Botão com estado, não <Link> puro: a página de destino é renderizada no
-                    servidor (consulta o back) e leva 1-2s — sem o spinner, o clique parecia
-                    ter falhado e o usuário clicava de novo achando que errou. */}
-                <button
-                  type="button"
-                  disabled={isNavigatingToSent}
-                  onClick={() => startNavigateToSent(() => router.push('/exames-enviados'))}
-                  className="inline-flex items-center gap-1 font-medium text-primary hover:underline disabled:opacity-70"
-                >
-                  {isNavigatingToSent && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  {isNavigatingToSent ? 'Abrindo...' : 'Ver agora'}
-                </button>
-                .
-              </>
-            )}
-          </AlertDescription>
-        </Alert>
+        <UploadFeedbackAlert
+          feedback={feedback}
+          isOpeningSentList={isNavigatingToSent}
+          onOpenSentList={() => startNavigateToSent(() => router.push('/exames-enviados'))}
+        />
       )}
 
       <input
@@ -275,11 +236,7 @@ export function UploadCard() {
             )}
           </div>
 
-          {selectionError && (
-            <Alert variant="destructive">
-              <AlertDescription>{selectionError}</AlertDescription>
-            </Alert>
-          )}
+          {selectionError && <UploadFeedbackAlert feedback={errorFeedback(selectionError)} />}
 
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
