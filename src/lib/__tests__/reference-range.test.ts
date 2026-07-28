@@ -77,3 +77,36 @@ describe('isOutOfRange', () => {
     expect(isOutOfRange(95, 'Superior a 90')).toBe(false);
   });
 });
+
+// ── Separador de milhar (o bug do falso "fora da faixa") ────────────────────
+//
+// Espelha ReferenceRangeEvaluatorTests/LabNumberTests do back: se as duas pontas divergirem,
+// o badge da tela discorda do IsAbnormal gravado no banco.
+describe('parseReferenceRange — separador de milhar', () => {
+  it.each([
+    ['150.000 a 450.000 /µL', 150000, 450000], // plaquetas
+    ['4.000 a 10.000 /µL', 4000, 10000],       // leucócitos
+    ['200 a 1.000 /µL', 200, 1000],            // monócitos: um lado com separador
+  ])('%s → %d a %d', (raw, min, max) => {
+    expect(parseReferenceRange(raw)).toEqual({ min, max });
+  });
+
+  // O caso exato visto em produção: valor SEM separador contra faixa COM.
+  it('monócitos 370/µL contra "200 a 1.000" NÃO é fora da faixa', () => {
+    expect(isOutOfRange(370, '200 a 1.000 /µL')).toBe(false);
+    expect(isOutOfRange(150, '200 a 1.000 /µL')).toBe(true);
+    expect(isOutOfRange(1200, '200 a 1.000 /µL')).toBe(true);
+  });
+
+  it('plaquetas na escala do laudo ficam dentro da faixa', () => {
+    expect(isOutOfRange(267000, '150.000 a 450.000 /µL')).toBe(false);
+    expect(isOutOfRange(100000, '150.000 a 450.000 /µL')).toBe(true);
+  });
+
+  // Zero à esquerda nunca é milhar — e força a leitura decimal no outro limite também,
+  // senão "0.500 a 1.500" viraria "0,5 a 1500", faixa que esconde alteração real.
+  it('não confunde decimal com milhar', () => {
+    expect(parseReferenceRange('13,0 a 17,0 g/dL')).toEqual({ min: 13, max: 17 });
+    expect(parseReferenceRange('0.500 a 1.500 ng/mL')).toEqual({ min: 0.5, max: 1.5 });
+  });
+});
