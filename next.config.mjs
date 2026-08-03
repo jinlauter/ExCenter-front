@@ -8,7 +8,12 @@ const cspDirectives = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob:",
   "font-src 'self' https://fonts.gstatic.com",
-  "connect-src 'self' https://excenter-back-production.up.railway.app",
+  // 'self' só. O browser nunca abre conexão direta com o back .NET: BACKEND_URL é variável
+  // server-only (sem NEXT_PUBLIC_) e todo o tráfego passa pelo BFF em /api/*, mesma origem.
+  // Listar o host do Railway aqui não liberava nada que fosse usado — só criava a obrigação
+  // de lembrar de atualizar o CSP a cada troca de URL do back, que é justamente o que passou
+  // batido quando o ambiente foi renomeado.
+  "connect-src 'self'",
   "frame-ancestors 'none'",
   "form-action 'self'",
   "base-uri 'self'",
