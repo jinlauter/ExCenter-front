@@ -110,3 +110,28 @@ describe('parseReferenceRange — separador de milhar', () => {
     expect(parseReferenceRange('0.500 a 1.500 ng/mL')).toEqual({ min: 0.5, max: 1.5 });
   });
 });
+
+// Casos reais do banco (07/08/2026): a IA escolhe a linha da tabela estratificada aplicável ao
+// paciente e a transcreve verbatim — o rótulo etário vem junto, e ele é ele mesmo um intervalo
+// numérico. Sem o descarte, o texto contava duas cláusulas e o badge "Fora da faixa" sumia de
+// resultados cuja normalidade é demonstrável. Espelho dos testes do ReferenceRangeEvaluator.
+describe('parseReferenceRange — rótulo de faixa etária em linha única', () => {
+  it('descarta o rótulo e lê a faixa', () => {
+    expect(parseReferenceRange('17 a 40 anos: 82 a 626 ng/dL')).toEqual({ min: 82, max: 626 });
+    expect(parseReferenceRange('De 22 a 49 anos: 164,94 a 753,38 ng/dL')).toEqual({ min: 164.94, max: 753.38 });
+    expect(parseReferenceRange('Acima de 50 anos: 3,4 a 24,6 pg/mL')).toEqual({ min: 3.4, max: 24.6 });
+  });
+
+  it('rótulo de sexo continua funcionando como antes', () => {
+    expect(parseReferenceRange('Masculino: De 143 a 842 pg/mL')).toEqual({ min: 143, max: 842 });
+  });
+
+  it('tabela multilinha de estratos continua null — escolher estrato seria chute', () => {
+    expect(parseReferenceRange('17 a 40 anos: 82 a 626 ng/dL\n41 a 60 anos: 60 a 500 ng/dL')).toBeNull();
+  });
+
+  it('o ganho fim-a-fim: valor real que ficava sem badge passa a ter veredicto', () => {
+    expect(isOutOfRange(347.56, '17 a 40 anos: 82 a 626 ng/dL')).toBe(false);
+    expect(isOutOfRange(58, '17 a 40 anos: 82 a 626 ng/dL')).toBe(true);
+  });
+});

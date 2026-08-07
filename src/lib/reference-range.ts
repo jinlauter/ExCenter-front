@@ -15,8 +15,19 @@ export interface ReferenceRange {
 // Os números passam pelo parseLabNumber (mesma regra do back): "200 a 1.000" é 200–1000, e
 // não "200 a 1" — a leitura antiga fazia monócitos 370/µL, valor normal, aparecer como
 // "Fora da faixa" em todo hemograma.
-export function parseReferenceRange(raw?: string | null): ReferenceRange | null {
-  if (!raw) return null;
+// Rótulo de faixa etária no início de texto de LINHA ÚNICA: "17 a 40 anos: 82 a 626 ng/dL".
+// A IA escolhe a linha da tabela estratificada aplicável ao paciente e a transcreve verbatim —
+// o rótulo vem junto, e ele é ELE MESMO um intervalo numérico: sem descartá-lo, o texto contaria
+// duas cláusulas e cairia na regra de segurança logo abaixo. Só em linha única: num texto
+// multilinha cada linha é um estrato, e descartar rótulos ali seria escolher estrato por conta
+// própria. Espelho de ReferenceRangeEvaluator.AgeLabelPrefix no back.
+const AGE_LABEL_PREFIX = /^\s*(?:de\s+)?(?:\d+\s*(?:\ba\b|\baté\b|[-–])\s*\d+|(?:acima|abaixo|a\s+partir)\s+de\s+\d+)\s*anos\b[^:\n]*:\s*/i;
+
+export function parseReferenceRange(rawText?: string | null): ReferenceRange | null {
+  if (!rawText) return null;
+
+  const isSingleLine = !rawText.includes('\n');
+  const raw = isSingleLine ? rawText.replace(AGE_LABEL_PREFIX, '') : rawText;
 
   const ranges = [...raw.matchAll(new RegExp(`(${LAB_NUMBER_PATTERN})\\s*a\\s*(${LAB_NUMBER_PATTERN})`, 'gi'))];
   const upperBounds = [...raw.matchAll(new RegExp(`inferior\\s+a\\s*(${LAB_NUMBER_PATTERN})`, 'gi'))];
