@@ -14,137 +14,181 @@ vi.mock('next/link', () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,
 }));
 
-async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText('Código do convite'), 'A7KX2M');
-  await user.type(screen.getByLabelText('Nome completo'), 'Fulano de Tal');
-  await user.type(screen.getByLabelText('Data de nascimento'), '1990-05-20');
-  await user.type(screen.getByLabelText('E-mail'), 'fulano@teste.dev');
-  await user.type(screen.getByLabelText('Senha'), 'SenhaValida123');
-  await user.type(screen.getByLabelText('Confirmar senha'), 'SenhaValida123');
+vi.mock('@/lib/credentials', () => ({
+  storePasswordCredential: vi.fn().mockResolvedValue(undefined),
+}));
+
+// Roteia o fetch por URL: o portão (/api/register/verify) e a efetivação (/api/register) têm
+// respostas independentes por teste.
+function mockFetchRoutes(routes: Record<string, Response | (() => Response)>) {
+  return vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) => {
+      const match = Object.entries(routes).find(([path]) => String(url).endsWith(path));
+      if (!match) throw new Error(`fetch inesperado: ${url}`);
+      const value = match[1];
+      return typeof value === 'function' ? value() : value.clone();
+    }),
+  );
 }
 
-describe('RegisterForm', () => {
+const verifyOk = () => new Response(JSON.stringify({ valid: true }), { status: 200 });
+const verifyFail = () => new Response(JSON.stringify({ valid: false }), { status: 200 });
+const registerOk = () => new Response(JSON.stringify({}), { status: 200 });
+
+async function passGate(user: ReturnType<typeof userEvent.setup>, email = 'fulano@teste.dev') {
+  await user.type(screen.getByLabelText('E-mail'), email);
+  await user.type(screen.getByLabelText('Código do convite'), 'a7kx2m');
+  await user.click(screen.getByRole('button', { name: 'Continuar' }));
+  await screen.findByLabelText('Nome completo');
+}
+
+async function fillPersonalData(
+  user: ReturnType<typeof userEvent.setup>,
+  overrides: Partial<{ fullName: string; dateOfBirth: string; password: string; confirm: string }> = {},
+) {
+  await user.type(screen.getByLabelText('Nome completo'), overrides.fullName ?? 'Fulano de Tal');
+  await user.type(screen.getByLabelText('Data de nascimento'), overrides.dateOfBirth ?? '1990-05-20');
+  await user.type(screen.getByLabelText('Senha'), overrides.password ?? 'SenhaValida123');
+  await user.type(screen.getByLabelText('Confirmar senha'), overrides.confirm ?? overrides.password ?? 'SenhaValida123');
+}
+
+describe('RegisterForm — etapa 1, o portão', () => {
   beforeEach(() => {
     replace.mockClear();
     refresh.mockClear();
-    vi.stubGlobal('fetch', vi.fn());
   });
 
-  it('mantém "Concluir primeiro acesso" desabilitado até todos os campos serem preenchidos', async () => {
+  it('só mostra e-mail e código — nenhum dado pessoal antes do convite conferir', () => {
+    mockFetchRoutes({});
+    render(<RegisterForm />);
+
+    expect(screen.getByLabelText('E-mail')).toBeInTheDocument();
+    expect(screen.getByLabelText('Código do convite')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Nome completo')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Senha')).not.toBeInTheDocument();
+  });
+
+  it('"Continuar" fica desabilitado até e-mail e código preenchidos', async () => {
+    mockFetchRoutes({});
     const user = userEvent.setup();
     render(<RegisterForm />);
 
-    const submit = screen.getByRole('button', { name: 'Concluir primeiro acesso' });
+    const submit = screen.getByRole('button', { name: 'Continuar' });
     expect(submit).toBeDisabled();
 
-    await fillValidForm(user);
+    await user.type(screen.getByLabelText('E-mail'), 'fulano@teste.dev');
+    expect(submit).toBeDisabled();
+    await user.type(screen.getByLabelText('Código do convite'), 'A7KX2M');
     expect(submit).toBeEnabled();
   });
 
-  it('bloqueia o envio quando as senhas não coincidem, sem chamar a API', async () => {
+  it('convite inválido mostra a mensagem genérica e NÃO avança', async () => {
+    mockFetchRoutes({ '/api/register/verify': verifyFail });
     const user = userEvent.setup();
     render(<RegisterForm />);
 
-    await fillValidForm(user);
-    await user.clear(screen.getByLabelText('Confirmar senha'));
-    await user.type(screen.getByLabelText('Confirmar senha'), 'outraSenha123');
-    await user.click(screen.getByRole('button', { name: 'Concluir primeiro acesso' }));
+    await user.type(screen.getByLabelText('E-mail'), 'fulano@teste.dev');
+    await user.type(screen.getByLabelText('Código do convite'), 'ERRADO');
+    await user.click(screen.getByRole('button', { name: 'Continuar' }));
 
-    expect(await screen.findByText('As senhas não coincidem.')).toBeInTheDocument();
-    expect(fetch).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Convite inválido/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Nome completo')).not.toBeInTheDocument();
   });
 
-  it('em sucesso, redireciona pra /home e atualiza a sessão do server', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({ ok: true, status: 200 } as Response);
+  it('convite válido avança para a efetivação', async () => {
+    mockFetchRoutes({ '/api/register/verify': verifyOk });
     const user = userEvent.setup();
     render(<RegisterForm />);
 
-    await fillValidForm(user);
-    await user.click(screen.getByRole('button', { name: 'Concluir primeiro acesso' }));
+    await passGate(user);
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/home'));
-    expect(refresh).toHaveBeenCalled();
-  });
-
-  it('mostra a mensagem específica do back quando o cadastro falha (ex: email duplicado)', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: false,
-      status: 400,
-      json: async () => ({ message: 'Este email já está cadastrado.' }),
-    } as Response);
-    const user = userEvent.setup();
-    render(<RegisterForm />);
-
-    await fillValidForm(user);
-    await user.click(screen.getByRole('button', { name: 'Concluir primeiro acesso' }));
-
-    expect(await screen.findByText('Este email já está cadastrado.')).toBeInTheDocument();
-    expect(replace).not.toHaveBeenCalled();
-  });
-
-  it('mostra mensagem de rate limit (429)', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 429 } as Response);
-    const user = userEvent.setup();
-    render(<RegisterForm />);
-
-    await fillValidForm(user);
-    await user.click(screen.getByRole('button', { name: 'Concluir primeiro acesso' }));
-
-    expect(await screen.findByText('Muitas tentativas. Aguarde 1 minuto e tente novamente.')).toBeInTheDocument();
-  });
-
-  it('mostra fallback genérico quando a falha não vem com mensagem', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      json: async () => { throw new Error('not json'); },
-    } as unknown as Response);
-    const user = userEvent.setup();
-    render(<RegisterForm />);
-
-    await fillValidForm(user);
-    await user.click(screen.getByRole('button', { name: 'Concluir primeiro acesso' }));
-
-    expect(await screen.findByText('Não foi possível criar a conta. Tente novamente em instantes.')).toBeInTheDocument();
-  });
-
-  it('mostra mensagem de falha de rede quando o fetch rejeita', async () => {
-    vi.mocked(fetch).mockRejectedValueOnce(new Error('network down'));
-    const user = userEvent.setup();
-    render(<RegisterForm />);
-
-    await fillValidForm(user);
-    await user.click(screen.getByRole('button', { name: 'Concluir primeiro acesso' }));
-
-    expect(await screen.findByText('Falha de rede. Verifique sua conexão e tente novamente.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Nome completo')).toBeInTheDocument();
   });
 });
 
-// Cadastro fechado (08/08/2026): registrar é completar um convite — o código viaja no corpo,
-// em maiúsculas independente de como foi digitado.
-describe('RegisterForm — primeiro acesso por convite', () => {
+describe('RegisterForm — etapa 2, a efetivação', () => {
   beforeEach(() => {
     replace.mockClear();
     refresh.mockClear();
-    vi.stubGlobal('fetch', vi.fn());
   });
 
-  it('envia o código do convite junto com o cadastro, em maiúsculas', async () => {
-    const fetchMock = vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({}), { status: 200 }) as unknown as Response,
-    );
+  // O pedido central: o e-mail verificado fica TRAVADO — exibido em campo desabilitado, sem
+  // como divergir do convite.
+  it('o e-mail vem travado, exibindo o valor verificado', async () => {
+    mockFetchRoutes({ '/api/register/verify': verifyOk });
     const user = userEvent.setup();
     render(<RegisterForm />);
 
-    await user.type(screen.getByLabelText('Código do convite'), 'a7kx2m');
-    await user.type(screen.getByLabelText('Nome completo'), 'Fulano de Tal');
-    await user.type(screen.getByLabelText('Data de nascimento'), '1990-05-20');
-    await user.type(screen.getByLabelText('E-mail'), 'fulano@teste.dev');
-    await user.type(screen.getByLabelText('Senha'), 'SenhaValida123');
-    await user.type(screen.getByLabelText('Confirmar senha'), 'SenhaValida123');
+    await passGate(user, 'convidada@teste.dev');
+
+    const emailField = screen.getByLabelText('E-mail');
+    expect(emailField).toBeDisabled();
+    expect(emailField).toHaveValue('convidada@teste.dev');
+  });
+
+  it('"Usar outro e-mail" volta ao portão', async () => {
+    mockFetchRoutes({ '/api/register/verify': verifyOk });
+    const user = userEvent.setup();
+    render(<RegisterForm />);
+
+    await passGate(user);
+    await user.click(screen.getByRole('button', { name: 'Usar outro e-mail' }));
+
+    expect(screen.getByRole('button', { name: 'Continuar' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Nome completo')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [{ fullName: 'Jo' }, 'Nome completo precisa de pelo menos 3 letras.'],
+    [{ dateOfBirth: '2090-01-01' }, 'Data de nascimento não pode ser no futuro.'],
+    [{ dateOfBirth: '1890-01-01' }, 'Data de nascimento inválida.'],
+    [{ password: 'curta12', confirm: 'curta12' }, 'A senha deve ter no mínimo 8 caracteres.'],
+    [{ password: 'SenhaValida123', confirm: 'Diferente123' }, 'As senhas não coincidem.'],
+  ])('valida os campos antes de enviar: %o', async (overrides, mensagem) => {
+    const fetchMock = mockFetchRoutes({ '/api/register/verify': verifyOk, '/api/register': registerOk });
+    const user = userEvent.setup();
+    render(<RegisterForm />);
+
+    await passGate(user);
+    await fillPersonalData(user, overrides);
     await user.click(screen.getByRole('button', { name: 'Concluir primeiro acesso' }));
 
-    const body = JSON.parse(String(fetchMock.mock.calls[0]![1]!.body));
+    expect(await screen.findByText(mensagem)).toBeInTheDocument();
+    // a validação barrou ANTES do envio — só o verify do portão foi pra rede
+    expect(vi.mocked(fetch).mock.calls.filter(([u]) => String(u).endsWith('/api/register')).length).toBe(0);
+  });
+
+  it('sucesso envia o e-mail e o código verificados (código em maiúsculas) e vai pra home', async () => {
+    mockFetchRoutes({ '/api/register/verify': verifyOk, '/api/register': registerOk });
+    const user = userEvent.setup();
+    render(<RegisterForm />);
+
+    await passGate(user, 'convidada@teste.dev');
+    await fillPersonalData(user);
+    await user.click(screen.getByRole('button', { name: 'Concluir primeiro acesso' }));
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/home'));
+    const registerCall = vi.mocked(fetch).mock.calls.find(([u]) => String(u).endsWith('/api/register'))!;
+    const body = JSON.parse(String((registerCall[1] as RequestInit).body));
+    expect(body.email).toBe('convidada@teste.dev');
     expect(body.inviteCode).toBe('A7KX2M');
+  });
+
+  it('falha do back na efetivação mostra a mensagem e mantém a tela', async () => {
+    mockFetchRoutes({
+      '/api/register/verify': verifyOk,
+      '/api/register': () =>
+        new Response(JSON.stringify({ message: 'Convite inválido. Confira o e-mail e o código com quem te convidou.' }), { status: 400 }),
+    });
+    const user = userEvent.setup();
+    render(<RegisterForm />);
+
+    await passGate(user);
+    await fillPersonalData(user);
+    await user.click(screen.getByRole('button', { name: 'Concluir primeiro acesso' }));
+
+    expect(await screen.findByText(/Convite inválido/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Nome completo')).toBeInTheDocument();
   });
 });
