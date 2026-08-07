@@ -21,7 +21,11 @@ export interface ReferenceRange {
 // duas cláusulas e cairia na regra de segurança logo abaixo. Só em linha única: num texto
 // multilinha cada linha é um estrato, e descartar rótulos ali seria escolher estrato por conta
 // própria. Espelho de ReferenceRangeEvaluator.AgeLabelPrefix no back.
-const AGE_LABEL_PREFIX = /^\s*(?:de\s+)?(?:\d+\s*(?:\ba\b|\baté\b|[-–])\s*\d+|(?:acima|abaixo|a\s+partir)\s+de\s+\d+)\s*anos\b[^:\n]*:\s*/i;
+// O prefixo opcional de sexo e a forma com comparador cobrem "Masculino > 21 anos: até 39,8" —
+// caso real em que o "> 21" do rótulo virava uma segunda cláusula. Sem "anos", rótulo de sexo
+// puro ("Masculino: De 143 a 842") nem precisa de descarte: não é intervalo numérico.
+const AGE_LABEL_PREFIX =
+  /^\s*(?:masculino|feminino|homens|mulheres)?\s*[:,]?\s*(?:[<>]=?\s*\d+|(?:de\s+)?\d+\s*(?:\ba\b|\baté\b|[-–])\s*\d+|(?:acima|abaixo|a\s+partir)\s+de\s+\d+)\s*anos\b[^:\n]*:\s*/i;
 
 export function parseReferenceRange(rawText?: string | null): ReferenceRange | null {
   if (!rawText) return null;
@@ -29,7 +33,12 @@ export function parseReferenceRange(rawText?: string | null): ReferenceRange | n
   const isSingleLine = !rawText.includes('\n');
   const raw = isSingleLine ? rawText.replace(AGE_LABEL_PREFIX, '') : rawText;
 
-  const ranges = [...raw.matchAll(new RegExp(`(${LAB_NUMBER_PATTERN})\\s*a\\s*(${LAB_NUMBER_PATTERN})`, 'gi'))];
+  // O conector "e" SÓ é aceito atrás de "entre" ("Entre 15 e 40") — solto, "e" aparece em
+  // prosa comum e casaria pares de números que não são faixa nenhuma.
+  const ranges = [
+    ...raw.matchAll(new RegExp(`(${LAB_NUMBER_PATTERN})\\s*a\\s*(${LAB_NUMBER_PATTERN})`, 'gi')),
+    ...raw.matchAll(new RegExp(`\\bentre\\s+(${LAB_NUMBER_PATTERN})\\s+e\\s+(${LAB_NUMBER_PATTERN})`, 'gi')),
+  ];
   const upperBounds = [...raw.matchAll(new RegExp(`inferior\\s+a\\s*(${LAB_NUMBER_PATTERN})`, 'gi'))];
   const lowerBounds = [...raw.matchAll(new RegExp(`superior\\s+a\\s*(${LAB_NUMBER_PATTERN})`, 'gi'))];
 

@@ -135,3 +135,23 @@ describe('parseReferenceRange — rótulo de faixa etária em linha única', () 
     expect(isOutOfRange(58, '17 a 40 anos: 82 a 626 ng/dL')).toBe(true);
   });
 });
+
+// Casos reais da segunda auditoria (07/08/2026), espelhos dos testes do ReferenceRangeEvaluator.
+describe('parseReferenceRange — rótulo com sexo/comparador e conector "entre"', () => {
+  // O rótulo é descartado (sem isso "> 21" viraria cláusula), mas o parser do front é mais
+  // estreito que o do back e não conhece o conector "até N" — então aqui ainda sai null. O
+  // veredicto desse caso vem do IsAbnormal GRAVADO pelo back, que o front exibe; este teste
+  // fixa a lacuna conhecida para ela não passar despercebida numa futura sincronização.
+  it('rótulo com sexo e comparador é descartado, mas "até N" ainda não é lido no front', () => {
+    expect(parseReferenceRange('Masculino > 21 anos: até 39,8 pg/mL')).toBeNull();
+  });
+
+  it('lê a faixa "Entre X e Y"', () => {
+    expect(parseReferenceRange('Entre 15 e 40. U/L')).toEqual({ min: 15, max: 40 });
+    expect(parseReferenceRange('entre 4,0 e 10,0 mg/dL')).toEqual({ min: 4, max: 10 });
+  });
+
+  it('"e" solto sem "entre" não vira faixa', () => {
+    expect(parseReferenceRange('dosagens 15 e 40 conforme protocolo')).toBeNull();
+  });
+});
