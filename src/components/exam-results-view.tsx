@@ -215,7 +215,7 @@ export function ExamResultsView({ data }: ExamResultsViewProps) {
                 </div>
               </>
             )}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto horizontal-scroll-visible">
               <table className="w-full min-w-[860px] text-sm">
                 <thead>
                   <tr className="border-b border-border">

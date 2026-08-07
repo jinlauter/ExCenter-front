@@ -9,9 +9,12 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push, replace: vi.fn(), refresh }),
 }));
 
+// lastModified é derivado de nome+tamanho em vez de cair no Date.now() padrão do File: ele faz
+// parte da identidade usada na deduplicação, e com o relógio dois makeFile('a.pdf', 1024) seriam
+// arquivos DIFERENTES — o oposto do que "reselecionar o mesmo arquivo" quer dizer. No browser
+// real esse campo é a data de modificação em disco, que não muda entre uma seleção e outra.
 function makeFile(name: string, sizeBytes: number, type = 'application/pdf'): File {
-  const file = new File([new Uint8Array(sizeBytes)], name, { type });
-  return file;
+  return new File([new Uint8Array(sizeBytes)], name, { type, lastModified: name.length + sizeBytes });
 }
 
 // jsdom não implementa DataTransfer — define "files" diretamente como array-like
@@ -100,7 +103,7 @@ describe('UploadCard — revisão antes do envio', () => {
     expect(screen.getByText('2 de 20 arquivos selecionados')).toBeInTheDocument();
   });
 
-  it('não duplica o mesmo arquivo reselecionado (dedupe por nome+tamanho)', async () => {
+  it('não duplica o mesmo arquivo reselecionado (dedupe por nome+tamanho+data de modificação)', async () => {
     render(<UploadCard />);
 
     await selectFiles([makeFile('a.pdf', 1024)]);
@@ -415,5 +418,72 @@ describe('UploadCard — revisão antes do envio', () => {
     expect(await screen.findByText('Erro interno.')).toBeInTheDocument();
     expect(screen.getByText('unico.pdf')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Enviar/ })).toBeEnabled();
+  });
+});
+
+// No Android, seletores que entregam o arquivo por content:// (galeria e gerenciador de
+// arquivos do MIUI, entre outros) preenchem file.name com um nome gerado, muitas vezes sem
+// extensão. A triagem local exigia extensão, então recusava foto de laudo válida e a seleção
+// aparecia vazia — como se o usuário tivesse cancelado.
+describe('UploadCard — arquivo vindo de seletor que não informa extensão no nome', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+    push.mockClear();
+    refresh.mockClear();
+  });
+
+  function makeFileWithoutExtension(name: string, sizeBytes: number, type: string, lastModified: number): File {
+    return new File([new Uint8Array(sizeBytes)], name, { type, lastModified });
+  }
+
+  it('aceita arquivo sem extensão no nome quando o tipo MIME é de exame', async () => {
+    render(<UploadCard />);
+
+    await selectFiles([makeFileWithoutExtension('1000012345', 1000, 'image/jpeg', 1)]);
+
+    expect(await screen.findByText(/1 de 20 arquivo/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Enviar/ })).toBeEnabled();
+  });
+
+  it('aceita vários arquivos sem extensão de uma vez, que é o caso que aparecia vazio', async () => {
+    render(<UploadCard />);
+
+    await selectFiles([
+      makeFileWithoutExtension('1000012345', 1000, 'image/jpeg', 1),
+      makeFileWithoutExtension('1000012346', 1000, 'image/jpeg', 2),
+      makeFileWithoutExtension('1000012347', 1000, 'image/png', 3),
+    ]);
+
+    expect(await screen.findByText(/3 de 20 arquivo/)).toBeInTheDocument();
+  });
+
+  it('continua recusando quando nem o nome nem o tipo MIME servem', async () => {
+    render(<UploadCard />);
+
+    await selectFiles([makeFileWithoutExtension('1000012345', 1000, 'audio/mpeg', 1)]);
+
+    expect(await screen.findByText(/Só aceitamos PDF e imagens/)).toBeInTheDocument();
+    expect(screen.queryByText(/1 de 20 arquivo/)).not.toBeInTheDocument();
+  });
+
+  // Sem lastModified na identidade, duas fotos em sequência com o mesmo nome gerado e o mesmo
+  // tamanho colidiriam e uma sumiria da seleção sem aviso nenhum.
+  it('mantém dois arquivos de mesmo nome e mesmo tamanho quando o momento de captura difere', async () => {
+    render(<UploadCard />);
+
+    await selectFiles([
+      makeFileWithoutExtension('IMG', 1000, 'image/jpeg', 1),
+      makeFileWithoutExtension('IMG', 1000, 'image/jpeg', 2),
+    ]);
+
+    expect(await screen.findByText(/2 de 20 arquivo/)).toBeInTheDocument();
+  });
+
+  it('mostra um rótulo legível no lugar do nome quando o seletor não informa nome algum', async () => {
+    render(<UploadCard />);
+
+    await selectFiles([makeFileWithoutExtension('', 1000, 'application/pdf', 1)]);
+
+    expect(await screen.findByText('arquivo sem nome')).toBeInTheDocument();
   });
 });

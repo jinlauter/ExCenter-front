@@ -510,3 +510,16 @@ describe('SentExamsView — exclusão de arquivo', () => {
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/exames-enviados?page=2'));
   });
 });
+
+// Mesma pista de rolagem da tela de resultados: min-w-[900px] dentro de overflow-x-auto rola,
+// mas sem barra permanente nada indica que a tabela continua à direita no celular.
+describe('SentExamsView — pista de rolagem lateral no celular', () => {
+  it('o container que rola tem a barra de rolagem sempre visível', () => {
+    const { container } = renderView([makeFile()]);
+
+    const containerQueRola = container.querySelector('.overflow-x-auto');
+
+    expect(containerQueRola).not.toBeNull();
+    expect(containerQueRola).toHaveClass('horizontal-scroll-visible');
+  });
+});
