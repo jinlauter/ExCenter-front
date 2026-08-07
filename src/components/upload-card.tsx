@@ -20,10 +20,35 @@ const ACCEPTED_MIME = 'application/pdf,image/jpeg,image/jpg,image/png';
 // sem relação com um documento de exame (.exe, .mp3, .docx, etc.), em vez de deixar o back
 // rejeitar com mensagem genérica. Fonte de verdade continua sendo o back (defesa em profundidade).
 const ACCEPTED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png'];
+const ACCEPTED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
 
 function hasAcceptedExtension(fileName: string) {
   const lower = fileName.toLowerCase();
   return ACCEPTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+function hasAcceptedMimeType(mimeType: string) {
+  return ACCEPTED_MIME_TYPES.includes(mimeType.toLowerCase());
+}
+
+// Aceita por extensão OU por tipo MIME, porque no Android o nome não é confiável: seletores
+// que devolvem o arquivo por content:// (galeria e gerenciador de arquivos do MIUI, entre
+// outros) entregam nomes gerados sem extensão. Exigir extensão ali recusa foto de laudo
+// perfeitamente válida, e o tipo MIME que o próprio browser preencheu é o dado bom nesse caso.
+// Continua sendo só triagem local: quem valida de fato é o back, por assinatura de bytes.
+function isAcceptedExamFile(file: File) {
+  return hasAcceptedExtension(file.name) || hasAcceptedMimeType(file.type);
+}
+
+// lastModified entra na identidade porque nome deixou de ser confiável: duas fotos tiradas em
+// sequência podem chegar da galeria com o mesmo nome gerado e o mesmo tamanho, e sem ele uma
+// das duas sumiria silenciosamente na deduplicação.
+function identityOf(file: File) {
+  return `${file.name}-${file.size}-${file.lastModified}`;
+}
+
+function displayNameOf(file: File) {
+  return file.name.trim() || 'arquivo sem nome';
 }
 
 // Mesmo limite de contagem do back (AnalyzeBloodTestService.MaxFilesPerBatch). O tamanho total
@@ -79,18 +104,18 @@ export function UploadCard() {
     event.target.value = ''; // permite reselecionar mesmo arquivo depois de removê-lo
     if (picked.length === 0) return;
 
-    const rejected = picked.filter((file) => !hasAcceptedExtension(file.name));
-    const accepted = picked.filter((file) => hasAcceptedExtension(file.name));
+    const rejected = picked.filter((file) => !isAcceptedExamFile(file));
+    const accepted = picked.filter((file) => isAcceptedExamFile(file));
 
     setSelectedFiles((prev) => {
-      const existing = new Set(prev.map((f) => `${f.name}-${f.size}`));
-      return [...prev, ...accepted.filter((f) => !existing.has(`${f.name}-${f.size}`))];
+      const existing = new Set(prev.map(identityOf));
+      return [...prev, ...accepted.filter((file) => !existing.has(identityOf(file)))];
     });
 
     if (rejected.length > 0) {
       setFeedback(
         errorFeedback(
-          `Só aceitamos PDF e imagens (JPG, PNG). Não dá pra enviar: ${rejected.map((f) => f.name).join(', ')}.`,
+          `Só aceitamos PDF e imagens (JPG, PNG). Não dá pra enviar: ${rejected.map(displayNameOf).join(', ')}.`,
         ),
       );
       return;
@@ -208,14 +233,14 @@ export function UploadCard() {
                   type="button"
                   onClick={() => removeFile(index)}
                   disabled={isPending}
-                  aria-label={`Remover ${file.name}`}
+                  aria-label={`Remover ${displayNameOf(file)}`}
                   className="absolute right-1 top-1 rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
                 <FileText className="h-7 w-7 text-primary" strokeWidth={1.5} />
-                <p className="w-full truncate px-1 text-xs font-medium" title={file.name}>
-                  {file.name}
+                <p className="w-full truncate px-1 text-xs font-medium" title={displayNameOf(file)}>
+                  {displayNameOf(file)}
                 </p>
                 <p className="text-[11px] text-muted-foreground">{formatFileSize(file.size)}</p>
               </div>
