@@ -340,11 +340,14 @@ export async function registerAndPersistSession(
   password: string,
   fullName: string,
   dateOfBirth: string,
+  inviteCode: string,
 ): Promise<{ ok: true; data: LoginResponse } | { ok: false; status: number; body: unknown }> {
+  // Cadastro fechado (08/08/2026): registrar é COMPLETAR UM CONVITE — o código vai junto e o
+  // back valida e-mail + código contra o convite pendente, com falha sempre genérica.
   const response = await fetch(`${env.BACKEND_URL}/api/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, fullName, dateOfBirth }),
+    body: JSON.stringify({ email, password, fullName, dateOfBirth, inviteCode }),
     cache: 'no-store',
   });
 

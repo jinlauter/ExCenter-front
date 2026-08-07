@@ -20,6 +20,7 @@ import { storePasswordCredential } from '@/lib/credentials';
 
 export function RegisterForm() {
   const router = useRouter();
+  const [inviteCode, setInviteCode] = useState('');
   const [fullName, setFullName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [email, setEmail] = useState('');
@@ -43,7 +44,7 @@ export function RegisterForm() {
         const res = await fetch('/api/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password, fullName, dateOfBirth }),
+          body: JSON.stringify({ email, password, fullName, dateOfBirth, inviteCode }),
         });
 
         if (res.status === 429) {
@@ -75,6 +76,23 @@ export function RegisterForm() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
+
+      <div className="space-y-1.5">
+        <Label htmlFor="inviteCode">Código do convite</Label>
+        <Input
+          id="inviteCode"
+          placeholder="Ex: A7KX2M"
+          autoComplete="off"
+          autoCapitalize="characters"
+          value={inviteCode}
+          onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+          disabled={isPending}
+          className="uppercase tracking-widest"
+        />
+        <p className="text-xs text-muted-foreground">
+          Você recebeu este código junto com o convite. Sem convite não é possível criar conta.
+        </p>
+      </div>
 
       <div className="space-y-1.5">
         <Label htmlFor="fullName">Nome completo</Label>
@@ -140,9 +158,9 @@ export function RegisterForm() {
       <Button
         type="submit"
         className="w-full"
-        disabled={isPending || !fullName.trim() || !dateOfBirth || !email || !password || !confirmPassword}
+        disabled={isPending || !inviteCode.trim() || !fullName.trim() || !dateOfBirth || !email || !password || !confirmPassword}
       >
-        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Criar conta'}
+        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Concluir primeiro acesso'}
       </Button>
 
       <p className="pt-2 text-center text-sm text-muted-foreground">

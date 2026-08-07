@@ -229,9 +229,9 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
       </div>
 
       <p className="pt-2 text-center text-sm text-muted-foreground">
-        Novo aqui?{' '}
+        Foi convidado?{' '}
         <Link href="/registrar" className="font-medium text-primary hover:underline">
-          Criar conta
+          Primeiro acesso
         </Link>
       </p>
     </form>

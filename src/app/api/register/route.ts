@@ -15,6 +15,9 @@ const bodySchema = z.object({
   password: z.string().min(8),
   fullName: z.string().trim().min(1).max(100),
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  // O código do convite — a prova de que o operador habilitou este e-mail. Normalização de
+  // caixa aqui: o alfabeto do código é maiúsculo, e ninguém deve falhar por digitar minúsculo.
+  inviteCode: z.string().trim().min(1).max(12).transform((code) => code.toUpperCase()),
 });
 
 export async function POST(request: Request) {
@@ -33,6 +36,7 @@ export async function POST(request: Request) {
     parsed.password,
     parsed.fullName,
     parsed.dateOfBirth,
+    parsed.inviteCode,
   );
 
   if (!result.ok) {

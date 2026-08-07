@@ -11,7 +11,7 @@ export default function RegisterPage() {
             <Activity className="h-6 w-6 text-primary" strokeWidth={1.75} />
           </div>
           <h1 className="mt-1 text-xl font-medium text-primary-dark">ExCenter</h1>
-          <p className="text-center text-sm text-primary-soft">Crie sua conta</p>
+          <p className="text-center text-sm text-primary-soft">Primeiro acesso — complete seu convite</p>
         </header>
         <RegisterForm />
       </div>

@@ -15,6 +15,7 @@ vi.mock('next/link', () => ({
 }));
 
 async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(screen.getByLabelText('Código do convite'), 'A7KX2M');
   await user.type(screen.getByLabelText('Nome completo'), 'Fulano de Tal');
   await user.type(screen.getByLabelText('Data de nascimento'), '1990-05-20');
   await user.type(screen.getByLabelText('E-mail'), 'fulano@teste.dev');
@@ -29,11 +30,11 @@ describe('RegisterForm', () => {
     vi.stubGlobal('fetch', vi.fn());
   });
 
-  it('mantém "Criar conta" desabilitado até todos os campos serem preenchidos', async () => {
+  it('mantém "Concluir primeiro acesso" desabilitado até todos os campos serem preenchidos', async () => {
     const user = userEvent.setup();
     render(<RegisterForm />);
 
-    const submit = screen.getByRole('button', { name: 'Criar conta' });
+    const submit = screen.getByRole('button', { name: 'Concluir primeiro acesso' });
     expect(submit).toBeDisabled();
 
     await fillValidForm(user);
@@ -47,7 +48,7 @@ describe('RegisterForm', () => {
     await fillValidForm(user);
     await user.clear(screen.getByLabelText('Confirmar senha'));
     await user.type(screen.getByLabelText('Confirmar senha'), 'outraSenha123');
-    await user.click(screen.getByRole('button', { name: 'Criar conta' }));
+    await user.click(screen.getByRole('button', { name: 'Concluir primeiro acesso' }));
 
     expect(await screen.findByText('As senhas não coincidem.')).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
@@ -59,7 +60,7 @@ describe('RegisterForm', () => {
     render(<RegisterForm />);
 
     await fillValidForm(user);
-    await user.click(screen.getByRole('button', { name: 'Criar conta' }));
+    await user.click(screen.getByRole('button', { name: 'Concluir primeiro acesso' }));
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/home'));
     expect(refresh).toHaveBeenCalled();
@@ -75,7 +76,7 @@ describe('RegisterForm', () => {
     render(<RegisterForm />);
 
     await fillValidForm(user);
-    await user.click(screen.getByRole('button', { name: 'Criar conta' }));
+    await user.click(screen.getByRole('button', { name: 'Concluir primeiro acesso' }));
 
     expect(await screen.findByText('Este email já está cadastrado.')).toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
@@ -87,7 +88,7 @@ describe('RegisterForm', () => {
     render(<RegisterForm />);
 
     await fillValidForm(user);
-    await user.click(screen.getByRole('button', { name: 'Criar conta' }));
+    await user.click(screen.getByRole('button', { name: 'Concluir primeiro acesso' }));
 
     expect(await screen.findByText('Muitas tentativas. Aguarde 1 minuto e tente novamente.')).toBeInTheDocument();
   });
@@ -102,7 +103,7 @@ describe('RegisterForm', () => {
     render(<RegisterForm />);
 
     await fillValidForm(user);
-    await user.click(screen.getByRole('button', { name: 'Criar conta' }));
+    await user.click(screen.getByRole('button', { name: 'Concluir primeiro acesso' }));
 
     expect(await screen.findByText('Não foi possível criar a conta. Tente novamente em instantes.')).toBeInTheDocument();
   });
@@ -113,8 +114,37 @@ describe('RegisterForm', () => {
     render(<RegisterForm />);
 
     await fillValidForm(user);
-    await user.click(screen.getByRole('button', { name: 'Criar conta' }));
+    await user.click(screen.getByRole('button', { name: 'Concluir primeiro acesso' }));
 
     expect(await screen.findByText('Falha de rede. Verifique sua conexão e tente novamente.')).toBeInTheDocument();
+  });
+});
+
+// Cadastro fechado (08/08/2026): registrar é completar um convite — o código viaja no corpo,
+// em maiúsculas independente de como foi digitado.
+describe('RegisterForm — primeiro acesso por convite', () => {
+  beforeEach(() => {
+    replace.mockClear();
+    refresh.mockClear();
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  it('envia o código do convite junto com o cadastro, em maiúsculas', async () => {
+    const fetchMock = vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({}), { status: 200 }) as unknown as Response,
+    );
+    const user = userEvent.setup();
+    render(<RegisterForm />);
+
+    await user.type(screen.getByLabelText('Código do convite'), 'a7kx2m');
+    await user.type(screen.getByLabelText('Nome completo'), 'Fulano de Tal');
+    await user.type(screen.getByLabelText('Data de nascimento'), '1990-05-20');
+    await user.type(screen.getByLabelText('E-mail'), 'fulano@teste.dev');
+    await user.type(screen.getByLabelText('Senha'), 'SenhaValida123');
+    await user.type(screen.getByLabelText('Confirmar senha'), 'SenhaValida123');
+    await user.click(screen.getByRole('button', { name: 'Concluir primeiro acesso' }));
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]![1]!.body));
+    expect(body.inviteCode).toBe('A7KX2M');
   });
 });

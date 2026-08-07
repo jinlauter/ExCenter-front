@@ -50,3 +50,22 @@ export interface ReviewActionResult {
   ok: boolean;
   message?: string;
 }
+
+// ── Aba Usuários (gestão de contas pelo operador) ──────────────────────────────
+
+export interface UserAccountSummary {
+  id: string;
+  username: string;
+  email: string | null;
+  registrationPending: boolean;
+  invitedAt: string | null;
+  createdAt: string;
+}
+
+export interface CreatedInviteResult {
+  ok: boolean;
+  email?: string;
+  /** O código aparece AQUI e nunca mais — o banco guarda só o hash. */
+  inviteCode?: string;
+  message?: string;
+}
