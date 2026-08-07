@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { backendFetch, BackendError, UnauthenticatedError } from '@/lib/backend';
 import { ReviewQueueView } from './review-queue-view';
 import { ignoreTermAction, mapTermAction } from './actions';
-import type { ReviewQueueEntry } from './types';
+import type { ReviewQueuePage } from './types';
 
 // Este catch-all é DUAS coisas ao mesmo tempo, de propósito:
 //
@@ -26,8 +26,10 @@ const OPERATOR_REVIEW_PATH_SEGMENT = 'zk7q';
 
 export default async function UnmatchedOrHiddenPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ unmatchedPath: string[] }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { unmatchedPath } = await params;
 
@@ -35,11 +37,14 @@ export default async function UnmatchedOrHiddenPage({
     unmatchedPath.length === 1 && unmatchedPath[0] === OPERATOR_REVIEW_PATH_SEGMENT;
   if (!isOperatorReviewPath) notFound();
 
-  let entries: ReviewQueueEntry[];
+  const { page: rawPage } = await searchParams;
+  const page = Math.max(1, Number.parseInt(rawPage ?? '1', 10) || 1);
+
+  let queuePage: ReviewQueuePage;
 
   try {
-    entries = await backendFetch<ReviewQueueEntry[]>(
-      '/api/admin/observed-terms/review-queue',
+    queuePage = await backendFetch<ReviewQueuePage>(
+      `/api/admin/observed-terms/review-queue?page=${page}`,
       { skipRefresh: true },
     );
   } catch (err) {
@@ -50,7 +55,12 @@ export default async function UnmatchedOrHiddenPage({
 
   return (
     <ReviewQueueView
-      initialEntries={entries}
+      // key por página: navegação entre páginas REMONTA o estado local (cartões removidos,
+      // feedbacks) — sem isso, o React preservaria o estado da página anterior sobre os
+      // dados da nova.
+      key={queuePage.page}
+      queuePage={queuePage}
+      basePath={`/${OPERATOR_REVIEW_PATH_SEGMENT}`}
       mapAction={mapTermAction}
       ignoreAction={ignoreTermAction}
     />

@@ -1,31 +1,39 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { CheckCircle2, EyeOff, Loader2 } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, EyeOff, Loader2 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import type { ReviewActionResult, ReviewQueueCandidate, ReviewQueueEntry } from './types';
+import type { ReviewActionResult, ReviewQueueCandidate, ReviewQueueEntry, ReviewQueuePage } from './types';
 
 interface ReviewQueueViewProps {
-  initialEntries: ReviewQueueEntry[];
+  queuePage: ReviewQueuePage;
+  basePath: string;
   mapAction: (termId: number, canonicalAnalyteId: number) => Promise<ReviewActionResult>;
   ignoreAction: (termId: number) => Promise<ReviewActionResult>;
 }
 
 // A tela inteira existe para UMA pergunta por cartão: "a cascata parou aqui — o que você
-// decide?". Por isso o motivo da parada vem em português claro no topo de cada cartão, e as
-// escolhas da IA ficam marcadas nos candidatos: a pessoa CONFERE um raciocínio, não reconstrói.
-export function ReviewQueueView({ initialEntries, mapAction, ignoreAction }: ReviewQueueViewProps) {
-  const [entries, setEntries] = useState(initialEntries);
+// decide?". O motivo da parada vem em português claro (com as unidades do perfil quando o veto
+// foi de unidade), as escolhas da IA ficam marcadas nos candidatos, e cada candidato carrega o
+// contexto completo — código LOINC, classe de grandeza, rank e perfis — para a decisão não
+// precisar de fonte externa.
+export function ReviewQueueView({ queuePage, basePath, mapAction, ignoreAction }: ReviewQueueViewProps) {
+  const [entries, setEntries] = useState(queuePage.entries);
+  const [decidedCount, setDecidedCount] = useState(0);
   const [feedbackByTermId, setFeedbackByTermId] = useState<Record<number, string>>({});
   const [confirmingIgnoreOf, setConfirmingIgnoreOf] = useState<ReviewQueueEntry | null>(null);
   const [manualAnalyteIdByTermId, setManualAnalyteIdByTermId] = useState<Record<number, string>>({});
   const [isPending, startTransition] = useTransition();
+
+  const totalPages = Math.max(1, Math.ceil(queuePage.totalPendingCount / queuePage.pageSize));
+  const pendingNow = Math.max(0, queuePage.totalPendingCount - decidedCount);
 
   function runAction(termId: number, action: () => Promise<ReviewActionResult>) {
     startTransition(async () => {
       const result = await action();
       if (result.ok) {
         setEntries((current) => current.filter((entry) => entry.termId !== termId));
+        setDecidedCount((count) => count + 1);
         setFeedbackByTermId((current) => ({ ...current, [termId]: '' }));
       } else {
         setFeedbackByTermId((current) => ({
@@ -41,9 +49,9 @@ export function ReviewQueueView({ initialEntries, mapAction, ignoreAction }: Rev
       <header>
         <h1 className="text-xl font-semibold">Fila de revisão do dicionário</h1>
         <p className="text-sm text-muted-foreground">
-          {entries.length === 0
+          {pendingNow === 0
             ? 'Nada pendente — a cascata está dando conta sozinha.'
-            : `${entries.length} termo(s) esperando a sua decisão, mais observados primeiro.`}
+            : `${pendingNow} termo(s) esperando a sua decisão, mais observados primeiro.`}
         </p>
       </header>
 
@@ -76,8 +84,16 @@ export function ReviewQueueView({ initialEntries, mapAction, ignoreAction }: Rev
                       {aiChoiceBadge(entry, candidate)}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {candidate.loincName} · id {candidate.canonicalAnalyteId} · {candidate.position}º na busca
+                      {candidate.loincName} · {candidate.loincPartCode}
+                      {candidate.propertyClass && ` · classe ${candidate.propertyClass}`}
+                      {candidate.commonTestRank != null && ` · rank ${candidate.commonTestRank}`}
+                      {` · id ${candidate.canonicalAnalyteId} · ${candidate.position}º na busca`}
                     </p>
+                    {candidate.materialProfiles.length > 0 && (
+                      <p className="truncate text-xs text-muted-foreground">
+                        perfis: {formatProfiles(candidate)}
+                      </p>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -138,6 +154,24 @@ export function ReviewQueueView({ initialEntries, mapAction, ignoreAction }: Rev
         </p>
       )}
 
+      {totalPages > 1 && (
+        <nav className="flex items-center justify-between border-t border-border pt-3 text-sm">
+          {queuePage.page > 1 ? (
+            <a href={`${basePath}?page=${queuePage.page - 1}`} className="flex items-center gap-1 hover:underline">
+              <ChevronLeft className="h-4 w-4" /> Anterior
+            </a>
+          ) : <span />}
+          <span className="text-muted-foreground">
+            Página {queuePage.page} de {totalPages}
+          </span>
+          {queuePage.page < totalPages ? (
+            <a href={`${basePath}?page=${queuePage.page + 1}`} className="flex items-center gap-1 hover:underline">
+              Próxima <ChevronRight className="h-4 w-4" />
+            </a>
+          ) : <span />}
+        </nav>
+      )}
+
       {confirmingIgnoreOf && (
         <ConfirmDialog
           title="Marcar como não-analito?"
@@ -160,8 +194,18 @@ function ContextChip({ label }: { label: string }) {
   return <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">{label}</span>;
 }
 
+function formatProfiles(candidate: ReviewQueueCandidate): string {
+  return candidate.materialProfiles
+    .map((profile) =>
+      profile.exampleUcumUnits.length > 0
+        ? `${profile.material} (${profile.exampleUcumUnits.join(', ')})`
+        : profile.material)
+    .join(' · ');
+}
+
 // O tradutor dos portões: cada combinação vira UMA frase que diz por que a cascata não decidiu.
-// A ordem dos casos segue a ordem da própria cascata.
+// A ordem dos casos segue a ordem da própria cascata. No veto de unidade, a frase inclui o que
+// o perfil ACEITA — a informação que faltava para decidir em segundos.
 function stopReasonInPlainWords(entry: ReviewQueueEntry): string {
   if (entry.status === 'NoCandidateFound') {
     return 'A busca não trouxe nenhum candidato — provável exame que o dicionário não cobre. Você pode mapear por id, ou marcar como não-analito.';
@@ -173,7 +217,12 @@ function stopReasonInPlainWords(entry: ReviewQueueEntry): string {
     return 'As duas passadas da IA escolheram analitos diferentes — a escolha não é estável o bastante para valer sozinha.';
   }
   if (entry.unitGatePassed === false) {
-    return 'A IA escolheu o mesmo analito nas duas passadas, mas a unidade do laudo não aparece no perfil dele.';
+    const chosen = entry.candidatesOffered.find(
+      (candidate) => candidate.canonicalAnalyteId === entry.firstPassChosenAnalyteId,
+    );
+    const accepted = chosen ? formatProfiles(chosen) : '';
+    return 'A IA escolheu o mesmo analito nas duas passadas, mas a unidade do laudo não aparece no perfil dele.'
+      + (accepted ? ` O perfil aceita: ${accepted}.` : '');
   }
   if (entry.materialGatePassed === false) {
     return 'A IA escolheu o mesmo analito nas duas passadas, mas o material do laudo não bate com os perfis dele.';

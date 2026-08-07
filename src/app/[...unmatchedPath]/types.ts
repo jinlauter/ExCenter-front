@@ -2,6 +2,11 @@
 // nada desta área é importado por código público, então nem nome de tipo vaza para outros
 // arquivos. (Tipos não chegam ao bundle, mas higiene de fronteira evita o import acidental.)
 
+export interface AnalyteMaterialProfile {
+  material: string;
+  exampleUcumUnits: string[];
+}
+
 export interface ReviewQueueCandidate {
   canonicalAnalyteId: number;
   position: number;
@@ -9,6 +14,10 @@ export interface ReviewQueueCandidate {
   nameInPortuguese: string | null;
   displayName: string | null;
   bestDisplayName: string;
+  loincPartCode: string;
+  propertyClass: string;
+  commonTestRank: number | null;
+  materialProfiles: AnalyteMaterialProfile[];
 }
 
 export interface ReviewQueueEntry {
@@ -28,6 +37,13 @@ export interface ReviewQueueEntry {
   firstPassChosenAnalyteId: number | null;
   secondPassChosenAnalyteId: number | null;
   candidatesOffered: ReviewQueueCandidate[];
+}
+
+export interface ReviewQueuePage {
+  entries: ReviewQueueEntry[];
+  totalPendingCount: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface ReviewActionResult {
