@@ -335,6 +335,27 @@ export async function loginAndPersistSession(
  * mesmo contrato do login, sem etapa de confirmação de email.
  * Usado pela route handler /api/register.
  */
+/**
+ * O portão do primeiro acesso: e-mail + código conferem com um convite pendente? Não cria
+ * sessão nem muda nada — só responde sim/não, com a mesma resposta genérica do back.
+ */
+export async function verifyInviteRemote(
+  email: string,
+  inviteCode: string,
+): Promise<{ ok: true; valid: boolean } | { ok: false; status: number }> {
+  const response = await fetch(`${env.BACKEND_URL}/api/auth/register/verify-invite`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, inviteCode }),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) return { ok: false, status: response.status };
+
+  const body = (await response.json()) as { valid?: boolean };
+  return { ok: true, valid: body.valid === true };
+}
+
 export async function registerAndPersistSession(
   email: string,
   password: string,
@@ -435,10 +456,15 @@ export async function logoutAndClearSession(): Promise<void> {
 
   if (accessToken) {
     try {
+      // Timeout curto de propósito: o Set-Cookie que apaga a sessão só viaja com a RESPOSTA
+      // deste handler — um back lento (cold start do Railway) sem timeout segurava o 204
+      // indefinidamente e o clique em "Sair" parecia morto. A sessão local já foi destruída;
+      // notificar o back é cortesia, não pré-requisito.
       await fetch(`${env.BACKEND_URL}/api/auth/logout`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}` },
         cache: 'no-store',
+        signal: AbortSignal.timeout(3000),
       });
     } catch {
       // Ignora — sessão local já foi limpa.
