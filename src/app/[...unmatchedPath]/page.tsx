@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { backendFetch, BackendError, UnauthenticatedError } from '@/lib/backend';
 import { ReviewQueueView } from './review-queue-view';
 import { UsersAdminView } from './users-admin-view';
-import { createInviteAction, ignoreTermAction, mapTermAction } from './actions';
+import { createInviteAction, deleteUserAction, ignoreTermAction, mapTermAction } from './actions';
 import type { ReviewQueuePage, UserAccountSummary } from './types';
 
 // Este catch-all é DUAS coisas ao mesmo tempo, de propósito:
@@ -50,7 +50,7 @@ export default async function UnmatchedOrHiddenPage({
       const accounts = await backendFetch<UserAccountSummary[]>('/api/admin/users', { skipRefresh: true });
       return (
         <OperatorShell activeTab={activeTab}>
-          <UsersAdminView accounts={accounts} createInvite={createInviteAction} />
+          <UsersAdminView accounts={accounts} createInvite={createInviteAction} deleteAccount={deleteUserAction} />
         </OperatorShell>
       );
     }

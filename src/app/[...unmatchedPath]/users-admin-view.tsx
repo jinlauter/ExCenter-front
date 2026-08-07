@@ -1,23 +1,40 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Copy, Loader2, MailPlus } from 'lucide-react';
-import type { CreatedInviteResult, UserAccountSummary } from './types';
+import { Copy, Loader2, MailPlus, Trash2 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import type { CreatedInviteResult, ReviewActionResult, UserAccountSummary } from './types';
 
 interface UsersAdminViewProps {
   accounts: UserAccountSummary[];
   createInvite: (email: string) => Promise<CreatedInviteResult>;
+  deleteAccount: (userId: string) => Promise<ReviewActionResult>;
 }
 
 // A gestão de contas do operador. A regra de ouro da tela: o código do convite aparece AQUI,
 // UMA vez, e nunca mais — o banco guarda só o hash. O box do código insiste nisso porque a
 // próxima vez que o operador quiser vê-lo, a resposta será "crie outro convite".
-export function UsersAdminView({ accounts, createInvite }: UsersAdminViewProps) {
+export function UsersAdminView({ accounts, createInvite, deleteAccount }: UsersAdminViewProps) {
   const [email, setEmail] = useState('');
   const [lastInvite, setLastInvite] = useState<CreatedInviteResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
+  // Transition separada da do convite: excluir uma conta não deve travar o formulário de
+  // convidar (e vice-versa).
+  const [accountToDelete, setAccountToDelete] = useState<UserAccountSummary | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, startDeleteTransition] = useTransition();
+
+  function confirmDelete() {
+    if (!accountToDelete || isDeleting) return;
+    startDeleteTransition(async () => {
+      const result = await deleteAccount(accountToDelete.id);
+      setAccountToDelete(null);
+      // Sucesso: a linha some sozinha — a action revalida a página. Falha: mensagem na tela.
+      setDeleteError(result.ok ? null : (result.message ?? 'Não foi possível excluir a conta.'));
+    });
+  }
 
   function submitInvite(event: React.FormEvent) {
     event.preventDefault();
@@ -90,6 +107,7 @@ export function UsersAdminView({ accounts, createInvite }: UsersAdminViewProps) 
       </form>
 
       <div className="rounded-lg border border-border bg-card">
+        {deleteError && <p className="px-4 pt-3 text-sm text-destructive">{deleteError}</p>}
         <div className="overflow-x-auto horizontal-scroll-visible">
           <table className="w-full min-w-[560px] text-sm">
             <thead>
@@ -98,6 +116,7 @@ export function UsersAdminView({ accounts, createInvite }: UsersAdminViewProps) 
                 <th className="px-4 py-2 font-medium">E-mail</th>
                 <th className="px-4 py-2 font-medium">Situação</th>
                 <th className="px-4 py-2 font-medium">Desde</th>
+                <th className="px-4 py-2 font-medium">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -119,12 +138,36 @@ export function UsersAdminView({ accounts, createInvite }: UsersAdminViewProps) 
                   <td className="px-4 py-2 text-muted-foreground">
                     {new Date(account.invitedAt ?? account.createdAt).toLocaleDateString('pt-BR')}
                   </td>
+                  <td className="px-4 py-2">
+                    <button
+                      type="button"
+                      title="Excluir conta"
+                      aria-label={`Excluir conta ${account.email ?? account.username}`}
+                      onClick={() => { setDeleteError(null); setAccountToDelete(account); }}
+                      className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {accountToDelete && (
+        <ConfirmDialog
+          title="Excluir esta conta?"
+          highlight={accountToDelete.email ?? accountToDelete.username}
+          description="Apaga a conta e TUDO que é dela: exames, resultados e os arquivos enviados — no banco e no storage. Não tem volta."
+          confirmLabel="Sim, excluir tudo"
+          countdownSeconds={3}
+          isLoading={isDeleting}
+          onConfirm={confirmDelete}
+          onCancel={() => setAccountToDelete(null)}
+        />
+      )}
     </section>
   );
 }

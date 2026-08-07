@@ -45,6 +45,29 @@ function toGenericFailure(err: unknown): ReviewActionResult {
   throw err instanceof Error ? err : new Error('Falha inesperada.');
 }
 
+// Exclusão DEFINITIVA: conta, exames e arquivos no storage. O back é quem executa a cascata
+// (RLS incluída); aqui só repassamos e deixamos o 422 (auto-exclusão, conta inexistente)
+// chegar com a mensagem específica — quem lê é o operador.
+export async function deleteUserAction(userId: string): Promise<ReviewActionResult> {
+  try {
+    await backendFetch<void>(`/api/admin/users/${userId}`, { method: 'DELETE' });
+    revalidatePath('/zk7q');
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof BackendError && err.status === 422) {
+      const message =
+        typeof err.body === 'object' && err.body && 'message' in err.body
+          ? String((err.body as { message: unknown }).message)
+          : 'Não foi possível excluir a conta.';
+      return { ok: false, message };
+    }
+    if (err instanceof UnauthenticatedError || err instanceof BackendError) {
+      return { ok: false, message: 'Não foi possível excluir a conta.' };
+    }
+    throw err instanceof Error ? err : new Error('Falha inesperada.');
+  }
+}
+
 export async function createInviteAction(email: string): Promise<import('./types').CreatedInviteResult> {
   try {
     const created = await backendFetch<{ email: string; inviteCode: string }>(
