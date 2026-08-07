@@ -376,7 +376,7 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
                 </div>
               </>
             )}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto horizontal-scroll-visible">
               <table className="w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="border-b border-border">

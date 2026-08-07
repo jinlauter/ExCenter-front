@@ -222,3 +222,17 @@ describe('ExamResultsView — card de histórico geral e estados', () => {
     expect(push).toHaveBeenCalledWith('/resultados?page=3&pageSize=10');
   });
 });
+
+// A tabela tem min-w-[860px] dentro de um overflow-x-auto: no celular ela rola pro lado, mas
+// o navegador só desenha a barra durante o gesto. Sem a barra permanente, a coluna cortada na
+// borda parece o fim da tabela e o usuário não descobre que há conteúdo à direita.
+describe('ExamResultsView — pista de rolagem lateral no celular', () => {
+  it('o container que rola tem a barra de rolagem sempre visível', () => {
+    const { container } = renderView([makeExam()]);
+
+    const containerQueRola = container.querySelector('.overflow-x-auto');
+
+    expect(containerQueRola).not.toBeNull();
+    expect(containerQueRola).toHaveClass('horizontal-scroll-visible');
+  });
+});
