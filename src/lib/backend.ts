@@ -430,6 +430,36 @@ async function socialLoginAndPersistSession(
   return true;
 }
 
+/**
+ * Troca a senha e REGRAVA o cookie com a sessão nova que o back devolve.
+ *
+ * Segurança (08/2026): trocar a senha revoga todas as outras sessões — o back reemite a sessão
+ * e rotaciona o hash único de refresh, invalidando qualquer refresh token anterior (inclusive de
+ * um invasor). Se o front NÃO regravasse o cookie aqui, o próprio dispositivo que trocou a senha
+ * ficaria com o refresh token antigo (agora inválido) e cairia em "sessão expirada" no próximo
+ * refresh. Preservamos o "lembrar de mim" atual para não trocar o tipo de cookie sem querer.
+ */
+export async function changePasswordAndPersistSession(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  const previous = await getSession();
+  const remember = previous.remember !== false;
+
+  const data = await backendFetch<LoginResponse>('/api/users/me/password', {
+    method: 'PUT',
+    body: { currentPassword, newPassword },
+  });
+
+  if (!data?.refreshToken) {
+    throw new BackendError(500, {
+      message: 'Resposta do back não trouxe refreshToken no body. Atualize o back para a versão que reemite a sessão.',
+    });
+  }
+
+  await persistSessionFromLogin(data, remember);
+}
+
 /** Monta e salva a sessão iron-session a partir de um LoginResponse do back. */
 async function persistSessionFromLogin(data: LoginResponse, remember: boolean = true): Promise<void> {
   const session = await getSessionForLogin(remember);

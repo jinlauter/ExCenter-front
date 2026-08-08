@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { backendFetch, BackendError, UnauthenticatedError } from '@/lib/backend';
+import { changePasswordAndPersistSession, BackendError, UnauthenticatedError } from '@/lib/backend';
 import { rejectCrossSite } from '@/lib/csrf';
 
-// PUT /api/users/password (Next BFF) → PUT /api/users/me/password → 204
+// PUT /api/users/password (Next BFF) → PUT /api/users/me/password.
+// O back reemite a sessão (troca de senha revoga as demais); aqui regravamos o cookie com os
+// tokens novos, senão este mesmo dispositivo cairia no próximo refresh com o token já invalidado.
+// O 204 devolvido carrega o Set-Cookie da sessão nova.
 
 const bodySchema = z.object({
   currentPassword: z.string().min(1),
@@ -22,10 +25,7 @@ export async function PUT(request: Request) {
   }
 
   try {
-    await backendFetch<undefined>('/api/users/me/password', {
-      method: 'PUT',
-      body: parsed,
-    });
+    await changePasswordAndPersistSession(parsed.currentPassword, parsed.newPassword);
     return new NextResponse(null, { status: 204 });
   } catch (err) {
     if (err instanceof UnauthenticatedError) {
