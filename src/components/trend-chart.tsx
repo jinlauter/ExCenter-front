@@ -149,11 +149,20 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
   const referenceCaption = formatReferenceCaption(referenceRange, unit);
   const trend = trendBadge(points);
 
+  // Posição do tooltip ancorado ao ponto sob o cursor, em % do viewBox (que o SVG preserva ao
+  // escalar) — assim o balão acompanha o ponto sem depender de medir pixels em runtime. O clamp
+  // horizontal impede que ele escape pelas bordas; perto do topo, o balão vai PARA BAIXO do ponto
+  // pra não estourar a borda de cima nem cobrir o valor plotado acima.
+  const hoveredLeftPct = hovered ? ((MARGIN.left + xScale(hovered.date.getTime())) / WIDTH) * 100 : 0;
+  const hoveredTopPct = hovered ? ((MARGIN.top + yScale(hovered.value)) / HEIGHT) * 100 : 0;
+  const tooltipLeftPct = Math.min(82, Math.max(18, hoveredLeftPct));
+  const tooltipBelow = hoveredTopPct < 30;
+
   return (
     // max-w trava o SVG perto do tamanho nativo do viewBox (680px): sem isso, em monitor largo o
     // `w-full` escalava o gráfico ~3x (fonte, pontos, tudo) — o "gráfico gigante" do desktop.
     // Em telas menores que o teto, segue 100% fluido (o responsivo mobile continua igual).
-    <div className="relative w-full max-w-[760px]">
+    <div className="w-full max-w-[760px]">
       {(referenceCaption || trend) && (
         <div className="mb-1 flex items-center justify-between gap-2">
           <p className="text-[11px] text-muted-foreground">{referenceCaption}</p>
@@ -167,6 +176,7 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
           )}
         </div>
       )}
+      <div className="relative">
       <svg
         ref={svgRef}
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
@@ -292,23 +302,33 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
         </g>
       </svg>
 
-      {/* Detalhe do ponto sob o cursor: uma linha DISCRETA e ACESSÓRIA abaixo do gráfico, nunca
-          uma caixa que pousa sobre a série. Não cobre nada — a visualização principal (a linha e
-          os valores plotados) segue intacta. O valor aparece em destaque suave; data, laboratório
-          e médico ficam em tom secundário. Altura reservada para o layout não pular no hover. */}
-      <div className="mt-1.5 min-h-[1.75rem] text-[11.5px] leading-snug">
-        {hovered ? (
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-muted-foreground">
-            <span>{formatDateShort(hovered.date)}</span>
-            <span className="font-semibold text-foreground">
-              {formatValue(hovered.value)}
-              {unit ? ` ${unit}` : ''}
-            </span>
-            {hovered.laboratoryName && <span>· {hovered.laboratoryName}</span>}
-            {hovered.requestingDoctor && <span>· {hovered.requestingDoctor}</span>}
+        {/* Tooltip ANCORADO ao ponto sob o cursor: pequeno e leve, flutua logo acima (ou abaixo,
+            perto do topo) da bolinha, conectado a ela pela guia vertical. Info acessória — não
+            rouba a cena nem a fixa num canto; o valor plotado continua sendo o protagonista. */}
+        {hovered && (
+          <div
+            className="pointer-events-none absolute z-10 -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-card/95 px-2 py-1 text-[11px] shadow-sm"
+            style={{
+              left: `${tooltipLeftPct}%`,
+              top: `${hoveredTopPct}%`,
+              transform: tooltipBelow
+                ? 'translate(-50%, 14px)'
+                : 'translate(-50%, calc(-100% - 14px))',
+            }}
+          >
+            <div>
+              <span className="font-semibold text-foreground">
+                {formatValue(hovered.value)}
+                {unit ? ` ${unit}` : ''}
+              </span>
+              <span className="text-muted-foreground"> · {formatDateShort(hovered.date)}</span>
+            </div>
+            {(hovered.laboratoryName || hovered.requestingDoctor) && (
+              <div className="text-muted-foreground">
+                {[hovered.laboratoryName, hovered.requestingDoctor].filter(Boolean).join(' · ')}
+              </div>
+            )}
           </div>
-        ) : (
-          <span className="text-muted-foreground/60">Passe o mouse nos pontos para ver laboratório e médico.</span>
         )}
       </div>
     </div>

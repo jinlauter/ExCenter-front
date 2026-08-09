@@ -97,9 +97,10 @@ export function Landing() {
                 ↓ 5% vs. anterior
               </span>
             </div>
+            <div className="relative my-1.5">
             <svg
               viewBox="0 0 360 176"
-              className="my-1.5 w-full"
+              className="w-full"
               role="img"
               aria-label="Tendência do colesterol total ao longo de 4 laudos, caindo de 232 para 190 (dentro da faixa de referência de menos de 190). Ao passar o mouse num ponto, o gráfico mostra o laboratório e o médico daquele exame."
             >
@@ -132,11 +133,19 @@ export function Landing() {
                 <path d="M0,0 L0,15 L4,11 L7,17 L9,16 L6,10 L11,10 Z" className="fill-foreground stroke-white" strokeWidth="0.8" strokeLinejoin="round" />
               </g>
             </svg>
-            {/* Detalhe do ponto: linha DISCRETA abaixo do gráfico (não uma caixa sobre a série),
-                info acessória que não cobre nada — igual ao hover real do app. */}
-            <p className="mt-1 text-[11.5px] text-muted-foreground">
-              dez/24 <span className="font-semibold text-foreground">200 mg/dL</span> · Sabin · Dr. Bruno Lima
-            </p>
+              {/* Tooltip ancorado ao ponto (dez/24): pequeno e leve, flutua acima da bolinha —
+                  espelha o hover real do app. Acessório, não cobre a série. */}
+              <div
+                className="pointer-events-none absolute z-10 -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-card/95 px-2 py-1 text-[11px] shadow-sm"
+                style={{ left: '66.7%', top: '58.5%', transform: 'translate(-50%, calc(-100% - 12px))' }}
+              >
+                <div>
+                  <span className="font-semibold text-foreground">200 mg/dL</span>
+                  <span className="text-muted-foreground"> · dez/24</span>
+                </div>
+                <div className="text-muted-foreground">Sabin · Dr. Bruno Lima</div>
+              </div>
+            </div>
             <p className="mt-2.5 text-xs text-muted-foreground">
               Os 4 laudos deste exemplo vieram de <b className="font-medium text-foreground">3 laboratórios diferentes</b> — reunidos automaticamente num histórico só:
             </p>
