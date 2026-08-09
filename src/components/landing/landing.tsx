@@ -79,39 +79,75 @@ export function Landing() {
             </p>
           </div>
 
-          {/* Showcard — transformação */}
+          {/* Showcard — réplica fiel do gráfico real de tendência: badge = último vs. anterior
+              (neutro), pontos fora da faixa em vermelho, e o tooltip de procedência (lab + médico)
+              aberto sobre um ponto, como quando o usuário passa o mouse. */}
           <div className="rounded-2xl border border-border bg-card p-5 shadow-xl">
-            <div className="mb-1 flex items-start justify-between">
+            <div className="mb-1 flex items-start justify-between gap-2">
               <div>
                 <div className="text-sm font-bold">Colesterol total</div>
                 <div className="text-xs text-muted-foreground">4 laudos · 3 laboratórios diferentes</div>
               </div>
-              <span className="rounded-md bg-primary-light px-2 py-0.5 font-mono text-[11px] font-bold text-primary">↓ 18% em 14 meses</span>
+              {/* Neutro de propósito, igual ao app: mostra a variação do valor MAIS RECENTE em
+                  relação ao anterior (190 vs. 200 = −5%), não a queda total do período. */}
+              <span
+                className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                title="Variação do valor mais recente em relação ao anterior"
+              >
+                ↓ 5% vs. anterior
+              </span>
             </div>
-            <svg viewBox="0 0 360 168" className="my-1.5 w-full" role="img" aria-label="Tendência do colesterol caindo de 232 para 190 em 14 meses, dentro da faixa de referência.">
-              <rect x="34" y="96" width="316" height="46" className="fill-primary-light" />
-              <text x="38" y="112" className="fill-primary font-mono" fontSize="8.5">faixa de referência &lt; 190</text>
-              <line x1="34" y1="18" x2="34" y2="142" className="stroke-border" strokeWidth="1" />
-              <line x1="34" y1="142" x2="350" y2="142" className="stroke-border" strokeWidth="1" />
-              <polyline points="60,42 156,58 252,86 330,104" fill="none" className="stroke-primary" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            <svg
+              viewBox="0 0 360 176"
+              className="my-1.5 w-full"
+              role="img"
+              aria-label="Tendência do colesterol total ao longo de 4 laudos, caindo de 232 para 190 (dentro da faixa de referência de menos de 190). Ao passar o mouse num ponto, o gráfico mostra o laboratório e o médico daquele exame."
+            >
+              {/* faixa de referência (< 190) */}
+              <rect x="34" y="122" width="306" height="28" className="fill-primary-light" />
+              <text x="38" y="138" className="fill-primary font-mono" fontSize="8.5">faixa de referência &lt; 190</text>
+              {/* eixos */}
+              <line x1="34" y1="18" x2="34" y2="150" className="stroke-border" strokeWidth="1" />
+              <line x1="34" y1="150" x2="340" y2="150" className="stroke-border" strokeWidth="1" />
+              {/* linha da série */}
+              <polyline points="60,45 150,78 240,103 320,122" fill="none" className="stroke-primary" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              {/* guia vertical do ponto sob o cursor (dez/24) */}
+              <line x1="240" y1="18" x2="240" y2="150" className="stroke-primary-dark" strokeOpacity="0.3" strokeWidth="1" />
+              {/* pontos: fora da faixa (> 190) em vermelho; o de 190 (dentro) em verde */}
               <g className="font-mono">
-                <circle cx="60" cy="42" r="4" className="fill-destructive" /><text x="60" y="32" textAnchor="middle" className="fill-destructive" fontSize="9">232</text>
-                <circle cx="156" cy="58" r="4" className="fill-primary" /><text x="156" y="48" textAnchor="middle" className="fill-muted-foreground" fontSize="9">214</text>
-                <circle cx="252" cy="86" r="4" className="fill-primary" /><text x="252" y="76" textAnchor="middle" className="fill-muted-foreground" fontSize="9">201</text>
-                <circle cx="330" cy="104" r="4.5" className="fill-primary" /><text x="330" y="94" textAnchor="middle" className="fill-primary" fontSize="9">190</text>
+                <circle cx="60" cy="45" r="4" className="fill-destructive" /><text x="60" y="35" textAnchor="middle" className="fill-muted-foreground" fontSize="9">232</text>
+                <circle cx="150" cy="78" r="4" className="fill-destructive" /><text x="150" y="68" textAnchor="middle" className="fill-muted-foreground" fontSize="9">214</text>
+                <circle cx="240" cy="103" r="6" className="fill-destructive" stroke="white" strokeWidth="2" />
+                <circle cx="320" cy="122" r="4.5" className="fill-primary" /><text x="320" y="112" textAnchor="middle" className="fill-primary" fontSize="9">190</text>
               </g>
+              {/* datas */}
               <g className="fill-muted-foreground font-mono" fontSize="8">
-                <text x="60" y="156" textAnchor="middle">mar/24</text>
-                <text x="156" y="156" textAnchor="middle">jul/24</text>
-                <text x="252" y="156" textAnchor="middle">dez/24</text>
-                <text x="330" y="156" textAnchor="middle">mai/25</text>
+                <text x="60" y="164" textAnchor="middle">mar/24</text>
+                <text x="150" y="164" textAnchor="middle">jul/24</text>
+                <text x="240" y="164" textAnchor="middle">dez/24</text>
+                <text x="320" y="164" textAnchor="middle">mai/25</text>
+              </g>
+              {/* tooltip de procedência aberto no ponto de dez/24 — o que aparece no hover real */}
+              <g>
+                <rect x="102" y="8" width="140" height="58" rx="6" className="fill-card stroke-border" strokeWidth="1" />
+                <text x="112" y="21" className="fill-muted-foreground font-mono" fontSize="8">dez/24</text>
+                <text x="112" y="34" className="fill-foreground" fontSize="11" fontWeight="700">200 mg/dL</text>
+                <line x1="112" y1="40" x2="232" y2="40" className="stroke-border" strokeWidth="0.75" />
+                <text x="112" y="51" className="font-mono" fontSize="8"><tspan className="fill-foreground">Lab:</tspan><tspan className="fill-muted-foreground"> Sabin</tspan></text>
+                <text x="112" y="61" className="font-mono" fontSize="8"><tspan className="fill-foreground">Médico:</tspan><tspan className="fill-muted-foreground"> Dr. Bruno Lima</tspan></text>
+              </g>
+              {/* cursor do mouse apontando pro ponto */}
+              <g transform="translate(243,105)">
+                <path d="M0,0 L0,15 L4,11 L7,17 L9,16 L6,10 L11,10 Z" className="fill-foreground stroke-white" strokeWidth="0.8" strokeLinejoin="round" />
               </g>
             </svg>
-            <div className="mt-2.5 flex flex-wrap gap-1.5 font-mono text-[11px]">
+            <p className="mt-2.5 text-xs text-muted-foreground">
+              Os 4 laudos deste exemplo vieram de <b className="font-medium text-foreground">3 laboratórios diferentes</b> — reunidos automaticamente num histórico só:
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1.5 font-mono text-[11px]">
               <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-muted-foreground">Fleury</span>
               <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-muted-foreground">Sabin</span>
               <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-muted-foreground">Hermes Pardini</span>
-              <span className="rounded-md border border-primary px-2 py-0.5 text-primary">→ reunidos em 1 série</span>
             </div>
           </div>
         </div>
