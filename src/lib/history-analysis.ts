@@ -117,6 +117,8 @@ export function computeHistoryAnalysis(results: BloodTestResultQueryResponse[]):
       date: new Date(r.testDate),
       value: r.numericResultValue,
       referenceValue: r.referenceValue,
+      laboratoryName: r.laboratoryName,
+      requestingDoctor: r.requestingDoctor,
     });
     spellingsBySeries.get(key)!.push({ exactName: r.parameterName, date: new Date(r.testDate) });
   }

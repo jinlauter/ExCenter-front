@@ -2,6 +2,8 @@
 
 import { useMemo, useRef, useState } from 'react';
 import type { ReferenceRange } from '@/lib/reference-range';
+import { isOutOfRange } from '@/lib/reference-range';
+import { computeTrend } from '@/lib/trend';
 
 const WIDTH = 680;
 const HEIGHT = 260;
@@ -12,11 +14,33 @@ const PLOT_H = HEIGHT - MARGIN.top - MARGIN.bottom;
 const PRIMARY = 'hsl(var(--primary))';
 const PRIMARY_DARK = 'hsl(var(--primary-dark))';
 const BORDER = 'hsl(var(--border))';
+const DESTRUCTIVE = 'hsl(var(--destructive))';
 
 export interface TrendPoint {
   date: Date;
   value: number;
   referenceValue?: string | null;
+  // Procedência para o tooltip: onde foi medido e quem pediu o exame deste ponto.
+  laboratoryName?: string | null;
+  requestingDoctor?: string | null;
+}
+
+// Formata a tendência (cálculo em @/lib/trend) para o badge: seta + texto, neutro. Sem base
+// para % (anterior = 0), cai na variação absoluta. Estável mostra "estável vs. anterior".
+const ARROW_BY_DIRECTION = { up: '↑', down: '↓', flat: '→' } as const;
+
+function trendBadge(points: TrendPoint[]): { arrow: string; text: string } | null {
+  const trend = computeTrend(points.map((p) => p.value));
+  if (!trend) return null;
+  const arrow = ARROW_BY_DIRECTION[trend.direction];
+  if (trend.direction === 'flat') return { arrow, text: 'estável vs. anterior' };
+  if (trend.percent === null) {
+    const sign = trend.absoluteChange > 0 ? '+' : '';
+    return { arrow, text: `${sign}${formatValue(trend.absoluteChange)} vs. anterior` };
+  }
+  const magnitude = Math.abs(trend.percent);
+  const rounded = magnitude >= 10 ? Math.round(magnitude) : Math.round(magnitude * 10) / 10;
+  return { arrow, text: `${rounded}% vs. anterior` };
 }
 
 function formatDateShort(date: Date) {
@@ -123,13 +147,26 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
   const last = points[points.length - 1];
   const hovered = hoverIndex !== null ? points[hoverIndex] : null;
   const referenceCaption = formatReferenceCaption(referenceRange, unit);
+  const trend = trendBadge(points);
 
   return (
     // max-w trava o SVG perto do tamanho nativo do viewBox (680px): sem isso, em monitor largo o
     // `w-full` escalava o gráfico ~3x (fonte, pontos, tudo) — o "gráfico gigante" do desktop.
     // Em telas menores que o teto, segue 100% fluido (o responsivo mobile continua igual).
     <div className="relative w-full max-w-[760px]">
-      {referenceCaption && <p className="mb-1 text-[11px] text-muted-foreground">{referenceCaption}</p>}
+      {(referenceCaption || trend) && (
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <p className="text-[11px] text-muted-foreground">{referenceCaption}</p>
+          {trend && (
+            <span
+              className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+              title="Variação do valor mais recente em relação ao anterior"
+            >
+              {trend.arrow} {trend.text}
+            </span>
+          )}
+        </div>
+      )}
       <svg
         ref={svgRef}
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
@@ -203,13 +240,15 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
 
           <path d={path} fill="none" stroke={PRIMARY} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
 
+          {/* Ponto fora da faixa de referência (avaliado contra a referência DAQUELE ponto) sai
+              em vermelho — o sinal visual imediato de "aqui saiu do normal". */}
           {points.map((p, i) => (
             <circle
               key={i}
               cx={xScale(p.date.getTime())}
               cy={yScale(p.value)}
               r={5}
-              fill={PRIMARY}
+              fill={isOutOfRange(p.value, p.referenceValue) ? DESTRUCTIVE : PRIMARY}
               stroke="white"
               strokeWidth={2}
             />
@@ -240,7 +279,14 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
                 strokeOpacity={0.3}
                 strokeWidth={1}
               />
-              <circle cx={xScale(hovered.date.getTime())} cy={yScale(hovered.value)} r={7} fill={PRIMARY} stroke="white" strokeWidth={2} />
+              <circle
+                cx={xScale(hovered.date.getTime())}
+                cy={yScale(hovered.value)}
+                r={7}
+                fill={isOutOfRange(hovered.value, hovered.referenceValue) ? DESTRUCTIVE : PRIMARY}
+                stroke="white"
+                strokeWidth={2}
+              />
             </>
           )}
         </g>
@@ -248,13 +294,29 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
 
       {hovered && (
         <div
-          className="pointer-events-none absolute left-1 top-1 rounded-md border border-border bg-card px-2.5 py-1 shadow-md"
+          className="pointer-events-none absolute left-1 top-1 max-w-[220px] rounded-md border border-border bg-card px-2.5 py-1.5 shadow-md"
         >
           <p className="text-[11px] text-muted-foreground">{formatDateShort(hovered.date)}</p>
           <p className="text-[13px] font-semibold">
             {formatValue(hovered.value)}
             {unit ? ` ${unit}` : ''}
           </p>
+          {/* Procedência do ponto: onde foi medido e quem pediu. É o que o usuário pediu ver no
+              hover — some quando o dado não existe (ex.: exame sem médico registrado). */}
+          {(hovered.laboratoryName || hovered.requestingDoctor) && (
+            <div className="mt-1 border-t border-border pt-1">
+              {hovered.laboratoryName && (
+                <p className="text-[11px] text-muted-foreground">
+                  <span className="text-foreground/70">Lab:</span> {hovered.laboratoryName}
+                </p>
+              )}
+              {hovered.requestingDoctor && (
+                <p className="text-[11px] text-muted-foreground">
+                  <span className="text-foreground/70">Médico:</span> {hovered.requestingDoctor}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

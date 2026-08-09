@@ -110,6 +110,8 @@ export interface BloodTestResultQueryResponse {
   testId: string;
   patientName: string;
   laboratoryName?: string | null;
+  /** Médico que pediu o exame — alimenta o tooltip de procedência do gráfico (lab + médico). */
+  requestingDoctor?: string | null;
   testDate: string;
   parameterName: string;
   groupName?: string | null;
@@ -167,6 +169,9 @@ export interface ExamHistoryPoint {
   date: string;
   value: number;
   referenceValue?: string | null;
+  /** Procedência do ponto para o tooltip do gráfico: onde foi medido e quem pediu. */
+  laboratoryName?: string | null;
+  requestingDoctor?: string | null;
 }
 
 export interface ExamDetailResult {

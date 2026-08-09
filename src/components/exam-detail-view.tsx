@@ -111,6 +111,8 @@ function ResultRow({ result, showName }: { result: ExamDetailResult; showName: b
               date: new Date(p.date),
               value: p.value,
               referenceValue: p.referenceValue,
+              laboratoryName: p.laboratoryName,
+              requestingDoctor: p.requestingDoctor,
             }))}
             unit={result.unit}
             referenceRange={parseReferenceRange(result.referenceValue)}
