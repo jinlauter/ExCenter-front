@@ -127,20 +127,16 @@ export function Landing() {
                 <text x="240" y="164" textAnchor="middle">dez/24</text>
                 <text x="320" y="164" textAnchor="middle">mai/25</text>
               </g>
-              {/* tooltip de procedência aberto no ponto de dez/24 — o que aparece no hover real */}
-              <g>
-                <rect x="102" y="8" width="140" height="58" rx="6" className="fill-card stroke-border" strokeWidth="1" />
-                <text x="112" y="21" className="fill-muted-foreground font-mono" fontSize="8">dez/24</text>
-                <text x="112" y="34" className="fill-foreground" fontSize="11" fontWeight="700">200 mg/dL</text>
-                <line x1="112" y1="40" x2="232" y2="40" className="stroke-border" strokeWidth="0.75" />
-                <text x="112" y="51" className="font-mono" fontSize="8"><tspan className="fill-foreground">Lab:</tspan><tspan className="fill-muted-foreground"> Sabin</tspan></text>
-                <text x="112" y="61" className="font-mono" fontSize="8"><tspan className="fill-foreground">Médico:</tspan><tspan className="fill-muted-foreground"> Dr. Bruno Lima</tspan></text>
-              </g>
-              {/* cursor do mouse apontando pro ponto */}
+              {/* cursor do mouse apontando pro ponto sob foco (dez/24) */}
               <g transform="translate(243,105)">
                 <path d="M0,0 L0,15 L4,11 L7,17 L9,16 L6,10 L11,10 Z" className="fill-foreground stroke-white" strokeWidth="0.8" strokeLinejoin="round" />
               </g>
             </svg>
+            {/* Detalhe do ponto: linha DISCRETA abaixo do gráfico (não uma caixa sobre a série),
+                info acessória que não cobre nada — igual ao hover real do app. */}
+            <p className="mt-1 text-[11.5px] text-muted-foreground">
+              dez/24 <span className="font-semibold text-foreground">200 mg/dL</span> · Sabin · Dr. Bruno Lima
+            </p>
             <p className="mt-2.5 text-xs text-muted-foreground">
               Os 4 laudos deste exemplo vieram de <b className="font-medium text-foreground">3 laboratórios diferentes</b> — reunidos automaticamente num histórico só:
             </p>

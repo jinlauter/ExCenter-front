@@ -292,33 +292,25 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
         </g>
       </svg>
 
-      {hovered && (
-        <div
-          className="pointer-events-none absolute left-1 top-1 max-w-[220px] rounded-md border border-border bg-card px-2.5 py-1.5 shadow-md"
-        >
-          <p className="text-[11px] text-muted-foreground">{formatDateShort(hovered.date)}</p>
-          <p className="text-[13px] font-semibold">
-            {formatValue(hovered.value)}
-            {unit ? ` ${unit}` : ''}
-          </p>
-          {/* Procedência do ponto: onde foi medido e quem pediu. É o que o usuário pediu ver no
-              hover — some quando o dado não existe (ex.: exame sem médico registrado). */}
-          {(hovered.laboratoryName || hovered.requestingDoctor) && (
-            <div className="mt-1 border-t border-border pt-1">
-              {hovered.laboratoryName && (
-                <p className="text-[11px] text-muted-foreground">
-                  <span className="text-foreground/70">Lab:</span> {hovered.laboratoryName}
-                </p>
-              )}
-              {hovered.requestingDoctor && (
-                <p className="text-[11px] text-muted-foreground">
-                  <span className="text-foreground/70">Médico:</span> {hovered.requestingDoctor}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Detalhe do ponto sob o cursor: uma linha DISCRETA e ACESSÓRIA abaixo do gráfico, nunca
+          uma caixa que pousa sobre a série. Não cobre nada — a visualização principal (a linha e
+          os valores plotados) segue intacta. O valor aparece em destaque suave; data, laboratório
+          e médico ficam em tom secundário. Altura reservada para o layout não pular no hover. */}
+      <div className="mt-1.5 min-h-[1.75rem] text-[11.5px] leading-snug">
+        {hovered ? (
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-muted-foreground">
+            <span>{formatDateShort(hovered.date)}</span>
+            <span className="font-semibold text-foreground">
+              {formatValue(hovered.value)}
+              {unit ? ` ${unit}` : ''}
+            </span>
+            {hovered.laboratoryName && <span>· {hovered.laboratoryName}</span>}
+            {hovered.requestingDoctor && <span>· {hovered.requestingDoctor}</span>}
+          </div>
+        ) : (
+          <span className="text-muted-foreground/60">Passe o mouse nos pontos para ver laboratório e médico.</span>
+        )}
+      </div>
     </div>
   );
 }
