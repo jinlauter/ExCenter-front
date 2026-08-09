@@ -141,7 +141,7 @@ export function Landing() {
               >
                 <div>
                   <span className="font-semibold text-foreground">200 mg/dL</span>
-                  <span className="text-muted-foreground"> · dez/24</span>
+                  <span className="text-muted-foreground"> · 12 de dez. de 24</span>
                 </div>
                 <div className="text-muted-foreground">Sabin · Dr. Bruno Lima</div>
               </div>
