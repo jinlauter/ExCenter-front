@@ -118,6 +118,11 @@ export interface BloodTestResultQueryResponse {
   unit?: string | null;
   referenceValue?: string | null;
   isAbnormal?: boolean | null;
+  /** Analito canônico do termo mapeado (null enquanto o dicionário não mapeou). É o que cruza
+   *  séries entre laboratórios — ver history-analysis.ts. */
+  canonicalAnalyteId?: number | null;
+  /** Material biológico impresso no laudo ("Soro", "Urina") — separa séries incomparáveis. */
+  material?: string | null;
 }
 
 export interface SentFileResponse {
