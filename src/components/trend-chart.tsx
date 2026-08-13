@@ -26,14 +26,16 @@ export interface TrendPoint {
 }
 
 // Formata a tendência (cálculo em @/lib/trend) para o badge: seta + texto, neutro. Sem base
-// para % (anterior = 0), cai na variação absoluta. Estável mostra "estável vs. anterior".
-const ARROW_BY_DIRECTION = { up: '↑', down: '↓', flat: '→' } as const;
+// para % (anterior = 0), cai na variação absoluta. Sem variação mostra "atual igual ao anterior"
+// (o cálculo compara só os dois últimos exames — o "=" deixa isso explícito, sem sugerir que a
+// série inteira está parada).
+const ARROW_BY_DIRECTION = { up: '↑', down: '↓', flat: '=' } as const;
 
 function trendBadge(points: TrendPoint[]): { arrow: string; text: string } | null {
   const trend = computeTrend(points.map((p) => p.value));
   if (!trend) return null;
   const arrow = ARROW_BY_DIRECTION[trend.direction];
-  if (trend.direction === 'flat') return { arrow, text: 'estável vs. anterior' };
+  if (trend.direction === 'flat') return { arrow, text: 'atual igual ao anterior' };
   if (trend.percent === null) {
     const sign = trend.absoluteChange > 0 ? '+' : '';
     return { arrow, text: `${sign}${formatValue(trend.absoluteChange)} vs. anterior` };
