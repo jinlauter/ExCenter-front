@@ -112,7 +112,7 @@ src/
     utils.ts                  # cn helper
   types/
     api.ts                    # DTOs do back tipados
-  middleware.ts               # protege /home, /exames-enviados, /resultados, /configuracoes
+  proxy.ts                    # protege /home, /exames-enviados, /resultados, /configuracoes
 ```
 
 ## Scripts

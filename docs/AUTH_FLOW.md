@@ -189,7 +189,7 @@ Exemplo: usuário acessa `/home` (página protegida).
    GET http://localhost:3000/home
    Cookie: excenter-session=<blob>
 
-2. Next middleware (Edge):
+2. Next proxy — src/proxy.ts, o antigo middleware (Edge):
    - Vê que /home está na lista de rotas protegidas
    - Confere que o cookie excenter-session EXISTE (não descriptografa —
      edge runtime não tem o crypto necessário pro iron-session)

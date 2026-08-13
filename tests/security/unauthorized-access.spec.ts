@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 /**
  * Confirma que rotas protegidas redirecionam pra /login quando não há sessão.
- * O middleware do Next (src/middleware.ts) é o responsável por isso.
+ * O proxy do Next (src/proxy.ts, o antigo middleware) é o responsável por isso.
  */
 
 const PROTECTED_ROUTES = ['/home', '/exames-enviados', '/historico'];

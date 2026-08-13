@@ -1,8 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 // =============================================================================
-// Middleware de proteção de rotas (Edge runtime).
+// Proxy de proteção de rotas (Edge runtime).
 // =============================================================================
+//
+// É o antigo `middleware.ts`: o Next 16 renomeou a convenção para `proxy.ts` e passou a preferir
+// o export `proxy` (o servidor resolve `mod.proxy || mod.middleware`). Só o nome mudou — a função
+// e o `config.matcher` são os mesmos de sempre.
 //
 // Rodamos no Edge — não dá pra descriptografar iron-session aqui (precisa de
 // Node + crypto Web API com Buffer). Por isso a checagem é só de PRESENÇA do
@@ -20,7 +24,7 @@ const COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? DEFAULT_COOKIE_NAME;
 const PROTECTED_PREFIXES = ['/home', '/exames-enviados', '/resultados', '/configuracoes'];
 const AUTH_ROUTES = ['/login', '/registrar'];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession = request.cookies.has(COOKIE_NAME);
 
