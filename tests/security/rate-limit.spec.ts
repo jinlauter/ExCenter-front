@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { FRONT_URL, BACK_URL } from './helpers';
+import { BACK_URL } from './helpers';
 
 /**
  * Confirma o rate limit do back: 5 tentativas de login/min/IP. Sexta vira 429.

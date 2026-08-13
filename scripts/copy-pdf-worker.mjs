@@ -13,4 +13,4 @@ const dest = join(destDir, 'pdf.worker.min.mjs');
 
 mkdirSync(destDir, { recursive: true });
 copyFileSync(source, dest);
-console.log(`pdf.worker.min.mjs copiado para ${dest}`);
+console.info(`pdf.worker.min.mjs copiado para ${dest}`);

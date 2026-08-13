@@ -233,8 +233,8 @@ export function Landing() {
             <div className="mb-3 font-mono text-xs uppercase tracking-widest text-primary">A peça-chave</div>
             <h2 className="text-balance text-2xl font-semibold tracking-tight md:text-3xl">Três nomes, formatos diferentes — um exame só.</h2>
             <p className="mt-3.5 text-muted-foreground">
-              Cada laboratório escreve do seu jeito: "AST", "Transaminase oxalacética", "Aspartato
-              aminotransferase". Nosso processo reconhece, com rigor, que são o <b>mesmo exame</b> e
+              Cada laboratório escreve do seu jeito: “AST”, “Transaminase oxalacética”, “Aspartato
+              aminotransferase”. Nosso processo reconhece, com rigor, que são o <b>mesmo exame</b> e
               unifica tudo sob um nome só. É esse cuidado que faz o seu histórico cruzar laboratórios
               de verdade — sem misturar o que não deve, e sem você arrumar nada.
             </p>

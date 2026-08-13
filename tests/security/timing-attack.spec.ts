@@ -66,9 +66,9 @@ test.describe('Timing attack mitigation', () => {
 
     const delta = Math.abs(avgWrongPwd - avgNoUser);
 
-    console.log(`[timing] no-user avg = ${avgNoUser.toFixed(1)}ms`);
-    console.log(`[timing] wrong-pwd avg = ${avgWrongPwd.toFixed(1)}ms`);
-    console.log(`[timing] delta = ${delta.toFixed(1)}ms`);
+    console.info(`[timing] no-user avg = ${avgNoUser.toFixed(1)}ms`);
+    console.info(`[timing] wrong-pwd avg = ${avgWrongPwd.toFixed(1)}ms`);
+    console.info(`[timing] delta = ${delta.toFixed(1)}ms`);
 
     // Sem fix: delta seria > 100ms (5ms vs 150ms).
     // Com fix: ambos rodam BCrypt → delta dominado por ruído (< 50ms tipicamente).

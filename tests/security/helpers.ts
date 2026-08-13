@@ -1,4 +1,4 @@
-import { type Page, type APIRequestContext, expect } from '@playwright/test';
+import { type Page, type APIRequestContext } from '@playwright/test';
 
 export const FRONT_URL = process.env.E2E_FRONT_URL ?? 'http://localhost:3000';
 export const BACK_URL = process.env.E2E_BACK_URL ?? 'http://localhost:5287';

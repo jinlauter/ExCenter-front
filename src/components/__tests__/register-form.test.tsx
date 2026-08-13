@@ -146,7 +146,7 @@ describe('RegisterForm — etapa 2, a efetivação', () => {
     [{ password: 'curta12', confirm: 'curta12' }, 'A senha deve ter no mínimo 8 caracteres.'],
     [{ password: 'SenhaValida123', confirm: 'Diferente123' }, 'As senhas não coincidem.'],
   ])('valida os campos antes de enviar: %o', async (overrides, mensagem) => {
-    const fetchMock = mockFetchRoutes({ '/api/register/verify': verifyOk, '/api/register': registerOk });
+    mockFetchRoutes({ '/api/register/verify': verifyOk, '/api/register': registerOk });
     const user = userEvent.setup();
     render(<RegisterForm />);
 

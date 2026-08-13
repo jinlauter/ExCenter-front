@@ -72,7 +72,10 @@ export function SessionExpiredWatcher() {
           Por segurança, você foi desconectado após um tempo sem usar. Entre novamente pra continuar.
         </p>
         {/* <a> (navegação completa), não <Link>: /api/session/expire é uma route handler
-            que apaga o cookie e redireciona — precisa de um request de documento real. */}
+            que apaga o cookie e redireciona — precisa de um request de documento real.
+            A regra do Next assume que todo href interno é página e deveria virar <Link>;
+            aqui o alvo é uma API, então o aviso é falso e o <a> é o certo. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a href="/api/session/expire" className={cn(buttonVariants(), 'w-full')}>
           Entrar novamente
         </a>
