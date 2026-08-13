@@ -45,35 +45,43 @@ export default async function UnmatchedOrHiddenPage({
   const { page: rawPage, aba } = await searchParams;
   const activeTab = aba === 'usuarios' ? 'usuarios' : 'fila';
 
-  try {
-    if (activeTab === 'usuarios') {
-      const accounts = await backendFetch<UserAccountSummary[]>('/api/admin/users', { skipRefresh: true });
-      return (
-        <OperatorShell activeTab={activeTab}>
-          <UsersAdminView accounts={accounts} createInvite={createInviteAction} deleteAccount={deleteUserAction} />
-        </OperatorShell>
-      );
-    }
-
-    const page = Math.max(1, Number.parseInt(rawPage ?? '1', 10) || 1);
-    const queuePage = await backendFetch<ReviewQueuePage>(
-      `/api/admin/observed-terms/review-queue?page=${page}`,
-      { skipRefresh: true },
-    );
+  if (activeTab === 'usuarios') {
+    const accounts = await fetchOrNotFound<UserAccountSummary[]>('/api/admin/users');
     return (
       <OperatorShell activeTab={activeTab}>
-        <ReviewQueueView
-          // key por página: navegação entre páginas REMONTA o estado local (cartões removidos,
-          // feedbacks) — sem isso, o React preservaria o estado da página anterior sobre os
-          // dados da nova.
-          key={queuePage.page}
-          queuePage={queuePage}
-          basePath={OPERATOR_BASE_PATH}
-          mapAction={mapTermAction}
-          ignoreAction={ignoreTermAction}
-        />
+        <UsersAdminView accounts={accounts} createInvite={createInviteAction} deleteAccount={deleteUserAction} />
       </OperatorShell>
     );
+  }
+
+  const page = Math.max(1, Number.parseInt(rawPage ?? '1', 10) || 1);
+  const queuePage = await fetchOrNotFound<ReviewQueuePage>(
+    `/api/admin/observed-terms/review-queue?page=${page}`,
+  );
+  return (
+    <OperatorShell activeTab={activeTab}>
+      <ReviewQueueView
+        // key por página: navegação entre páginas REMONTA o estado local (cartões removidos,
+        // feedbacks) — sem isso, o React preservaria o estado da página anterior sobre os
+        // dados da nova.
+        key={queuePage.page}
+        queuePage={queuePage}
+        basePath={OPERATOR_BASE_PATH}
+        mapAction={mapTermAction}
+        ignoreAction={ignoreTermAction}
+      />
+    </OperatorShell>
+  );
+}
+
+// Busca do operador com as falhas que DEVEM virar 404 — e só elas — já traduzidas.
+//
+// Existe como função para que o try/catch envolva a BUSCA e não a RENDERIZAÇÃO: devolver JSX de
+// dentro de um try faz o catch parecer que protege o render, coisa que ele não faz (erro de
+// render é trabalho de error boundary). É o que a regra react-hooks/error-boundaries aponta.
+async function fetchOrNotFound<T>(path: string): Promise<T> {
+  try {
+    return await backendFetch<T>(path, { skipRefresh: true });
   } catch (err) {
     if (err instanceof UnauthenticatedError) notFound();
     if (err instanceof BackendError && err.status === 404) notFound();
