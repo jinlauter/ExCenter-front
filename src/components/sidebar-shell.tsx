@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { Sidebar } from '@/components/sidebar';
@@ -25,7 +25,14 @@ export function SidebarShell(props: {
   const [collapsed, setCollapsed] = useState(props.initialCollapsed ?? false);
   const pathname = usePathname();
 
-  useEffect(() => setOpen(false), [pathname]);
+  // Navegou, a gaveta fecha. Ajuste DURANTE a renderização, e não num efeito: o React reprocessa
+  // antes de pintar, então a gaveta nunca chega a aparecer aberta sobre a tela nova — que era
+  // exatamente o quadro extra que o efeito produzia (react-hooks/set-state-in-effect).
+  const [pathnameOfLastRender, setPathnameOfLastRender] = useState(pathname);
+  if (pathname !== pathnameOfLastRender) {
+    setPathnameOfLastRender(pathname);
+    setOpen(false);
+  }
 
   function toggleCollapsed() {
     setCollapsed((current) => {

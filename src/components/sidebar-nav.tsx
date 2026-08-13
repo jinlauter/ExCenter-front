@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { Home, FileText, LineChart, Loader2, Settings } from 'lucide-react';
 import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -22,9 +22,14 @@ export function SidebarNav({ collapsed = false }: { collapsed?: boolean }) {
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
+  // Chegou na rota nova: nenhum link continua pendente. Ajuste DURANTE a renderização, e não num
+  // efeito — o React reprocessa antes de pintar, então o spinner some no mesmo quadro em que a
+  // página troca, em vez de sobreviver a um quadro extra (react-hooks/set-state-in-effect).
+  const [pathnameOfLastRender, setPathnameOfLastRender] = useState(pathname);
+  if (pathname !== pathnameOfLastRender) {
+    setPathnameOfLastRender(pathname);
     setPendingHref(null);
-  }, [pathname]);
+  }
 
   function handleNavigation(event: React.MouseEvent<HTMLAnchorElement>, href: string) {
     if (pathname === href || pendingHref) {

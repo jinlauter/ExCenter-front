@@ -138,11 +138,15 @@ export function HistoryView({ results }: { results: BloodTestResultQueryResponse
 
   const analysis = useMemo(() => computeHistoryAnalysis(results), [results]);
 
-  useEffect(() => {
-    if (analysis.trendable.length && selectedParams.length === 0) {
-      setSelectedParams([analysis.trendable[0]!.key]);
-    }
-  }, [analysis, selectedParams]);
+  // Sem nada selecionado, o primeiro parâmetro entra sozinho — a tela nunca abre vazia, e
+  // desmarcar tudo devolve o padrão em vez de deixar o vazio.
+  //
+  // Ajuste DURANTE a renderização, e não num efeito: o React reprocessa antes de pintar, então
+  // ninguém vê o quadro intermediário sem seleção. O efeito pintava esse quadro e só depois
+  // corrigia — a cascata que react-hooks/set-state-in-effect aponta.
+  if (analysis.trendable.length && selectedParams.length === 0) {
+    setSelectedParams([analysis.trendable[0]!.key]);
+  }
 
   function toggleParam(key: string) {
     setSelectedParams((current) => {
