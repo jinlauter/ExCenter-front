@@ -36,12 +36,16 @@ export function Landing() {
     <div className="min-h-screen bg-background text-foreground">
       {/* HEADER */}
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center gap-4 px-6 py-3">
+        {/* px menor no celular: com "Entrar" de volta ao lado do CTA, o header precisa de 379px
+            para caber inteiro — mais que os 360px de um Android comum. */}
+        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
           <span className="flex items-center gap-2 font-semibold">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary-light">
               <Activity className="h-5 w-5 text-primary" strokeWidth={1.9} />
             </span>
-            <span className="text-lg">ExCenter</span>
+            {/* Abaixo de 360px (iPhone SE 1ª geração e afins) nem o padding menor salva: some o
+                nome e fica só o ícone, que continua identificando a marca. */}
+            <span className="hidden text-lg min-[360px]:inline">ExCenter</span>
           </span>
           <nav className="ml-3 hidden gap-1 md:flex">
             <a href="#como" className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">Como funciona</a>
@@ -50,7 +54,10 @@ export function Landing() {
             <a href="#precos" className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">Preços</a>
           </nav>
           <div className="ml-auto flex items-center gap-2">
-            <Link href="/login" className="hidden sm:block"><Button variant="ghost" size="sm">Entrar</Button></Link>
+            {/* Visível SEMPRE, inclusive no celular: escondido abaixo de sm, quem já tem conta e
+                caía na landing pelo telefone ficava sem porta de entrada — só via "Começar grátis",
+                que leva a cadastro. */}
+            <Link href="/login"><Button variant="ghost" size="sm">Entrar</Button></Link>
             <Button size="sm" onClick={() => openCheckout('Pessoal')}>Começar grátis</Button>
           </div>
         </div>
@@ -159,14 +166,17 @@ export function Landing() {
       </section>
 
       {/* TRUST */}
+      {/* As bolinhas são SEPARADORES de uma linha só — no celular cada frase ocupa a sua, e a
+          bolinha sobrava sozinha na direita, parecendo defeito. Some abaixo de sm: sem uma linha
+          para dividir, separador não separa nada. */}
       <div className="border-y border-border bg-muted/50">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-2 px-6 py-4 text-sm text-muted-foreground">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-2 px-6 py-4 text-center text-sm text-muted-foreground">
           <span>Reúne <b className="text-foreground">todos os laboratórios</b></span>
-          <span className="h-1 w-1 rounded-full bg-primary" />
+          <span className="hidden h-1 w-1 rounded-full bg-primary sm:block" />
           <span><b className="text-foreground">Um nome só</b> por exame</span>
-          <span className="h-1 w-1 rounded-full bg-primary" />
+          <span className="hidden h-1 w-1 rounded-full bg-primary sm:block" />
           <span>Seus dados <b className="text-foreground">nunca vendidos</b></span>
-          <span className="h-1 w-1 rounded-full bg-primary" />
+          <span className="hidden h-1 w-1 rounded-full bg-primary sm:block" />
           <span><b className="text-foreground">Sem digitar nada</b></span>
         </div>
       </div>
