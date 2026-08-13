@@ -96,10 +96,6 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
     });
   }
 
-  function notImplemented(feature: string) {
-    return () => console.info(`[TODO] ${feature} ainda não implementado`);
-  }
-
   // Dispara quando o browser autopreenche um campo (animação CSS em :autofill, ver globals.css).
   // Marca autofillDetected pra liberar o botão sem depender de ler o valor (que o Chrome esconde
   // até o gesto). Também tenta sincronizar o state a partir da ref — funciona em browsers que já
@@ -166,16 +162,17 @@ export function LoginForm({ googleEnabled = false, microsoftEnabled = false }: L
             Lembrar de mim
           </Label>
         </div>
-        <Link
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            notImplemented('recuperação de senha')();
-          }}
-          className="text-xs text-primary hover:underline"
-        >
-          Esqueci minha senha
-        </Link>
+        {/* Desabilitado, e não escondido: um link que aceita o clique e não faz nada é pior que
+            um indisponível declarado. Mesmo idioma dos provedores OAuth logo abaixo. */}
+        <Tooltip content="Em breve! Estamos preparando a recuperação de senha pra você.">
+          <button
+            type="button"
+            disabled
+            className="cursor-not-allowed text-xs text-muted-foreground"
+          >
+            Esqueci minha senha
+          </button>
+        </Tooltip>
       </div>
 
       <Button
