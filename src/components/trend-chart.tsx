@@ -67,6 +67,62 @@ function formatReferenceCaption(referenceRange: ReferenceRange | null, unit?: st
   return null;
 }
 
+// Geometria da caixa do rótulo de valor, para decidir quando ele cairia POR CIMA da linha.
+// Valores medidos no render: texto fontSize 10 / weight 600, centrado no x do ponto, base 12px
+// acima da bolinha. Um dígito avança ~6px nesse tamanho; usar a mais (caixa um tico maior) só
+// deixa a checagem mais conservadora — na dúvida, esconde.
+const LABEL_CHAR_WIDTH = 6;
+const LABEL_SIDE_PADDING = 2;
+const LABEL_BASE_GAP = 12; // base do texto acima da bolinha
+const LABEL_ASCENT = 8; // subida dos glifos acima da base
+const LABEL_DESCENT = 2;
+// Espaçamento horizontal mínimo (px do viewBox) entre valores MOSTRADOS. Em px do viewBox porque o
+// SVG escala inteiro com a tela — a relação de sobreposição é a mesma em qualquer aparelho. Numa
+// região de exames apertados no tempo, os menos importantes caem abaixo deste gap e sobem só no
+// hover; onde há folga, todos cabem. ~PLOT_W/17, um número legível de rótulos na largura cheia.
+const LABEL_KEEP_MIN_GAP = 34;
+
+interface LabelBox {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+// Dois retângulos alinhados aos eixos se sobrepõem?
+function boxesOverlap(a: LabelBox, b: LabelBox): boolean {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
+// Segmento (x1,y1)-(x2,y2) cruza o retângulo alinhado aos eixos [rx1,ry1]-[rx2,ry2]? Liang-Barsky:
+// recorta o parâmetro t do segmento contra as 4 bordas; sobra intervalo => há interseção.
+function segmentIntersectsRect(
+  x1: number, y1: number, x2: number, y2: number,
+  rx1: number, ry1: number, rx2: number, ry2: number,
+): boolean {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const p = [-dx, dx, -dy, dy];
+  const q = [x1 - rx1, rx2 - x1, y1 - ry1, ry2 - y1];
+  let t0 = 0;
+  let t1 = 1;
+  for (let k = 0; k < 4; k++) {
+    if (p[k] === 0) {
+      if (q[k]! < 0) return false; // paralelo e fora desta borda
+    } else {
+      const r = q[k]! / p[k]!;
+      if (p[k]! < 0) {
+        if (r > t1) return false;
+        if (r > t0) t0 = r;
+      } else {
+        if (r < t0) return false;
+        if (r < t1) t1 = r;
+      }
+    }
+  }
+  return true;
+}
+
 interface TrendChartProps {
   points: TrendPoint[];
   unit?: string | null;
@@ -125,6 +181,88 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
     return chosen;
   }, [points, xScale]);
 
+  // Onde escrever o valor de cada ponto — ACIMA, ABAIXO, ou lugar nenhum. Duas etapas:
+  //
+  // 1. QUAIS mostrar (desafogar por importância). Numa região de exames apertados no tempo, mostrar
+  //    todo valor vira ruído. Cada ponto ganha uma "surpresa" = o quanto seu valor foge da reta
+  //    entre os dois vizinhos (ponto que cai em cima dessa reta é redundante → ~0; pico/vale →
+  //    alto); as pontas entram sempre (ancoram a série). Aceita em ordem de surpresa, exigindo
+  //    LABEL_KEEP_MIN_GAP px de folga de todo rótulo já aceito. É a regra pedida — "data muito
+  //    próxima da média de espaçamento + valor sem novidade ⇒ oculta, fica só no hover" — mas a
+  //    novidade é medida contra a TENDÊNCIA local, não só o ponto anterior.
+  //
+  // 2. ONDE colocar (acima/abaixo). Tenta acima primeiro (convenção), depois abaixo; aceita o lado
+  //    que não cai sobre a linha nem sobre outro rótulo. Se nenhum couber, some — garantia final de
+  //    não-sobreposição. Rótulos de DATA entram como ocupados, pra um valor "abaixo" não colidir.
+  //
+  // Mapa index -> y da base do texto; ausente = escondido (o hover ainda mostra o valor). Independe
+  // do hover DE PROPÓSITO: layout estável, não reflui a cada mouse-move.
+  const valueLabelBaselineByIndex = useMemo(() => {
+    const lastIndex = points.length - 1;
+    const positionX = points.map((p) => xScale(p.date.getTime()));
+
+    // Etapa 1 — importância + folga mínima.
+    const surprise = points.map((p, i) => {
+      if (i === 0 || i === lastIndex) return Number.POSITIVE_INFINITY;
+      const expected = (points[i - 1]!.value + points[i + 1]!.value) / 2;
+      return Math.abs(p.value - expected);
+    });
+    const kept = new Set<number>();
+    const keptX: number[] = [];
+    points
+      .map((_, i) => i)
+      .sort((a, b) => surprise[b]! - surprise[a]!)
+      .forEach((i) => {
+        if (keptX.every((kx) => Math.abs(kx - positionX[i]!) >= LABEL_KEEP_MIN_GAP)) {
+          kept.add(i);
+          keptX.push(positionX[i]!);
+        }
+      });
+
+    // Etapa 2 — coloca só os mantidos, acima/abaixo, sem sobrepor linha, datas ou outros rótulos.
+    const occupied: LabelBox[] = [];
+    points.forEach((point, index) => {
+      if (!labeledIndices.has(index)) return;
+      const x = positionX[index]!;
+      const halfWidth = (formatDateAxis(point.date).length * LABEL_CHAR_WIDTH) / 2 + LABEL_SIDE_PADDING;
+      occupied.push({
+        left: x - halfWidth,
+        right: x + halfWidth,
+        top: PLOT_H + 20 - LABEL_ASCENT,
+        bottom: PLOT_H + 20 + LABEL_DESCENT,
+      });
+    });
+
+    const baselineByIndex = new Map<number, number>();
+    points.forEach((point, index) => {
+      if (!kept.has(index)) return;
+      const x = positionX[index]!;
+      const y = yScale(point.value);
+      const halfWidth = (formatValue(point.value).length * LABEL_CHAR_WIDTH) / 2 + LABEL_SIDE_PADDING;
+      const left = x - halfWidth;
+      const right = x + halfWidth;
+      const neighbors = [points[index - 1], points[index + 1]].filter(Boolean) as TrendPoint[];
+
+      const candidates = [
+        { baseline: y - LABEL_BASE_GAP, top: y - LABEL_BASE_GAP - LABEL_ASCENT, bottom: y - LABEL_BASE_GAP + LABEL_DESCENT },
+        { baseline: y + LABEL_BASE_GAP + LABEL_ASCENT, top: y + LABEL_BASE_GAP, bottom: y + LABEL_BASE_GAP + LABEL_ASCENT + LABEL_DESCENT },
+      ];
+
+      for (const candidate of candidates) {
+        const box: LabelBox = { left, right, top: candidate.top, bottom: candidate.bottom };
+        const onLine = neighbors.some((n) =>
+          segmentIntersectsRect(x, y, xScale(n.date.getTime()), yScale(n.value), left, candidate.top, right, candidate.bottom),
+        );
+        if (onLine) continue;
+        if (occupied.some((placed) => boxesOverlap(placed, box))) continue;
+        occupied.push(box);
+        baselineByIndex.set(index, candidate.baseline);
+        break;
+      }
+    });
+    return baselineByIndex;
+  }, [points, xScale, yScale, labeledIndices]);
+
   const path = points
     .map((p, i) => `${i === 0 ? 'M' : 'L'} ${xScale(p.date.getTime())} ${yScale(p.value)}`)
     .join(' ');
@@ -144,7 +282,6 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
     setHoverIndex(nearest);
   }
 
-  const last = points[points.length - 1];
   const hovered = hoverIndex !== null ? points[hoverIndex] : null;
   const referenceCaption = formatReferenceCaption(referenceRange, unit);
   const trend = trendBadge(points);
@@ -264,19 +401,27 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
             />
           ))}
 
-          {/* Ancorado no fim (right-aligned na borda direita do viewBox) — com anchor no início a
-              partir do último ponto, o texto estourava a margem direita e era cortado ("109 mg/"). */}
-          <text
-            x={PLOT_W + MARGIN.right - 2}
-            y={yScale(last!.value) - 10}
-            textAnchor="end"
-            fontSize={12}
-            fontWeight={600}
-            fill={PRIMARY_DARK}
-          >
-            {formatValue(last!.value)}
-            {unit ? ` ${unit}` : ''}
-          </text>
+          {/* Valor de cada ponto, colocado acima OU abaixo pela lógica anti-colisão
+              (valueLabelBaselineByIndex). Some no ponto sob o cursor (o tooltip já mostra o valor,
+              com procedência — repetir seria eco) e nos pontos sem lugar livre. Sem unidade por
+              ponto — a landing também omite, e ela já aparece na legenda de referência e no tooltip. */}
+          {points.map((p, i) => {
+            const baseline = valueLabelBaselineByIndex.get(i);
+            if (i === hoverIndex || baseline === undefined) return null;
+            return (
+              <text
+                key={i}
+                x={xScale(p.date.getTime())}
+                y={baseline}
+                textAnchor="middle"
+                fontSize={10}
+                fontWeight={600}
+                fill={PRIMARY_DARK}
+              >
+                {formatValue(p.value)}
+              </text>
+            );
+          })}
 
           {hovered && (
             <>
