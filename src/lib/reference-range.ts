@@ -59,11 +59,16 @@ export function parseReferenceRange(rawText?: string | null): ReferenceRange | n
   return { min: parseLabNumber(lowerBounds[0]![1]!), max: null };
 }
 
-export function isOutOfRange(value: number | null | undefined, referenceValue?: string | null) {
-  if (value == null) return false;
-  const range = parseReferenceRange(referenceValue);
-  if (!range) return false;
+// Um valor cai FORA de uma faixa já parseada. Base compartilhada por isOutOfRange (que parte do
+// texto livre) e pelos consumidores que já têm a ReferenceRange em mãos — o gráfico usa a faixa da
+// banda exibida para colorir todos os pontos, sem re-parsear o texto de cada um.
+export function isValueOutsideRange(value: number | null | undefined, range: ReferenceRange | null) {
+  if (value == null || !range) return false;
   if (range.min != null && value < range.min) return true;
   if (range.max != null && value > range.max) return true;
   return false;
+}
+
+export function isOutOfRange(value: number | null | undefined, referenceValue?: string | null) {
+  return isValueOutsideRange(value, parseReferenceRange(referenceValue));
 }

@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import type { ReferenceRange } from '@/lib/reference-range';
-import { isOutOfRange } from '@/lib/reference-range';
+import { isValueOutsideRange } from '@/lib/reference-range';
 import { computeTrend } from '@/lib/trend';
 
 const WIDTH = 680;
@@ -389,15 +389,18 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
 
           <path d={path} fill="none" stroke={PRIMARY} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
 
-          {/* Ponto fora da faixa de referência (avaliado contra a referência DAQUELE ponto) sai
-              em vermelho — o sinal visual imediato de "aqui saiu do normal". */}
+          {/* Ponto fora da banda de referência EXIBIDA sai em vermelho — o sinal visual imediato de
+              "aqui saiu do normal", e coerente com a faixa verde que o usuário vê. Colorimos pela
+              banda (referenceRange), e não pela faixa de cada ponto, porque o parser ainda não
+              entende laudos escritos "de X até Y" e deixava pontos fora da faixa em verde. Paliativo
+              consciente — ver docs/BACKLOG.md "conector até". */}
           {points.map((p, i) => (
             <circle
               key={i}
               cx={xScale(p.date.getTime())}
               cy={yScale(p.value)}
               r={5}
-              fill={isOutOfRange(p.value, p.referenceValue) ? DESTRUCTIVE : PRIMARY}
+              fill={isValueOutsideRange(p.value, referenceRange) ? DESTRUCTIVE : PRIMARY}
               stroke="white"
               strokeWidth={2}
             />
@@ -440,7 +443,7 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
                 cx={xScale(hovered.date.getTime())}
                 cy={yScale(hovered.value)}
                 r={7}
-                fill={isOutOfRange(hovered.value, hovered.referenceValue) ? DESTRUCTIVE : PRIMARY}
+                fill={isValueOutsideRange(hovered.value, referenceRange) ? DESTRUCTIVE : PRIMARY}
                 stroke="white"
                 strokeWidth={2}
               />
