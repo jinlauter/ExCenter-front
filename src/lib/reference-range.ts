@@ -59,6 +59,22 @@ export function parseReferenceRange(rawText?: string | null): ReferenceRange | n
   return { min: parseLabNumber(lowerBounds[0]![1]!), max: null };
 }
 
+// Resolve a faixa a usar em gráfico/banda: PREFERE a estruturada extraída pela IA no back
+// (referenceMin/referenceMax — resolve referência multi-faixa tipo HbA1c, que o parse textual
+// corretamente recusa) e só cai no parseReferenceRange quando nenhum limite veio (linha gravada
+// antes da extração estruturada existir). O texto de referenceValue segue sendo o EXIBIDO — este
+// resolvedor é só pra máquina.
+export function resolveReferenceRange(
+  referenceMin?: number | null,
+  referenceMax?: number | null,
+  referenceValueText?: string | null,
+): ReferenceRange | null {
+  if (referenceMin != null || referenceMax != null) {
+    return { min: referenceMin ?? null, max: referenceMax ?? null };
+  }
+  return parseReferenceRange(referenceValueText);
+}
+
 // Um valor cai FORA de uma faixa já parseada. Base compartilhada por isOutOfRange (que parte do
 // texto livre) e pelos consumidores que já têm a ReferenceRange em mãos — o gráfico usa a faixa da
 // banda exibida para colorir todos os pontos, sem re-parsear o texto de cada um.

@@ -20,6 +20,11 @@ export interface TrendPoint {
   date: Date;
   value: number;
   referenceValue?: string | null;
+  // Faixa estruturada do ponto (quando a extração a forneceu). O gráfico em si não a lê —
+  // a banda chega pronta via prop referenceRange — mas o ponto a carrega pra quem monta a
+  // banda a partir do ÚLTIMO ponto da série (visão geral) poder resolver sem re-parse.
+  referenceMin?: number | null;
+  referenceMax?: number | null;
   // Procedência para o tooltip: onde foi medido e quem pediu o exame deste ponto.
   laboratoryName?: string | null;
   requestingDoctor?: string | null;

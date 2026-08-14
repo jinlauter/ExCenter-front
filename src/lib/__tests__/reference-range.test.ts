@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isOutOfRange, parseReferenceRange } from '@/lib/reference-range';
+import { isOutOfRange, parseReferenceRange, resolveReferenceRange } from '@/lib/reference-range';
 
 describe('parseReferenceRange', () => {
   it('retorna null para texto vazio/ausente', () => {
@@ -153,5 +153,32 @@ describe('parseReferenceRange — rótulo com sexo/comparador e conector "entre"
 
   it('"e" solto sem "entre" não vira faixa', () => {
     expect(parseReferenceRange('dosagens 15 e 40 conforme protocolo')).toBeNull();
+  });
+});
+
+// ── resolveReferenceRange — faixa estruturada da extração vs parse textual ──
+// O caso que motivou os campos: HbA1c multi-faixa ("Normal / Risco / Diabetes"), que o parse
+// textual corretamente recusa (múltiplas cláusulas), mas a IA da extração já resolveu.
+describe('resolveReferenceRange', () => {
+  const hba1cMultiFaixa =
+    'Normal: Inferior a 5,7% Risco aumentado para Diabetes Mellitus: 5,7 a 6,4% Diabetes Mellitus: Igual ou superior a 6,5%';
+
+  it('prefere a faixa estruturada e ignora o texto', () => {
+    expect(resolveReferenceRange(null, 5.7, hba1cMultiFaixa)).toEqual({ min: null, max: 5.7 });
+    expect(resolveReferenceRange(70, 99, '70 a 99')).toEqual({ min: 70, max: 99 });
+  });
+
+  it('um lado só também conta como estruturada (não mistura com o texto)', () => {
+    expect(resolveReferenceRange(90, null, 'Superior a 90')).toEqual({ min: 90, max: null });
+  });
+
+  it('sem nenhum limite estruturado, cai no parse textual (linha antiga)', () => {
+    expect(resolveReferenceRange(null, null, '13,0 a 17,0 g/dL')).toEqual({ min: 13, max: 17 });
+    expect(resolveReferenceRange(undefined, undefined, hba1cMultiFaixa)).toBeNull();
+  });
+
+  it('sem estruturada e sem texto parseável, devolve null', () => {
+    expect(resolveReferenceRange(null, null, 'Não reagente')).toBeNull();
+    expect(resolveReferenceRange(null, null, null)).toBeNull();
   });
 });

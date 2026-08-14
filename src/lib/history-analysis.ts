@@ -117,6 +117,8 @@ export function computeHistoryAnalysis(results: BloodTestResultQueryResponse[]):
       date: new Date(r.testDate),
       value: r.numericResultValue,
       referenceValue: r.referenceValue,
+      referenceMin: r.referenceMin,
+      referenceMax: r.referenceMax,
       laboratoryName: r.laboratoryName,
       requestingDoctor: r.requestingDoctor,
     });

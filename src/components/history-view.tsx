@@ -5,7 +5,7 @@ import { Search, ArrowUp, ArrowDown, ChevronDown, Check, Info } from 'lucide-rea
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { TrendChart } from '@/components/trend-chart';
-import { isOutOfRange, parseReferenceRange } from '@/lib/reference-range';
+import { isOutOfRange, resolveReferenceRange } from '@/lib/reference-range';
 import { computeHistoryAnalysis, type ParamSeries } from '@/lib/history-analysis';
 import { cn } from '@/lib/utils';
 import type { BloodTestResultQueryResponse } from '@/types/api';
@@ -209,8 +209,13 @@ export function HistoryView({ results }: { results: BloodTestResultQueryResponse
                 largura fixa responsiva — três empilhados continuam legíveis no mobile. */}
             <div className="mt-4 space-y-6">
               {selectedSeries.map((series) => {
-                const referenceRange = parseReferenceRange(
-                  series.points[series.points.length - 1]?.referenceValue,
+                // Banda pela referência do ÚLTIMO exame da série (a "atual") — estruturada
+                // quando veio da extração, texto parseado como fallback de linha antiga.
+                const latestPoint = series.points[series.points.length - 1];
+                const referenceRange = resolveReferenceRange(
+                  latestPoint?.referenceMin,
+                  latestPoint?.referenceMax,
+                  latestPoint?.referenceValue,
                 );
                 return (
                   <div key={series.key}>

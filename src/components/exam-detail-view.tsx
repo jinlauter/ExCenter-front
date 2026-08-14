@@ -7,7 +7,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tooltip } from '@/components/ui/tooltip';
 import { TrendChart } from '@/components/trend-chart';
-import { parseReferenceRange } from '@/lib/reference-range';
+import { resolveReferenceRange } from '@/lib/reference-range';
 import { cn } from '@/lib/utils';
 import type { ExamDetailGroup, ExamDetailResponse, ExamDetailResult } from '@/types/api';
 
@@ -116,7 +116,11 @@ function ResultRow({ result, showName }: { result: ExamDetailResult; showName: b
               requestingDoctor: p.requestingDoctor,
             }))}
             unit={result.unit}
-            referenceRange={parseReferenceRange(result.referenceValue)}
+            referenceRange={resolveReferenceRange(
+              result.referenceMin,
+              result.referenceMax,
+              result.referenceValue,
+            )}
           />
         </div>
       )}

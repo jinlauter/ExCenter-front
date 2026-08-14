@@ -119,6 +119,10 @@ export interface BloodTestResultQueryResponse {
   stringResultValue?: string | null;
   unit?: string | null;
   referenceValue?: string | null;
+  /** Faixa de NORMALIDADE estruturada extraída pela IA (inclusiva; um lado null = sem limite).
+   *  Alimenta banda/cor de gráfico; o texto de referenceValue segue sendo o exibido. */
+  referenceMin?: number | null;
+  referenceMax?: number | null;
   isAbnormal?: boolean | null;
   /** Analito canônico do termo mapeado (null enquanto o dicionário não mapeou). É o que cruza
    *  séries entre laboratórios — ver history-analysis.ts. */
@@ -181,6 +185,10 @@ export interface ExamDetailResult {
   stringResultValue?: string | null;
   unit?: string | null;
   referenceValue?: string | null;
+  /** Faixa de NORMALIDADE estruturada extraída pela IA (inclusiva; um lado null = sem limite).
+   *  Presente, dispensa o parse textual; ausente (linha antiga), resolveReferenceRange cai nele. */
+  referenceMin?: number | null;
+  referenceMax?: number | null;
   isAbnormal?: boolean | null;
   /** Série histórica do usuário (nome+unidade exatos), ordenada por data, com este exame incluso. */
   history: ExamHistoryPoint[];
