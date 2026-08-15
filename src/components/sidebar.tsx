@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- imagem vem de rota BFF privada autenticada */
 
-import { Activity } from 'lucide-react';
+import { Activity, Crown } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { SidebarNav } from '@/components/sidebar-nav';
 import { LogoutButton } from '@/components/logout-button';
@@ -9,11 +9,13 @@ import { cn } from '@/lib/utils';
 import { planLabel, type PlanTier } from '@/lib/plans';
 
 // Cores do badge sobre o fundo colorido da sidebar (texto branco). Grátis/Pessoal são pílulas
-// translúcidas discretas; Ilimitado ganha destaque âmbar — é o topo, e merece saltar aos olhos.
+// translúcidas discretas; Ilimitado é o topo — gradiente dourado, brilho suave e coroa, pra
+// parecer premium de verdade e não só "mais uma cor".
 const PLAN_BADGE_CLASSES: Record<PlanTier, string> = {
   Free: 'bg-white/15 text-white ring-1 ring-white/25',
   Personal: 'bg-white/25 text-white ring-1 ring-white/40',
-  Unlimited: 'bg-amber-400 text-amber-950 ring-1 ring-amber-300',
+  Unlimited:
+    'bg-gradient-to-b from-amber-200 via-amber-400 to-amber-500 text-amber-950 ring-1 ring-amber-200/80 shadow-[0_1px_8px_rgba(251,191,36,0.55)]',
 };
 
 function planBadgeClass(plan: string): string {
@@ -86,10 +88,11 @@ export function Sidebar({
             <p className="mb-2 text-[11px] text-white/60">{birthDateLabel}</p>
             <span
               className={cn(
-                'rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
                 planBadgeClass(plan),
               )}
             >
+              {plan === 'Unlimited' && <Crown className="h-3 w-3" strokeWidth={2.5} />}
               {planLabel(plan)}
             </span>
           </>
@@ -97,11 +100,11 @@ export function Sidebar({
           <Tooltip content={`Plano ${planLabel(plan)}`} placement="right">
             <span
               className={cn(
-                'mt-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase',
+                'mt-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase',
                 planBadgeClass(plan),
               )}
             >
-              {planLabel(plan).slice(0, 3)}
+              {plan === 'Unlimited' ? <Crown className="h-3.5 w-3.5" strokeWidth={2.5} /> : planLabel(plan).slice(0, 3)}
             </span>
           </Tooltip>
         )}
