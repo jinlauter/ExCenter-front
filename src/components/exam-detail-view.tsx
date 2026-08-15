@@ -160,10 +160,12 @@ function GroupCard({ group }: { group: ExamDetailGroup }) {
 // exame criado via /analyze não tem laudo pra mostrar — botão desabilitado com o motivo no
 // tooltip. Desabilitado declarado é honesto; botão que aceita o clique e não faz nada não é.
 function ExamActions({
+  testId,
   sourceFileId,
   sourceFileName,
   onPreviewOriginal,
 }: {
+  testId: string;
   sourceFileId?: string | null;
   sourceFileName?: string | null;
   onPreviewOriginal: () => void;
@@ -215,19 +217,18 @@ function ExamActions({
       </Tooltip>
 
       {/* Documento COM gráfico: separa visualmente o "arquivo do laboratório" do "documento que o
-          ExCenter monta" — é o que a exportação pro médico vai ser. */}
-      <Tooltip content="Em breve! Você vai poder baixar este exame junto com o seu histórico ExCenter, pronto pra levar ao médico.">
-        <button
-          type="button"
-          disabled
+          ExCenter monta". Abre em aba nova — a rota de impressão chama o diálogo sozinha e a
+          página do exame continua onde estava. */}
+      <Tooltip content="Baixar este exame com o seu histórico ExCenter em PDF, pronto pra levar ao médico">
+        <a
+          href={`/resultados/${testId}/imprimir`}
+          target="_blank"
+          rel="noopener"
           aria-label="Baixar o exame com o histórico ExCenter"
-          className={cn(
-            buttonVariants({ variant: 'ghost', size: 'icon' }),
-            'h-9 w-9 cursor-not-allowed text-muted-foreground',
-          )}
+          className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-9 w-9 text-primary')}
         >
           <FileLineChart className="h-4 w-4" />
-        </button>
+        </a>
       </Tooltip>
     </div>
   );
@@ -244,6 +245,7 @@ export function ExamDetailView({ exam }: { exam: ExamDetailResponse }) {
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <h1 className="text-2xl font-medium">Resultado do exame</h1>
           <ExamActions
+            testId={exam.testId}
             sourceFileId={exam.sourceFileId}
             sourceFileName={exam.sourceFileName}
             onPreviewOriginal={() => setPreviewingOriginal(true)}

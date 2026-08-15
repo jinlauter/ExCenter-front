@@ -231,9 +231,11 @@ describe('ExamDetailView — ações do laudo (ver/baixar o original)', () => {
     expect(screen.queryByTestId('file-preview-modal')).not.toBeInTheDocument();
   });
 
-  it('o botão do PDF ExCenter segue desabilitado (feature ainda não implementada)', () => {
+  it('o botão do PDF ExCenter abre a rota de impressão em aba nova', () => {
     render(<ExamDetailView exam={makeExam(comArquivo)} />);
 
-    expect(screen.getByRole('button', { name: 'Baixar o exame com o histórico ExCenter' })).toBeDisabled();
+    const pdf = screen.getByRole('link', { name: 'Baixar o exame com o histórico ExCenter' });
+    expect(pdf).toHaveAttribute('href', '/resultados/test-1/imprimir');
+    expect(pdf).toHaveAttribute('target', '_blank');
   });
 });
