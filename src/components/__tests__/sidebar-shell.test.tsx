@@ -18,7 +18,7 @@ vi.mock('next/link', () => ({
 
 function renderShell(initialCollapsed = false) {
   return render(
-    <SidebarShell username="Jin Hwa" dateOfBirth="1994-12-30" initialCollapsed={initialCollapsed} />,
+    <SidebarShell username="Jin Hwa" dateOfBirth="1994-12-30" plan="Unlimited" initialCollapsed={initialCollapsed} />,
   );
 }
 
@@ -33,6 +33,7 @@ describe('SidebarShell — menu minimizável no desktop', () => {
 
     expect(screen.getByText('Exames enviados')).toBeInTheDocument();
     expect(screen.getByText('Jin Hwa')).toBeInTheDocument();
+    expect(screen.getByText('Ilimitado')).toBeInTheDocument(); // badge do plano
     expect(screen.getByLabelText('Minimizar menu')).toBeInTheDocument();
   });
 

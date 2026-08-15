@@ -57,6 +57,8 @@ export interface UserAccountSummary {
   id: string;
   username: string;
   email: string | null;
+  /** Código do plano (Free/Personal/Unlimited) — ver PlanTier em lib/plans. */
+  plan: string;
   registrationPending: boolean;
   invitedAt: string | null;
   createdAt: string;

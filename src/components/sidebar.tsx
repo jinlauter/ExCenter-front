@@ -6,6 +6,19 @@ import { SidebarNav } from '@/components/sidebar-nav';
 import { LogoutButton } from '@/components/logout-button';
 import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { planLabel, type PlanTier } from '@/lib/plans';
+
+// Cores do badge sobre o fundo colorido da sidebar (texto branco). Grátis/Pessoal são pílulas
+// translúcidas discretas; Ilimitado ganha destaque âmbar — é o topo, e merece saltar aos olhos.
+const PLAN_BADGE_CLASSES: Record<PlanTier, string> = {
+  Free: 'bg-white/15 text-white ring-1 ring-white/25',
+  Personal: 'bg-white/25 text-white ring-1 ring-white/40',
+  Unlimited: 'bg-amber-400 text-amber-950 ring-1 ring-amber-300',
+};
+
+function planBadgeClass(plan: string): string {
+  return PLAN_BADGE_CLASSES[plan as PlanTier] ?? PLAN_BADGE_CLASSES.Free;
+}
 
 // Sidebar SSR — renderiza marca + iniciais a partir do perfil autenticado.
 // SidebarNav é client (precisa de usePathname pra realçar o item ativo).
@@ -18,12 +31,15 @@ export function Sidebar({
   username,
   dateOfBirth,
   avatarUpdatedAt,
+  plan,
   headerExtra,
   collapsed = false,
 }: {
   username: string;
   dateOfBirth?: string | null;
   avatarUpdatedAt?: string | null;
+  /** Código do plano da conta (Free/Personal/Unlimited). Ver lib/plans. */
+  plan: string;
   /** Botão de fechar a gaveta no mobile (injetado pelo SidebarShell). */
   headerExtra?: React.ReactNode;
   /** Trilho de ícones no desktop. O mobile ignora (a gaveta abre sempre cheia). */
@@ -64,11 +80,30 @@ export function Sidebar({
             initial
           )}
         </div>
-        {!collapsed && (
+        {!collapsed ? (
           <>
             <p className="mb-0.5 text-[13px] font-semibold text-white">{username}</p>
-            <p className="text-[11px] text-white/60">{birthDateLabel}</p>
+            <p className="mb-2 text-[11px] text-white/60">{birthDateLabel}</p>
+            <span
+              className={cn(
+                'rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                planBadgeClass(plan),
+              )}
+            >
+              {planLabel(plan)}
+            </span>
           </>
+        ) : (
+          <Tooltip content={`Plano ${planLabel(plan)}`} placement="right">
+            <span
+              className={cn(
+                'mt-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase',
+                planBadgeClass(plan),
+              )}
+            >
+              {planLabel(plan).slice(0, 3)}
+            </span>
+          </Tooltip>
         )}
       </div>
 

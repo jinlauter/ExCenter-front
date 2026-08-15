@@ -30,6 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         username={profile.username}
         dateOfBirth={profile.dateOfBirth}
         avatarUpdatedAt={profile.avatarUpdatedAt}
+        plan={profile.plan}
         initialCollapsed={sidebarCollapsed}
       />
       <main className="flex-1 p-6 md:p-10">{children}</main>

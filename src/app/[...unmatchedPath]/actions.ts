@@ -68,11 +68,11 @@ export async function deleteUserAction(userId: string): Promise<ReviewActionResu
   }
 }
 
-export async function createInviteAction(email: string): Promise<import('./types').CreatedInviteResult> {
+export async function createInviteAction(email: string, plan: string): Promise<import('./types').CreatedInviteResult> {
   try {
     const created = await backendFetch<{ email: string; inviteCode: string }>(
       '/api/admin/users/invites',
-      { method: 'POST', body: { email } },
+      { method: 'POST', body: { email, plan } },
     );
     revalidatePath('/zk7q');
     return { ok: true, email: created.email, inviteCode: created.inviteCode };
@@ -86,6 +86,31 @@ export async function createInviteAction(email: string): Promise<import('./types
     }
     if (err instanceof UnauthenticatedError || err instanceof BackendError) {
       return { ok: false, message: 'Não foi possível criar o convite.' };
+    }
+    throw err instanceof Error ? err : new Error('Falha inesperada.');
+  }
+}
+
+// Upgrade/downgrade manual do plano de uma conta existente. O back é a autoridade: valida o plano
+// e recusa (422) o desconhecido; aqui só repassamos e devolvemos a mensagem específica quando vier.
+export async function updateUserPlanAction(userId: string, plan: string): Promise<ReviewActionResult> {
+  try {
+    await backendFetch<void>(`/api/admin/users/${userId}/plan`, {
+      method: 'PUT',
+      body: { plan },
+    });
+    revalidatePath('/zk7q');
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof BackendError && err.status === 422) {
+      const message =
+        typeof err.body === 'object' && err.body && 'message' in err.body
+          ? String((err.body as { message: unknown }).message)
+          : 'Não foi possível alterar o plano.';
+      return { ok: false, message };
+    }
+    if (err instanceof UnauthenticatedError || err instanceof BackendError) {
+      return { ok: false, message: 'Não foi possível alterar o plano.' };
     }
     throw err instanceof Error ? err : new Error('Falha inesperada.');
   }

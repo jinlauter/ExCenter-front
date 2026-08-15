@@ -19,6 +19,7 @@ const baseProfile: UserProfileResponse = {
   biologicalSex: null,
   preferredLanguage: 'pt-BR',
   avatarUpdatedAt: null,
+  plan: 'Free',
 };
 
 function jsonResponse(body: unknown, status = 200): Response {

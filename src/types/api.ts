@@ -228,6 +228,8 @@ export interface UserProfileResponse {
   biologicalSex?: string | null;
   preferredLanguage: string;
   avatarUpdatedAt?: string | null;
+  /** Código do plano da conta (Free/Personal/Unlimited) — alimenta o badge. Ver lib/plans. */
+  plan: string;
 }
 
 export interface UpdatePersonalInfoRequest {

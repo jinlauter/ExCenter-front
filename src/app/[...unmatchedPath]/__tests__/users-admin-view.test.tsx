@@ -8,6 +8,7 @@ const accounts: UserAccountSummary[] = [
     id: '1',
     username: 'convidada@teste.dev',
     email: 'convidada@teste.dev',
+    plan: 'Free',
     registrationPending: true,
     invitedAt: '2026-08-08T12:00:00Z',
     createdAt: '2026-08-08T12:00:00Z',
@@ -16,6 +17,7 @@ const accounts: UserAccountSummary[] = [
     id: '2',
     username: 'Jin Hwa Francis Lauter',
     email: 'jin@teste.dev',
+    plan: 'Unlimited',
     registrationPending: false,
     invitedAt: null,
     createdAt: '2026-06-01T12:00:00Z',
@@ -28,6 +30,7 @@ function renderView(overrides: Partial<Parameters<typeof UsersAdminView>[0]> = {
       accounts={accounts}
       createInvite={vi.fn()}
       deleteAccount={vi.fn()}
+      updatePlan={vi.fn()}
       {...overrides}
     />,
   );
@@ -51,9 +54,20 @@ describe('UsersAdminView — convites e contas', () => {
     fireEvent.change(screen.getByPlaceholderText('email@dapessoa.com'), { target: { value: 'nova@pessoa.dev' } });
     fireEvent.click(screen.getByRole('button', { name: /Criar convite/ }));
 
-    await waitFor(() => expect(createInvite).toHaveBeenCalledWith('nova@pessoa.dev'));
+    await waitFor(() => expect(createInvite).toHaveBeenCalledWith('nova@pessoa.dev', 'Free'));
     expect(await screen.findByText('A7KX2M')).toBeInTheDocument();
     expect(screen.getByText(/o código não aparece de novo/)).toBeInTheDocument();
+  });
+
+  it('convite envia o plano escolhido no seletor', async () => {
+    const createInvite = vi.fn().mockResolvedValue({ ok: true, email: 'nova@pessoa.dev', inviteCode: 'A7KX2M' });
+    renderView({ createInvite });
+
+    fireEvent.change(screen.getByPlaceholderText('email@dapessoa.com'), { target: { value: 'nova@pessoa.dev' } });
+    fireEvent.change(screen.getByLabelText('Plano do convite'), { target: { value: 'Personal' } });
+    fireEvent.click(screen.getByRole('button', { name: /Criar convite/ }));
+
+    await waitFor(() => expect(createInvite).toHaveBeenCalledWith('nova@pessoa.dev', 'Personal'));
   });
 
   it('falha do convite mostra a mensagem sem exibir código nenhum', async () => {
@@ -65,6 +79,33 @@ describe('UsersAdminView — convites e contas', () => {
 
     expect(await screen.findByText(/Já existe usuário/)).toBeInTheDocument();
     expect(screen.queryByText(/não aparece de novo/)).not.toBeInTheDocument();
+  });
+});
+
+describe('UsersAdminView — edição de plano', () => {
+  it('mostra o plano atual de cada conta no seletor da linha', () => {
+    renderView();
+
+    expect(screen.getByLabelText('Plano de convidada@teste.dev')).toHaveValue('Free');
+    expect(screen.getByLabelText('Plano de jin@teste.dev')).toHaveValue('Unlimited');
+  });
+
+  it('trocar o plano de uma linha chama a action com id e plano novos', async () => {
+    const updatePlan = vi.fn().mockResolvedValue({ ok: true });
+    renderView({ updatePlan });
+
+    fireEvent.change(screen.getByLabelText('Plano de jin@teste.dev'), { target: { value: 'Personal' } });
+
+    await waitFor(() => expect(updatePlan).toHaveBeenCalledWith('2', 'Personal'));
+  });
+
+  it('falha ao trocar o plano mostra a mensagem do back', async () => {
+    const updatePlan = vi.fn().mockResolvedValue({ ok: false, message: 'Plano inválido.' });
+    renderView({ updatePlan });
+
+    fireEvent.change(screen.getByLabelText('Plano de jin@teste.dev'), { target: { value: 'Personal' } });
+
+    expect(await screen.findByText('Plano inválido.')).toBeInTheDocument();
   });
 });
 

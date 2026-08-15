@@ -19,6 +19,7 @@ export function SidebarShell(props: {
   username: string;
   dateOfBirth?: string | null;
   avatarUpdatedAt?: string | null;
+  plan: string;
   initialCollapsed?: boolean;
 }) {
   const [open, setOpen] = useState(false);
