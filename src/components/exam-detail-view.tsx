@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ChevronDown, Download, Eye, FileLineChart, LineChart } from 'lucide-react';
 import { BackLink } from '@/components/back-link';
+import { FilePreviewModal } from '@/components/file-preview-modal';
 import { buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -155,38 +156,62 @@ function GroupCard({ group }: { group: ExamDetailGroup }) {
 // Ações do laudo, no topo e à direita do título — o canto onde o usuário procura o que "fazer
 // com este documento", e o mesmo idioma visual da tela de exames enviados (ghost + ícone).
 //
-// Todas DESABILITADAS por ora: nascem no lugar definitivo, com o tooltip dizendo o que virá, para
-// que ligar cada uma seja trocar o handler e nada mais. Desabilitado declarado é honesto; botão
-// que aceita o clique e não faz nada não é.
-function ExamActions() {
+// Ver/baixar o original só existem quando o exame nasceu de um arquivo (sourceFileId presente);
+// exame criado via /analyze não tem laudo pra mostrar — botão desabilitado com o motivo no
+// tooltip. Desabilitado declarado é honesto; botão que aceita o clique e não faz nada não é.
+function ExamActions({
+  sourceFileId,
+  sourceFileName,
+  onPreviewOriginal,
+}: {
+  sourceFileId?: string | null;
+  sourceFileName?: string | null;
+  onPreviewOriginal: () => void;
+}) {
+  const hasOriginal = Boolean(sourceFileId);
+  const disabledReason = 'Este exame não tem arquivo original guardado.';
+
   return (
     <div className="flex items-center gap-1">
-      <Tooltip content="Em breve! Você vai poder ver o exame original por aqui.">
+      <Tooltip content={hasOriginal ? 'Ver o exame original' : disabledReason}>
         <button
           type="button"
-          disabled
+          disabled={!hasOriginal}
+          onClick={onPreviewOriginal}
           aria-label="Ver o exame original"
           className={cn(
             buttonVariants({ variant: 'ghost', size: 'icon' }),
-            'h-9 w-9 cursor-not-allowed text-muted-foreground',
+            'h-9 w-9',
+            hasOriginal ? 'text-primary' : 'cursor-not-allowed text-muted-foreground',
           )}
         >
           <Eye className="h-4 w-4" />
         </button>
       </Tooltip>
 
-      <Tooltip content="Em breve! Você vai poder baixar o laudo original aqui, como o laboratório enviou.">
-        <button
-          type="button"
-          disabled
-          aria-label="Baixar o laudo original"
-          className={cn(
-            buttonVariants({ variant: 'ghost', size: 'icon' }),
-            'h-9 w-9 cursor-not-allowed text-muted-foreground',
-          )}
-        >
-          <Download className="h-4 w-4" />
-        </button>
+      <Tooltip content={hasOriginal ? 'Baixar o laudo original, como o laboratório enviou' : disabledReason}>
+        {hasOriginal ? (
+          <a
+            href={`/api/bloodtests/files/${sourceFileId}/download`}
+            download={sourceFileName ?? undefined}
+            aria-label="Baixar o laudo original"
+            className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-9 w-9 text-primary')}
+          >
+            <Download className="h-4 w-4" />
+          </a>
+        ) : (
+          <button
+            type="button"
+            disabled
+            aria-label="Baixar o laudo original"
+            className={cn(
+              buttonVariants({ variant: 'ghost', size: 'icon' }),
+              'h-9 w-9 cursor-not-allowed text-muted-foreground',
+            )}
+          >
+            <Download className="h-4 w-4" />
+          </button>
+        )}
       </Tooltip>
 
       {/* Documento COM gráfico: separa visualmente o "arquivo do laboratório" do "documento que o
@@ -210,6 +235,7 @@ function ExamActions() {
 
 export function ExamDetailView({ exam }: { exam: ExamDetailResponse }) {
   const date = formatExamDate(exam.examDate);
+  const [previewingOriginal, setPreviewingOriginal] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -217,9 +243,21 @@ export function ExamDetailView({ exam }: { exam: ExamDetailResponse }) {
         <BackLink href="/resultados" label="Voltar para Resultado de exames" />
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <h1 className="text-2xl font-medium">Resultado do exame</h1>
-          <ExamActions />
+          <ExamActions
+            sourceFileId={exam.sourceFileId}
+            sourceFileName={exam.sourceFileName}
+            onPreviewOriginal={() => setPreviewingOriginal(true)}
+          />
         </div>
       </header>
+
+      {previewingOriginal && exam.sourceFileId && (
+        <FilePreviewModal
+          fileId={exam.sourceFileId}
+          fileName={exam.sourceFileName ?? 'laudo'}
+          onClose={() => setPreviewingOriginal(false)}
+        />
+      )}
 
       {/* Cabeçalho do laudo: os mesmos dados que o documento impresso traz no topo. */}
       <Card className="border-border p-4">

@@ -210,6 +210,10 @@ export interface ExamDetailResponse {
   laboratoryName?: string | null;
   abnormalCount: number;
   resultCount: number;
+  /** Arquivo original (laudo) de origem — habilita ver/baixar o original no detalhe.
+   *  Null quando o exame nasceu sem arquivo (endpoint /analyze): botões ficam desabilitados. */
+  sourceFileId?: string | null;
+  sourceFileName?: string | null;
   groups: ExamDetailGroup[];
 }
 

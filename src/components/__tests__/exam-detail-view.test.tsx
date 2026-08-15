@@ -19,6 +19,16 @@ vi.mock('next/link', () => ({
   ),
 }));
 
+// O modal real puxa o visualizador de PDF (pesado e irrelevante aqui) — o stub só prova que o
+// clique no olhinho abre o preview do arquivo certo.
+vi.mock('@/components/file-preview-modal', () => ({
+  FilePreviewModal: ({ fileId, fileName }: { fileId: string; fileName: string }) => (
+    <div data-testid="file-preview-modal">
+      {fileId}:{fileName}
+    </div>
+  ),
+}));
+
 function makeResult(overrides: Partial<ExamDetailResult> = {}): ExamDetailResult {
   return {
     resultId: crypto.randomUUID(),
@@ -189,5 +199,41 @@ describe('ExamDetailView — gráfico de histórico por parâmetro', () => {
     );
 
     expect(screen.queryByRole('button', { name: /Histórico/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('ExamDetailView — ações do laudo (ver/baixar o original)', () => {
+  const comArquivo = { sourceFileId: 'file-9', sourceFileName: 'laudo-frischmann.pdf' };
+
+  it('com arquivo original: olhinho abre o preview do arquivo certo', async () => {
+    render(<ExamDetailView exam={makeExam(comArquivo)} />);
+
+    const eye = screen.getByRole('button', { name: 'Ver o exame original' });
+    expect(eye).toBeEnabled();
+    await userEvent.click(eye);
+
+    expect(screen.getByTestId('file-preview-modal')).toHaveTextContent('file-9:laudo-frischmann.pdf');
+  });
+
+  it('com arquivo original: download aponta pro endpoint do arquivo com o nome original', () => {
+    render(<ExamDetailView exam={makeExam(comArquivo)} />);
+
+    const download = screen.getByRole('link', { name: 'Baixar o laudo original' });
+    expect(download).toHaveAttribute('href', '/api/bloodtests/files/file-9/download');
+    expect(download).toHaveAttribute('download', 'laudo-frischmann.pdf');
+  });
+
+  it('sem arquivo original (exame via /analyze): ver e baixar ficam desabilitados', () => {
+    render(<ExamDetailView exam={makeExam({ sourceFileId: null, sourceFileName: null })} />);
+
+    expect(screen.getByRole('button', { name: 'Ver o exame original' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Baixar o laudo original' })).toBeDisabled();
+    expect(screen.queryByTestId('file-preview-modal')).not.toBeInTheDocument();
+  });
+
+  it('o botão do PDF ExCenter segue desabilitado (feature ainda não implementada)', () => {
+    render(<ExamDetailView exam={makeExam(comArquivo)} />);
+
+    expect(screen.getByRole('button', { name: 'Baixar o exame com o histórico ExCenter' })).toBeDisabled();
   });
 });
