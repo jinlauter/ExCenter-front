@@ -84,3 +84,39 @@ exame recente em formato "a") funciona; para o geral, só o conserto do parser.
 Abrir um exame com histórico, expandir "Histórico" de um analito cujo laudo mais antigo use "até"
 (ex.: Monócitos). Ler os pontos pelo fiber: pegar o `<svg>` do gráfico, subir `__reactFiber$…`
 até um `memoizedProps.points`, e inspecionar `points[i].referenceValue`.
+
+---
+
+## ⬜ Tooltip do gráfico: abrir o exame original que gerou aquele ponto
+
+**Registrado em 2026-08-13.** Só o registro — não implementar agora.
+
+### Ideia
+
+No `TrendChart`, cada ponto do gráfico veio de UM exame específico. Ao passar o mouse num ponto,
+abre um tooltip com valor, data e procedência (laboratório + médico). Seria ótimo esse tooltip
+oferecer uma **ação para abrir o exame original** que gerou aquele ponto — levar o usuário direto
+ao laudo daquela data, em vez de ele ter que caçar na lista de exames.
+
+### O que precisa (esboço, confirmar ao implementar)
+
+- **Ligação ponto → exame.** Cada `TrendPoint` precisa carregar o identificador do exame de origem
+  (`testId`). Hoje o ponto tem `value`, `date`, `referenceValue`, `laboratoryName`,
+  `requestingDoctor` (ver `src/components/trend-chart.tsx`), mas **não** o `testId`. Conferir a
+  montagem dos pontos nas duas telas que usam o gráfico: `src/components/exam-detail-view.tsx`
+  (histórico por parâmetro dentro de um exame) e a análise do histórico geral
+  (`src/lib/history-analysis.ts` / `src/components/history-view.tsx`) — e ver se o `testId` já vem
+  do back nos DTOs (`ExamHistoryPoint`, `BloodTestResultQueryResponse`) ou se falta expor.
+- **Interação.** O tooltip hoje é `pointer-events-none` de propósito (é acessório, não rouba o
+  cursor). Para ter um link clicável, repensar isso: ou o tooltip vira interativo (cuidado para não
+  atrapalhar o hover/scroll que já foram ajustados), ou a ação vai para um clique no próprio ponto
+  (`<circle>`), navegando para `/resultados/{testId}`. Avaliar as duas no mobile (sem hover).
+- **Caso do ponto sob o cursor.** O valor do ponto ativo já some quando o tooltip abre; a navegação
+  precisa saber qual ponto está ativo (`hoverIndex`).
+
+### Cuidado
+
+O gráfico do histórico geral cruza VÁRIOS exames; cada ponto abre um exame diferente. Já a mesma
+tela de destino (`/resultados/{testId}`) precisa existir e receber o `testId` — confirmar que a
+rota de detalhe aceita o id do ponto. Não regredir os ajustes finos de hover/tooltip/anti-colisão
+de rótulos que já foram feitos no `TrendChart`.
