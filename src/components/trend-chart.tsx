@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReferenceRange } from '@/lib/reference-range';
 import { isValueOutsideRange } from '@/lib/reference-range';
 import { computeTrend } from '@/lib/trend';
@@ -138,7 +138,10 @@ interface TrendChartProps {
 
 export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [touchActive, setTouchActive] = useState(false);
+  const touchMovedRef = useRef(false);
   const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const { xScale, yScale, yTicks, bandY, bandH } = useMemo(() => {
     const dates = points.map((p) => p.date.getTime());
@@ -274,9 +277,9 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
     .map((p, i) => `${i === 0 ? 'M' : 'L'} ${xScale(p.date.getTime())} ${yScale(p.value)}`)
     .join(' ');
 
-  function handlePointerMove(e: React.PointerEvent<SVGSVGElement>) {
+  const findNearestIndex = useCallback((clientX: number) => {
     const rect = svgRef.current!.getBoundingClientRect();
-    const px = ((e.clientX - rect.left) / rect.width) * WIDTH - MARGIN.left;
+    const px = ((clientX - rect.left) / rect.width) * WIDTH - MARGIN.left;
     let nearest = 0;
     let nearestDist = Infinity;
     points.forEach((p, i) => {
@@ -286,8 +289,39 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
         nearest = i;
       }
     });
-    setHoverIndex(nearest);
+    return nearest;
+  }, [points, xScale]);
+
+  function handlePointerMove(e: React.PointerEvent<SVGSVGElement>) {
+    if (e.pointerType === 'touch') return;
+    setHoverIndex(findNearestIndex(e.clientX));
   }
+
+  function handlePointerLeave(e: React.PointerEvent<SVGSVGElement>) {
+    if (e.pointerType === 'touch') return;
+    setHoverIndex(null);
+  }
+
+  function handleTouchEnd(e: React.TouchEvent<SVGSVGElement>) {
+    if (touchMovedRef.current) return;
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    setHoverIndex(findNearestIndex(touch.clientX));
+    setTouchActive(true);
+  }
+
+  // Touch: fechar ao tocar fora do container do gráfico.
+  useEffect(() => {
+    if (hoverIndex === null || !touchActive) return;
+    function handleOutside(e: TouchEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setHoverIndex(null);
+        setTouchActive(false);
+      }
+    }
+    document.addEventListener('touchstart', handleOutside, { passive: true });
+    return () => document.removeEventListener('touchstart', handleOutside);
+  }, [hoverIndex, touchActive]);
 
   const hovered = hoverIndex !== null ? points[hoverIndex] : null;
   const referenceCaption = formatReferenceCaption(referenceRange, unit);
@@ -320,13 +354,17 @@ export function TrendChart({ points, unit, referenceRange }: TrendChartProps) {
           )}
         </div>
       )}
-      <div className="relative">
+      <div ref={containerRef} className="relative">
       <svg
         ref={svgRef}
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="block h-auto w-full"
+        style={{ touchAction: 'manipulation' }}
         onPointerMove={handlePointerMove}
-        onPointerLeave={() => setHoverIndex(null)}
+        onPointerLeave={handlePointerLeave}
+        onTouchStart={() => { touchMovedRef.current = false; }}
+        onTouchMove={() => { touchMovedRef.current = true; }}
+        onTouchEnd={handleTouchEnd}
       >
         <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
           {referenceRange && (
