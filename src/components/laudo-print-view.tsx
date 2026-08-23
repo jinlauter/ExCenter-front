@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
 import { Activity, Printer, X } from 'lucide-react';
 import { LaudoSparkline } from '@/components/laudo-sparkline';
 import { TrendChart } from '@/components/trend-chart';
@@ -74,12 +73,6 @@ function LaudoRow({ result, showName }: { result: ExamDetailResult; showName: bo
 }
 
 export function LaudoPrintView({ exam }: { exam: ExamDetailResponse }) {
-  // O documento é o destino final da rota — imprimir é o que o usuário veio fazer. O delay dá
-  // tempo dos SVGs montarem antes do diálogo congelar a página.
-  useEffect(() => {
-    const timer = setTimeout(() => window.print(), 700);
-    return () => clearTimeout(timer);
-  }, []);
 
   const generatedAt = new Date().toLocaleDateString('pt-BR');
   const date = formatDateLong(exam.examDate);

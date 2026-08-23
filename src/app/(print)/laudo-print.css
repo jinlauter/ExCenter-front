@@ -265,6 +265,54 @@
   color: #6b7280;
 }
 
+@media (max-width: 640px) {
+  .laudo-sheet {
+    padding: 5mm 4mm;
+    margin: 8px;
+  }
+
+  .laudo-brandbar {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .laudo-generated {
+    text-align: left;
+  }
+
+  .laudo-headcard {
+    gap: 6px 16px;
+  }
+
+  .laudo-panel-header {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .laudo-row {
+    flex-wrap: wrap;
+    gap: 2px 8px;
+    padding: 6px 10px;
+  }
+  .laudo-row-info {
+    flex: 1 1 auto;
+  }
+  .laudo-row-value {
+    flex: 0 0 auto;
+  }
+  .laudo-row-spark {
+    flex: 1 0 100%;
+  }
+  .laudo-row-spark svg {
+    width: 100%;
+    height: auto;
+  }
+
+  .laudo-footer {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
 @media print {
   .laudo-root {
     background: white;
