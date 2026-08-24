@@ -11,6 +11,9 @@ export const STATUS_LABEL: Record<string, string> = {
   retrying: 'Tentando novamente',
   done: 'Concluído',
   failed: 'Falhou',
+  // Laudo válido cujo exame o usuário JÁ tem (mesmo conteúdo em outro arquivo) — nada foi
+  // importado. O back serializa o enum em minúsculas ("DuplicateExam" → "duplicateexam").
+  duplicateexam: 'Laudo duplicado',
 };
 
 export const STATUS_CLASS: Record<string, string> = {
@@ -19,6 +22,8 @@ export const STATUS_CLASS: Record<string, string> = {
   retrying: 'border-amber-300 bg-amber-50 text-amber-700',
   done: 'border-success/30 bg-success/10 text-success',
   failed: 'border-destructive/30 bg-destructive/10 text-destructive',
+  // Âmbar como o "não é exame": informativo que merece atenção, não erro.
+  duplicateexam: 'border-amber-300 bg-amber-50 text-amber-700',
 };
 
 /** Documento processado que a IA concluiu NÃO ser exame de sangue. */

@@ -12,6 +12,7 @@ function makeSummary(overrides: Partial<SentFilesSummaryResponse> = {}): SentFil
     failed: 0,
     done: 0,
     notExam: 0,
+    duplicateExam: 0,
     ...overrides,
   };
 }
@@ -41,6 +42,15 @@ describe('SentFilesSummaryCard', () => {
     expect(screen.getByText('4 Falhou')).toBeInTheDocument();
     expect(screen.getByText('6 Não é exame de sangue')).toBeInTheDocument();
     expect(screen.getByText('5 Concluído')).toBeInTheDocument();
+  });
+
+  it('laudo duplicado ganha badge própria, entre "não é exame" e "concluído"', () => {
+    const { container } = render(
+      <SentFilesSummaryCard summary={makeSummary({ total: 3, done: 1, notExam: 1, duplicateExam: 1 })} />,
+    );
+
+    const badges = [...container.querySelectorAll('.rounded-full')].map((b) => b.textContent);
+    expect(badges).toEqual(['1 Não é exame de sangue', '1 Laudo duplicado', '1 Concluído']);
   });
 
   // Regra pedida: status zerado não vira badge — fileira de zeros é ruído, e a ausência já

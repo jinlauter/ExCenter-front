@@ -415,7 +415,14 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
                 {visibleItems.map((file) => {
                   const statusDisplay = getStatusDisplay(file);
                   const isInvalidExam = file.status === 'done' && file.isValidExam === false;
-                  const statusReason = isInvalidExam ? file.invalidReason : null;
+                  const isDuplicateExam = file.status === 'duplicateexam';
+                  // Nos dois casos o motivo vem em invalidReason; a moldura da frase muda: o
+                  // "não é exame" guarda só a interpretação da IA, o duplicado já vem frase pronta.
+                  const statusReason = isInvalidExam
+                    ? `O sistema interpretou que este arquivo é: "${file.invalidReason}"`
+                    : isDuplicateExam && file.invalidReason
+                      ? file.invalidReason
+                      : null;
 
                   return (
                     <tr key={file.fileId} className="border-b border-border last:border-0 hover:bg-muted/30">
@@ -436,10 +443,7 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
                             {statusDisplay.label}
                           </span>
                           {statusReason && (
-                            <span
-                              title={`O sistema interpretou que este arquivo é: "${statusReason}"`}
-                              className="cursor-help"
-                            >
+                            <span title={statusReason} className="cursor-help">
                               <Info className="h-3.5 w-3.5 text-amber-600" />
                             </span>
                           )}

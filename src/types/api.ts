@@ -61,6 +61,8 @@ export interface SentFilesSummaryResponse {
   done: number;
   /** Processado, mas a IA concluiu que o documento não é exame de sangue. */
   notExam: number;
+  /** Laudo válido, mas o exame já existia (mesmo conteúdo em outro arquivo) — nada importado. */
+  duplicateExam: number;
 }
 
 // Página de "Exames enviados" — paginação/ordenação/busca acontecem no back
@@ -91,6 +93,8 @@ export interface BatchStatusResponse {
   processing: number;
   done: number;
   failed: number;
+  /** Laudos válidos barrados por já existirem (estado terminal). */
+  duplicateExam: number;
   overallStatus: string;
   files: BatchFileStatusDto[];
 }

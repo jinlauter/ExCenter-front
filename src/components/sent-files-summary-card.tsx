@@ -18,6 +18,7 @@ function buildBreakdown(summary: SentFilesSummaryResponse) {
     { key: 'retrying', count: summary.retrying, label: STATUS_LABEL.retrying!, className: STATUS_CLASS.retrying! },
     { key: 'failed', count: summary.failed, label: STATUS_LABEL.failed!, className: STATUS_CLASS.failed! },
     { key: 'notExam', count: summary.notExam, label: NOT_EXAM_LABEL, className: NOT_EXAM_CLASS },
+    { key: 'duplicateExam', count: summary.duplicateExam, label: STATUS_LABEL.duplicateexam!, className: STATUS_CLASS.duplicateexam! },
     { key: 'done', count: summary.done, label: STATUS_LABEL.done!, className: STATUS_CLASS.done! },
     // Status zerado não vira badge: uma fileira de zeros é ruído, e a ausência já comunica
     // "não tem nenhum nesse estado".

@@ -160,6 +160,16 @@ describe('SentExamsView — colunas de data do exame e médico solicitante', () 
     expect(dataCell(container, 2).textContent).toBe('');
     expect(dataCell(container, 3).textContent).toBe('');
   });
+
+  // Laudo válido cujo exame o usuário já tinha (mesmo conteúdo em outro arquivo): badge
+  // própria e o motivo — frase pronta do back — no tooltip do ícone de info.
+  it('laudo duplicado: badge "Laudo duplicado" com o motivo no tooltip', () => {
+    const reason = 'Este laudo já existe na sua conta: é o exame de 20/01/2026, importado de outro arquivo.';
+    renderView([makeFile({ status: 'duplicateexam', isValidExam: true, invalidReason: reason })]);
+
+    expect(screen.getByText('Laudo duplicado')).toBeInTheDocument();
+    expect(screen.getByTitle(reason)).toBeInTheDocument();
+  });
 });
 
 // Guardas de regressão de layout. Assertar classe CSS normalmente é frágil, mas estes três
