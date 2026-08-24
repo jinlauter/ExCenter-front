@@ -54,11 +54,15 @@ describe('LaudoPrintView — o laudo ExCenter pronto pra PDF', () => {
     vi.restoreAllMocks();
   });
 
-  it('chama o diálogo de impressão sozinho após montar (com folga pros SVGs)', () => {
-    render(<LaudoPrintView exam={makeExam()} />);
+  // Sem impressão automática (decisão de 15/08: o diálogo disparando sozinho atropelava a
+  // leitura, especialmente no mobile) — o usuário imprime pelo botão da barra quando quiser.
+  it('não dispara o diálogo sozinho; o botão da barra imprime', async () => {
+    vi.useRealTimers();
+    const { getByRole } = render(<LaudoPrintView exam={makeExam()} />);
 
     expect(window.print).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(700);
+
+    getByRole('button', { name: /Salvar como PDF/ }).click();
     expect(window.print).toHaveBeenCalledTimes(1);
   });
 
