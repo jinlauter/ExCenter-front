@@ -24,7 +24,7 @@ const PLANS: Record<PlanKey, { desc: string; monthly: string; annual: string }> 
   'Clínica': { desc: '10 contas com exames ilimitados, pagamento centralizado.', monthly: 'R$ 299', annual: 'R$ 249' },
 };
 
-const TEAM_CONTACT_EMAIL = 'contato@doutorgrowth.com.br';
+const TEAM_CONTACT_EMAIL = 'jin_lauter@hotmail.com';
 
 export function Landing() {
   const [annual, setAnnual] = useState(false);
@@ -389,12 +389,13 @@ export function Landing() {
             </ul>
           </div>
 
-          {/* Instituição — degrau sem preço: acima de 10 contas é conversa, não checkout. */}
+          {/* Instituição ou personalizado — degrau sem preço, e de propósito não é só "maior":
+              qualquer QUANTIDADE customizada de contas (4, 7, 40...) é conversa, não checkout. */}
           <div className="flex flex-col rounded-2xl border border-border bg-card p-7 shadow-sm">
-            <div className="text-lg font-semibold">Instituição</div>
-            <div className="mt-1 min-h-[38px] text-sm text-muted-foreground">Casas de repouso, operadoras, times maiores.</div>
+            <div className="text-lg font-semibold">Instituição ou personalizado</div>
+            <div className="mt-1 min-h-[38px] text-sm text-muted-foreground">Casas de repouso, operadoras — ou o número exato de contas que você precisa.</div>
             <div className="mt-2 text-3xl font-semibold tracking-tight">Sob medida</div>
-            <div className="mb-5 mt-1 min-h-[18px] text-xs text-muted-foreground">Condições por volume.</div>
+            <div className="mb-5 mt-1 min-h-[18px] text-xs text-muted-foreground">Do seu tamanho, seja ele qual for.</div>
             {/* Âncora com a cara de botão (buttonVariants): mailto é link, não ação de página. */}
             <a
               href={`mailto:${TEAM_CONTACT_EMAIL}?subject=${encodeURIComponent('ExCenter para instituições')}`}
@@ -403,7 +404,7 @@ export function Landing() {
               Falar com a gente
             </a>
             <ul className="space-y-2.5 text-sm text-muted-foreground">
-              {['Quantas contas precisar', 'Cada pessoa com a própria conta privada', 'Implantação acompanhada'].map((f) => (
+              {['Quantidade de contas sob medida — 4, 7, 40…', 'Cada pessoa com a própria conta privada', 'Implantação acompanhada'].map((f) => (
                 <li key={f} className="flex gap-2.5"><Check className="h-4 w-4 shrink-0 text-primary" /> {f}</li>
               ))}
             </ul>
@@ -473,7 +474,7 @@ export function Landing() {
             { q: 'Preciso de médico para usar?', a: 'Não. O ExCenter organiza e mostra a evolução dos seus exames — é uma ferramenta de acompanhamento, não substitui avaliação médica. Ele deixa sua consulta mais produtiva: você chega com o histórico pronto.' },
             { q: 'Posso cancelar quando quiser?', a: 'A qualquer momento, em um clique. Sem multa. E mesmo depois de cancelar, seu histórico continua seu — você pode exportar tudo.' },
             { q: 'Como funciona o plano grátis?', a: 'Você guarda até 3 exames com histórico de 90 dias e gráficos básicos, sem cartão. Quando quiser exames ilimitados e o histórico completo, é só assinar.' },
-            { q: 'Sou personal / tenho uma clínica — como funciona para equipes?', a: 'Nos planos para equipes, você contrata um pacote de contas (3 na Equipe, 10 na Clínica), convida cada pessoa, e cada uma tem a própria conta com exames ilimitados — privada como qualquer outra. O pagamento fica centralizado com você. Acima de 10 contas, fale com a gente.' },
+            { q: 'Sou personal / tenho uma clínica — como funciona para equipes?', a: 'Nos planos para equipes, você contrata um pacote de contas (3 na Equipe, 10 na Clínica), convida cada pessoa, e cada uma tem a própria conta com exames ilimitados — privada como qualquer outra. O pagamento fica centralizado com você. Precisa de outra quantidade de contas — mais ou menos que os pacotes? Fale com a gente e montamos sob medida.' },
           ].map(({ q, a }, idx) => (
             <details key={q} open={idx === 0} className="group border-b border-border py-1.5">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-[1.06rem] font-semibold [&::-webkit-details-marker]:hidden">

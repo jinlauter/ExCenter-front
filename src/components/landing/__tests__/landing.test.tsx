@@ -22,7 +22,7 @@ describe('Landing — planos para equipes', () => {
 
     expect(screen.getByText('Equipe')).toBeInTheDocument();
     expect(screen.getByText('Clínica')).toBeInTheDocument();
-    expect(screen.getByText('Instituição')).toBeInTheDocument();
+    expect(screen.getByText('Instituição ou personalizado')).toBeInTheDocument();
     expect(screen.getAllByText(/pagamento fica centralizado com você/).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: 'Assinar Pessoal' })).not.toBeInTheDocument();
   });
@@ -50,12 +50,12 @@ describe('Landing — planos para equipes', () => {
     expect(screen.getByText('3 contas com exames ilimitados, pagamento centralizado.')).toBeInTheDocument();
   });
 
-  it('Instituição não tem checkout: é um link de e-mail com assunto pronto', () => {
+  it('Instituição ou personalizado não tem checkout: é um link de e-mail com assunto pronto', () => {
     render(<Landing />);
     fireEvent.click(screen.getByRole('button', { name: 'Para equipes' }));
 
     const contact = screen.getByRole('link', { name: 'Falar com a gente' });
-    expect(contact).toHaveAttribute('href', expect.stringContaining('mailto:contato@doutorgrowth.com.br'));
+    expect(contact).toHaveAttribute('href', expect.stringContaining('mailto:jin_lauter@hotmail.com'));
     expect(contact).toHaveAttribute('href', expect.stringContaining('subject='));
   });
 
