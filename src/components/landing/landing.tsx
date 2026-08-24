@@ -3,23 +3,35 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Activity, Check, FileText, LineChart, Target, Building2, Share2, Dna, Lock, ShieldCheck, Ban, Trash2, Minus, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { CheckoutModal, type CheckoutPlan } from './checkout-modal';
 
 // Landing pública (rota /). CTA abre um checkout SIMULADO — o fluxo real (waitlist/cadastro/
 // pagamento) está no BACKLOG do back, ainda a decidir. Copy revisada com o dono: sem mencionar
 // LOINC/IA nem detalhes técnicos de segurança; tese central = reunir exames de todos os labs.
 
-type PlanKey = 'Grátis' | 'Pessoal' | 'Ilimitado';
+type PlanKey = 'Grátis' | 'Pessoal' | 'Ilimitado' | 'Equipe' | 'Clínica';
 
+// Os dois planos de equipe derivam do Ilimitado (R$ 39): 3 contas ilimitadas com ~15% de
+// desconto sobre 3 avulsas, 10 contas com ~24% — o desconto cresce com o compromisso. O
+// terceiro degrau (Instituição) não tem preço: é conversa, não checkout.
 const PLANS: Record<PlanKey, { desc: string; monthly: string; annual: string }> = {
   'Grátis': { desc: 'Comece sem cartão — 3 exames e histórico de 90 dias.', monthly: 'R$ 0', annual: 'R$ 0' },
   'Pessoal': { desc: 'Até 20 exames por mês e histórico completo.', monthly: 'R$ 19', annual: 'R$ 16' },
   'Ilimitado': { desc: 'Exames ilimitados — importe anos de uma vez.', monthly: 'R$ 39', annual: 'R$ 32' },
+  'Equipe': { desc: '3 contas com exames ilimitados, pagamento centralizado.', monthly: 'R$ 99', annual: 'R$ 82' },
+  'Clínica': { desc: '10 contas com exames ilimitados, pagamento centralizado.', monthly: 'R$ 299', annual: 'R$ 249' },
 };
+
+const TEAM_CONTACT_EMAIL = 'contato@doutorgrowth.com.br';
 
 export function Landing() {
   const [annual, setAnnual] = useState(false);
+  // "Para você" × "Para equipes": mesmo padrão visual do pill Mensal/Anual, que a página já
+  // ensina. Equipes = personal, médico, casa de repouso — convida N pessoas, cada uma com a
+  // PRÓPRIA conta (privada como qualquer outra), e o pagamento fica com quem contratou.
+  const [forTeams, setForTeams] = useState(false);
   const [checkout, setCheckout] = useState<CheckoutPlan | null>(null);
 
   function openCheckout(name: PlanKey) {
@@ -327,14 +339,77 @@ export function Landing() {
           <div className="mb-3 font-mono text-xs uppercase tracking-widest text-primary">Preços</div>
           <h2 className="text-balance text-3xl font-semibold tracking-tight md:text-4xl">Comece grátis. Assine quando fizer sentido.</h2>
           <p className="mt-3 text-lg text-muted-foreground">Sem pegadinha. Cancele a qualquer momento — seu histórico continua seu.</p>
-          <div className="mt-6 inline-flex items-center gap-1 rounded-full border border-input bg-muted p-1">
-            <button onClick={() => setAnnual(false)} className={`rounded-full px-4 py-2 text-sm font-medium ${!annual ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>Mensal</button>
-            <button onClick={() => setAnnual(true)} className={`rounded-full px-4 py-2 text-sm font-medium ${annual ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>
-              Anual <span className="ml-1 rounded-full bg-primary-light px-2 py-0.5 text-xs font-bold text-primary">-17%</span>
-            </button>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <div className="inline-flex items-center gap-1 rounded-full border border-input bg-muted p-1">
+              <button onClick={() => setForTeams(false)} className={`rounded-full px-4 py-2 text-sm font-medium ${!forTeams ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>Para você</button>
+              <button onClick={() => setForTeams(true)} className={`rounded-full px-4 py-2 text-sm font-medium ${forTeams ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>Para equipes</button>
+            </div>
+            <div className="inline-flex items-center gap-1 rounded-full border border-input bg-muted p-1">
+              <button onClick={() => setAnnual(false)} className={`rounded-full px-4 py-2 text-sm font-medium ${!annual ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>Mensal</button>
+              <button onClick={() => setAnnual(true)} className={`rounded-full px-4 py-2 text-sm font-medium ${annual ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>
+                Anual <span className="ml-1 rounded-full bg-primary-light px-2 py-0.5 text-xs font-bold text-primary">-17%</span>
+              </button>
+            </div>
           </div>
+          {forTeams && (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Personal, médico, casa de repouso: você convida, cada pessoa tem a <b className="text-foreground">própria conta</b> com exames ilimitados, e o pagamento fica centralizado com você.
+            </p>
+          )}
         </div>
 
+        {forTeams ? (
+        <div className="mx-auto grid max-w-md gap-5 md:max-w-none md:grid-cols-3">
+          {/* Equipe */}
+          <div className="flex flex-col rounded-2xl border border-border bg-card p-7 shadow-sm">
+            <div className="text-lg font-semibold">Equipe</div>
+            <div className="mt-1 min-h-[38px] text-sm text-muted-foreground">Personal trainer, nutricionista — você e seus primeiros acompanhados.</div>
+            <div className="mt-2 text-4xl font-semibold tracking-tight">{annual ? 'R$ 82' : 'R$ 99'}<span className="text-sm font-normal text-muted-foreground">/mês</span></div>
+            <div className="mb-5 mt-1 min-h-[18px] text-xs text-muted-foreground">{annual ? 'R$ 990/ano — 2 meses grátis.' : 'Cobrado mensalmente.'}</div>
+            <Button variant="outline" className="mb-6 w-full" onClick={() => openCheckout('Equipe')}>Assinar Equipe</Button>
+            <ul className="space-y-2.5 text-sm text-muted-foreground">
+              {['3 contas com exames ilimitados', 'Cada pessoa com a própria conta privada', 'Você convida e centraliza o pagamento'].map((f) => (
+                <li key={f} className="flex gap-2.5"><Check className="h-4 w-4 shrink-0 text-primary" /> {f}</li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Clínica */}
+          <div className="relative flex flex-col rounded-2xl border-2 border-primary bg-card p-7 shadow-md">
+            <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3.5 py-1 text-xs font-bold text-primary-foreground">Melhor custo por conta</span>
+            <div className="text-lg font-semibold">Clínica</div>
+            <div className="mt-1 min-h-[38px] text-sm text-muted-foreground">Consultórios e equipes de saúde acompanhando de perto.</div>
+            <div className="mt-2 text-4xl font-semibold tracking-tight">{annual ? 'R$ 249' : 'R$ 299'}<span className="text-sm font-normal text-muted-foreground">/mês</span></div>
+            <div className="mb-5 mt-1 min-h-[18px] text-xs text-muted-foreground">{annual ? 'R$ 2.990/ano — 2 meses grátis.' : 'Cobrado mensalmente.'}</div>
+            <Button className="mb-6 w-full" onClick={() => openCheckout('Clínica')}>Assinar Clínica</Button>
+            <ul className="space-y-2.5 text-sm text-muted-foreground">
+              {['10 contas com exames ilimitados', 'Cada pessoa com a própria conta privada', 'Você convida e centraliza o pagamento'].map((f) => (
+                <li key={f} className="flex gap-2.5"><Check className="h-4 w-4 shrink-0 text-primary" /> {f}</li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Instituição — degrau sem preço: acima de 10 contas é conversa, não checkout. */}
+          <div className="flex flex-col rounded-2xl border border-border bg-card p-7 shadow-sm">
+            <div className="text-lg font-semibold">Instituição</div>
+            <div className="mt-1 min-h-[38px] text-sm text-muted-foreground">Casas de repouso, operadoras, times maiores.</div>
+            <div className="mt-2 text-3xl font-semibold tracking-tight">Sob medida</div>
+            <div className="mb-5 mt-1 min-h-[18px] text-xs text-muted-foreground">Condições por volume.</div>
+            {/* Âncora com a cara de botão (buttonVariants): mailto é link, não ação de página. */}
+            <a
+              href={`mailto:${TEAM_CONTACT_EMAIL}?subject=${encodeURIComponent('ExCenter para instituições')}`}
+              className={cn(buttonVariants({ variant: 'outline' }), 'mb-6 w-full')}
+            >
+              Falar com a gente
+            </a>
+            <ul className="space-y-2.5 text-sm text-muted-foreground">
+              {['Quantas contas precisar', 'Cada pessoa com a própria conta privada', 'Implantação acompanhada'].map((f) => (
+                <li key={f} className="flex gap-2.5"><Check className="h-4 w-4 shrink-0 text-primary" /> {f}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        ) : (
         <div className="mx-auto grid max-w-md gap-5 md:max-w-none md:grid-cols-3">
           {/* Grátis */}
           <div className="flex flex-col rounded-2xl border border-border bg-card p-7 shadow-sm">
@@ -382,6 +457,7 @@ export function Landing() {
             </ul>
           </div>
         </div>
+        )}
       </section>
 
       {/* FAQ */}
@@ -397,6 +473,7 @@ export function Landing() {
             { q: 'Preciso de médico para usar?', a: 'Não. O ExCenter organiza e mostra a evolução dos seus exames — é uma ferramenta de acompanhamento, não substitui avaliação médica. Ele deixa sua consulta mais produtiva: você chega com o histórico pronto.' },
             { q: 'Posso cancelar quando quiser?', a: 'A qualquer momento, em um clique. Sem multa. E mesmo depois de cancelar, seu histórico continua seu — você pode exportar tudo.' },
             { q: 'Como funciona o plano grátis?', a: 'Você guarda até 3 exames com histórico de 90 dias e gráficos básicos, sem cartão. Quando quiser exames ilimitados e o histórico completo, é só assinar.' },
+            { q: 'Sou personal / tenho uma clínica — como funciona para equipes?', a: 'Nos planos para equipes, você contrata um pacote de contas (3 na Equipe, 10 na Clínica), convida cada pessoa, e cada uma tem a própria conta com exames ilimitados — privada como qualquer outra. O pagamento fica centralizado com você. Acima de 10 contas, fale com a gente.' },
           ].map(({ q, a }, idx) => (
             <details key={q} open={idx === 0} className="group border-b border-border py-1.5">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-[1.06rem] font-semibold [&::-webkit-details-marker]:hidden">
