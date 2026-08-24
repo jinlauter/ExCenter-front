@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ReviewQueueView } from '../review-queue-view';
 import type { ReviewQueueEntry, ReviewQueuePage } from '../types';
@@ -194,5 +194,78 @@ describe('ReviewQueueView — contexto rico e paginação', () => {
     render(<ReviewQueueView queuePage={makePage([makeEntry()])} basePath="/zk7q" mapAction={okAction()} ignoreAction={okAction()} />);
 
     expect(screen.queryByText(/Página 1 de/)).not.toBeInTheDocument();
+  });
+});
+
+// O modo CARTÃO (default): uma pendência por vez, navegação lateral, avanço automático ao
+// decidir, e o toggle pra exibição em lista — com a escolha lembrada entre visitas.
+describe('ReviewQueueView — modo cartão', () => {
+  beforeEach(() => window.localStorage.clear());
+
+  const threeEntries = () => [
+    makeEntry(),
+    makeEntry({ termId: 8, sampleOriginalName: 'Leucócitos' }),
+    makeEntry({ termId: 9, sampleOriginalName: 'Plaquetas' }),
+  ];
+
+  it('inicia em cartão: só a primeira pendência aparece, com o contador da página', () => {
+    render(<ReviewQueueView queuePage={makePage(threeEntries())} basePath="/zk7q" mapAction={okAction()} ignoreAction={okAction()} />);
+
+    expect(screen.getByText('Hematócrito')).toBeInTheDocument();
+    expect(screen.queryByText('Leucócitos')).not.toBeInTheDocument();
+    expect(screen.getByText('1 de 3 nesta página')).toBeInTheDocument();
+  });
+
+  it('Próximo e Anterior navegam entre as pendências', () => {
+    render(<ReviewQueueView queuePage={makePage(threeEntries())} basePath="/zk7q" mapAction={okAction()} ignoreAction={okAction()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Próximo/ }));
+    expect(screen.getByText('Leucócitos')).toBeInTheDocument();
+    expect(screen.queryByText('Hematócrito')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Anterior/ }));
+    expect(screen.getByText('Hematócrito')).toBeInTheDocument();
+  });
+
+  it('decidir avança sozinho pra próxima pendência', async () => {
+    render(<ReviewQueueView queuePage={makePage(threeEntries())} basePath="/zk7q" mapAction={okAction()} ignoreAction={okAction()} />);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Mapear' })[0]!);
+
+    expect(await screen.findByText('Leucócitos')).toBeInTheDocument();
+    expect(screen.getByText('1 de 2 nesta página')).toBeInTheDocument();
+  });
+
+  it('decidir a última pendência recua pro cartão anterior em vez de mostrar o vazio', async () => {
+    render(<ReviewQueueView queuePage={makePage(threeEntries())} basePath="/zk7q" mapAction={okAction()} ignoreAction={okAction()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Próximo/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Próximo/ }));
+    expect(screen.getByText('Plaquetas')).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Mapear' })[0]!);
+
+    expect(await screen.findByText('Leucócitos')).toBeInTheDocument();
+    expect(screen.getByText('2 de 2 nesta página')).toBeInTheDocument();
+  });
+
+  it('o toggle Lista mostra todas as pendências e a escolha fica lembrada', () => {
+    render(<ReviewQueueView queuePage={makePage(threeEntries())} basePath="/zk7q" mapAction={okAction()} ignoreAction={okAction()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Lista/ }));
+
+    expect(screen.getByText('Hematócrito')).toBeInTheDocument();
+    expect(screen.getByText('Leucócitos')).toBeInTheDocument();
+    expect(screen.getByText('Plaquetas')).toBeInTheDocument();
+    expect(window.localStorage.getItem('excenter.review-queue.view-mode')).toBe('list');
+  });
+
+  it('quem escolheu lista continua na lista na próxima visita', async () => {
+    window.localStorage.setItem('excenter.review-queue.view-mode', 'list');
+
+    render(<ReviewQueueView queuePage={makePage(threeEntries())} basePath="/zk7q" mapAction={okAction()} ignoreAction={okAction()} />);
+
+    expect(await screen.findByText('Plaquetas')).toBeInTheDocument();
+    expect(screen.getByText('Leucócitos')).toBeInTheDocument();
   });
 });
