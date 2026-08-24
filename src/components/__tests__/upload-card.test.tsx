@@ -39,7 +39,7 @@ describe('UploadCard — revisão antes do envio', () => {
   it('mostra os limites visíveis pro usuário antes de selecionar', () => {
     render(<UploadCard />);
 
-    expect(screen.getByText('Até 20 arquivos por vez, 4 MB no total.')).toBeInTheDocument();
+    expect(screen.getByText(/Até 20 arquivos por vez, 4 MB no total\./)).toBeInTheDocument();
   });
 
   it('mostra um quadradinho por arquivo selecionado, com nome e tamanho', async () => {
@@ -53,7 +53,9 @@ describe('UploadCard — revisão antes do envio', () => {
     expect(screen.getByText('2 MB')).toBeInTheDocument();
   });
 
-  it('aceita imagens (JPG/PNG) além de PDF', async () => {
+  // Decisão de produto (24/08/2026): foto de laudo multi-folha quebra "arquivo = laudo" —
+  // o envio por foto volta como fluxo próprio (grupo + portão), ver BACKLOG do back.
+  it('recusa foto (JPG/PNG) avisando que o envio por foto chega em breve', async () => {
     render(<UploadCard />);
 
     await selectFiles([
@@ -62,8 +64,10 @@ describe('UploadCard — revisão antes do envio', () => {
       makeFile('scan.png', 1000, 'image/png'),
     ]);
 
-    expect(screen.getByText('3 de 20 arquivos selecionados')).toBeInTheDocument();
-    expect(screen.queryByText(/Só aceitamos/)).not.toBeInTheDocument();
+    expect(await screen.findByText(/envio por foto chega em breve/)).toBeInTheDocument();
+    // O PDF válido da mesma seleção é mantido; as fotos são descartadas.
+    expect(screen.getByText('1 de 20 arquivo selecionado')).toBeInTheDocument();
+    expect(screen.queryByText('foto.jpg')).not.toBeInTheDocument();
   });
 
   it('recusa tipos sem relação com documento de exame (.exe, .mp3) e não os adiciona', async () => {
@@ -75,7 +79,7 @@ describe('UploadCard — revisão antes do envio', () => {
       makeFile('musica.mp3', 1000, 'audio/mpeg'),
     ]);
 
-    expect(await screen.findByText(/Só aceitamos PDF e imagens/)).toBeInTheDocument();
+    expect(await screen.findByText(/Por enquanto aceitamos só PDF/)).toBeInTheDocument();
     expect(screen.getByText(/virus\.exe/)).toBeInTheDocument();
     // O PDF válido da mesma seleção é mantido; os inválidos são descartados.
     expect(screen.getByText('1 de 20 arquivo selecionado')).toBeInTheDocument();
@@ -145,7 +149,7 @@ describe('UploadCard — revisão antes do envio', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
 
-    expect(screen.getByText('Até 20 arquivos por vez, 4 MB no total.')).toBeInTheDocument();
+    expect(screen.getByText(/Até 20 arquivos por vez, 4 MB no total\./)).toBeInTheDocument();
     expect(screen.queryByText('a.pdf')).not.toBeInTheDocument();
   });
 
@@ -421,10 +425,11 @@ describe('UploadCard — revisão antes do envio', () => {
   });
 });
 
-// No Android, seletores que entregam o arquivo por content:// (galeria e gerenciador de
-// arquivos do MIUI, entre outros) preenchem file.name com um nome gerado, muitas vezes sem
-// extensão. A triagem local exigia extensão, então recusava foto de laudo válida e a seleção
-// aparecia vazia — como se o usuário tivesse cancelado.
+// No Android, seletores que entregam o arquivo por content:// (gerenciador de arquivos do
+// MIUI, entre outros) preenchem file.name com um nome gerado, muitas vezes sem extensão. A
+// triagem local exigia extensão, então recusava arquivo válido e a seleção aparecia vazia —
+// como se o usuário tivesse cancelado. Com o upload só-PDF (24/08), o caso vale pro PDF sem
+// extensão no nome, aceito pelo tipo MIME.
 describe('UploadCard — arquivo vindo de seletor que não informa extensão no nome', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
@@ -436,25 +441,34 @@ describe('UploadCard — arquivo vindo de seletor que não informa extensão no 
     return new File([new Uint8Array(sizeBytes)], name, { type, lastModified });
   }
 
-  it('aceita arquivo sem extensão no nome quando o tipo MIME é de exame', async () => {
+  it('aceita PDF sem extensão no nome quando o tipo MIME é application/pdf', async () => {
     render(<UploadCard />);
 
-    await selectFiles([makeFileWithoutExtension('1000012345', 1000, 'image/jpeg', 1)]);
+    await selectFiles([makeFileWithoutExtension('1000012345', 1000, 'application/pdf', 1)]);
 
     expect(await screen.findByText(/1 de 20 arquivo/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Enviar/ })).toBeEnabled();
   });
 
-  it('aceita vários arquivos sem extensão de uma vez, que é o caso que aparecia vazio', async () => {
+  it('aceita vários PDFs sem extensão de uma vez, que é o caso que aparecia vazio', async () => {
     render(<UploadCard />);
 
     await selectFiles([
-      makeFileWithoutExtension('1000012345', 1000, 'image/jpeg', 1),
-      makeFileWithoutExtension('1000012346', 1000, 'image/jpeg', 2),
-      makeFileWithoutExtension('1000012347', 1000, 'image/png', 3),
+      makeFileWithoutExtension('1000012345', 1000, 'application/pdf', 1),
+      makeFileWithoutExtension('1000012346', 1000, 'application/pdf', 2),
+      makeFileWithoutExtension('1000012347', 1000, 'application/pdf', 3),
     ]);
 
     expect(await screen.findByText(/3 de 20 arquivo/)).toBeInTheDocument();
+  });
+
+  it('foto sem extensão também é recusada — o MIME de imagem não salva mais', async () => {
+    render(<UploadCard />);
+
+    await selectFiles([makeFileWithoutExtension('1000012345', 1000, 'image/jpeg', 1)]);
+
+    expect(await screen.findByText(/envio por foto chega em breve/)).toBeInTheDocument();
+    expect(screen.queryByText(/1 de 20 arquivo/)).not.toBeInTheDocument();
   });
 
   it('continua recusando quando nem o nome nem o tipo MIME servem', async () => {
@@ -462,18 +476,18 @@ describe('UploadCard — arquivo vindo de seletor que não informa extensão no 
 
     await selectFiles([makeFileWithoutExtension('1000012345', 1000, 'audio/mpeg', 1)]);
 
-    expect(await screen.findByText(/Só aceitamos PDF e imagens/)).toBeInTheDocument();
+    expect(await screen.findByText(/Por enquanto aceitamos só PDF/)).toBeInTheDocument();
     expect(screen.queryByText(/1 de 20 arquivo/)).not.toBeInTheDocument();
   });
 
-  // Sem lastModified na identidade, duas fotos em sequência com o mesmo nome gerado e o mesmo
-  // tamanho colidiriam e uma sumiria da seleção sem aviso nenhum.
+  // Sem lastModified na identidade, dois arquivos com o mesmo nome gerado e o mesmo tamanho
+  // colidiriam e um sumiria da seleção sem aviso nenhum.
   it('mantém dois arquivos de mesmo nome e mesmo tamanho quando o momento de captura difere', async () => {
     render(<UploadCard />);
 
     await selectFiles([
-      makeFileWithoutExtension('IMG', 1000, 'image/jpeg', 1),
-      makeFileWithoutExtension('IMG', 1000, 'image/jpeg', 2),
+      makeFileWithoutExtension('DOC', 1000, 'application/pdf', 1),
+      makeFileWithoutExtension('DOC', 1000, 'application/pdf', 2),
     ]);
 
     expect(await screen.findByText(/2 de 20 arquivo/)).toBeInTheDocument();

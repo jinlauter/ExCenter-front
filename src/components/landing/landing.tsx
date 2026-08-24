@@ -235,7 +235,7 @@ export function Landing() {
         </div>
         <div className="grid gap-5 md:grid-cols-3">
           {[
-            { n: '01', t: 'Envie o laudo', d: 'Arraste o PDF ou a foto do exame — de qualquer laboratório. Vários de uma vez, se quiser.' },
+            { n: '01', t: 'Envie o laudo', d: 'Arraste o PDF do exame — de qualquer laboratório. Vários de uma vez, se quiser. Envio por foto chega em breve.' },
             { n: '02', t: 'Padronizamos com rigor', d: 'Cada resultado, unidade e faixa é extraído e conferido. Nomes diferentes para o mesmo exame são unificados com critério — sem misturar o que é distinto.' },
             { n: '03', t: 'Acompanhe a evolução', d: 'Veja tendências, valores fora da faixa e compare laudos ao longo do tempo — pronto para levar ao seu médico.' },
           ].map((s) => (
@@ -288,7 +288,7 @@ export function Landing() {
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[
-            { i: FileText, t: 'Sem digitar nada', d: 'Você só envia o PDF ou a foto do laudo — de qualquer laboratório. Extraímos resultados, unidades, material e faixas para você.', hl: false },
+            { i: FileText, t: 'Sem digitar nada', d: 'Você só envia o PDF do laudo — de qualquer laboratório. Extraímos resultados, unidades, material e faixas para você.', hl: false },
             { i: Dna, t: 'Um exame, não dez nomes', d: 'Nomes e formatos diferentes para o mesmo exame são unificados com rigor — é isso que faz seu histórico cruzar laboratórios sem misturar nada.', hl: true },
             { i: LineChart, t: 'Tendências no tempo', d: 'Cada marcador vira uma série. Enxergue de um golpe se está subindo, caindo ou estável.', hl: false },
             { i: Target, t: 'Faixas & alertas', d: 'Sinalizamos o que está fora da referência — considerando material e, quando há, sexo e idade.', hl: false },
@@ -420,7 +420,7 @@ export function Landing() {
             <div className="mb-5 mt-1 min-h-[18px] text-xs text-muted-foreground">Sem cartão.</div>
             <Button variant="outline" className="mb-6 w-full" onClick={() => openCheckout('Grátis')}>Começar agora</Button>
             <ul className="space-y-2.5 text-sm text-muted-foreground">
-              {['3 exames', 'Histórico de 90 dias', 'Gráficos básicos', 'Envio por PDF ou foto'].map((f) => (
+              {['3 exames', 'Histórico de 90 dias', 'Gráficos básicos', 'Envio por PDF (por foto: em breve)'].map((f) => (
                 <li key={f} className="flex gap-2.5"><Check className="h-4 w-4 shrink-0 text-primary" /> {f}</li>
               ))}
               {['Tendências completas', 'Exportar para o médico'].map((f) => (

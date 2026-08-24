@@ -12,15 +12,17 @@ import {
 } from '@/components/upload-feedback-alert';
 import type { UploadBatchResponse } from '@/types/api';
 
-const ACCEPTED_MIME = 'application/pdf,image/jpeg,image/jpg,image/png';
+const ACCEPTED_MIME = 'application/pdf';
 
-// Tipos que o back realmente processa (AnalyzeBloodTestService: PDF vira bloco "file", imagem
-// vira "image_url" — nada além disso é suportado pela extração). O `accept` acima é só uma dica
-// contornável no seletor nativo; validamos de fato por extensão aqui pra recusar na hora coisas
-// sem relação com um documento de exame (.exe, .mp3, .docx, etc.), em vez de deixar o back
-// rejeitar com mensagem genérica. Fonte de verdade continua sendo o back (defesa em profundidade).
-const ACCEPTED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png'];
-const ACCEPTED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+// SÓ PDF, por decisão de produto (24/08/2026): foto de laudo multi-folha quebra a premissa
+// "arquivo = laudo" — a identificação mora numa folha, o resto chega órfão, e um exame cortado
+// em 2 fotos vira dois laudos parciais que nem a duplicata semântica pega. O envio por foto
+// volta como FLUXO PRÓPRIO (grupo de fotos = um laudo + portão de importabilidade) — ver o item
+// "Upload por FOTO vira fluxo próprio" no BACKLOG do back. O `accept` acima é só uma dica
+// contornável no seletor nativo; validamos de fato aqui pra recusar na hora com mensagem clara,
+// em vez de deixar o back rejeitar com erro genérico. Fonte de verdade continua sendo o back.
+const ACCEPTED_EXTENSIONS = ['.pdf'];
+const ACCEPTED_MIME_TYPES = ['application/pdf'];
 
 function hasAcceptedExtension(fileName: string) {
   const lower = fileName.toLowerCase();
@@ -32,9 +34,9 @@ function hasAcceptedMimeType(mimeType: string) {
 }
 
 // Aceita por extensão OU por tipo MIME, porque no Android o nome não é confiável: seletores
-// que devolvem o arquivo por content:// (galeria e gerenciador de arquivos do MIUI, entre
-// outros) entregam nomes gerados sem extensão. Exigir extensão ali recusa foto de laudo
-// perfeitamente válida, e o tipo MIME que o próprio browser preencheu é o dado bom nesse caso.
+// que devolvem o arquivo por content:// (gerenciador de arquivos do MIUI, entre outros)
+// entregam nomes gerados sem extensão — exigir extensão recusaria PDF perfeitamente válido, e
+// o tipo MIME que o próprio browser preencheu é o dado bom nesse caso.
 // Continua sendo só triagem local: quem valida de fato é o back, por assinatura de bytes.
 function isAcceptedExamFile(file: File) {
   return hasAcceptedExtension(file.name) || hasAcceptedMimeType(file.type);
@@ -115,7 +117,7 @@ export function UploadCard() {
     if (rejected.length > 0) {
       setFeedback(
         errorFeedback(
-          `Só aceitamos PDF e imagens (JPG, PNG). Não dá pra enviar: ${rejected.map(displayNameOf).join(', ')}.`,
+          `Por enquanto aceitamos só PDF — envio por foto chega em breve. Não dá pra enviar: ${rejected.map(displayNameOf).join(', ')}.`,
         ),
       );
       return;
@@ -213,6 +215,7 @@ export function UploadCard() {
           </p>
           <p className="mx-auto mb-5 max-w-sm text-xs text-muted-foreground/80">
             Até {MAX_FILES} arquivos por vez, {formatMegabytes(MAX_TOTAL_BYTES)} MB no total.
+            {' '}Envio por foto chega em breve.
           </p>
           <Button onClick={trigger}>Selecionar PDFs</Button>
         </div>
