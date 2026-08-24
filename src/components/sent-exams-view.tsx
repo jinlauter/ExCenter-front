@@ -442,10 +442,16 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
                           >
                             {statusDisplay.label}
                           </span>
+                          {/* Tooltip da casa, não `title` cru: title só existe no hover do
+                              mouse — no celular o tap não abria nada (visto no teste do dono
+                              com o laudo duplicado, 24/08). O Tooltip abre por tap e fecha
+                              tocando fora. */}
                           {statusReason && (
-                            <span title={statusReason} className="cursor-help">
-                              <Info className="h-3.5 w-3.5 text-amber-600" />
-                            </span>
+                            <Tooltip content={statusReason}>
+                              <span className="cursor-help">
+                                <Info className="h-3.5 w-3.5 text-amber-600" />
+                              </span>
+                            </Tooltip>
                           )}
                         </div>
                       </td>

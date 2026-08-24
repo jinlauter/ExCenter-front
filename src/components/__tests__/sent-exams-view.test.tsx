@@ -162,13 +162,22 @@ describe('SentExamsView — colunas de data do exame e médico solicitante', () 
   });
 
   // Laudo válido cujo exame o usuário já tinha (mesmo conteúdo em outro arquivo): badge
-  // própria e o motivo — frase pronta do back — no tooltip do ícone de info.
-  it('laudo duplicado: badge "Laudo duplicado" com o motivo no tooltip', () => {
+  // própria e o motivo — frase pronta do back — no tooltip do ícone de info. Tooltip da CASA,
+  // não `title` cru: title só existe no hover do mouse, e no celular o tap não abria nada
+  // (visto no teste do dono, 24/08).
+  it('laudo duplicado: badge "Laudo duplicado" com o motivo no tooltip acessível por hover', async () => {
     const reason = 'Este laudo já existe na sua conta: é o exame de 20/01/2026, importado de outro arquivo.';
-    renderView([makeFile({ status: 'duplicateexam', isValidExam: true, invalidReason: reason })]);
+    const { container } = renderView([
+      makeFile({ status: 'duplicateexam', isValidExam: true, invalidReason: reason }),
+    ]);
 
     expect(screen.getByText('Laudo duplicado')).toBeInTheDocument();
-    expect(screen.getByTitle(reason)).toBeInTheDocument();
+
+    // O gatilho fica na coluna de status (índice 1), ao lado da badge.
+    const trigger = dataCell(container, 1).querySelector('.cursor-help');
+    expect(trigger).not.toBeNull();
+    await userEvent.hover(trigger!);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(reason);
   });
 });
 

@@ -62,13 +62,18 @@ function ResultRow({ result, showName }: { result: ExamDetailResult; showName: b
   return (
     <div className="border-t border-border py-2.5 first:border-t-0">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <div className="min-w-0 flex-1">
+        {/* min-w com valor REAL (não min-w-0): com zero, o grupo da direita — que é shrink-0 e
+            engorda com o badge "Fora da faixa" — espremia esta coluna até a referência quebrar
+            palavra a palavra ("20 a" / "100 /μL", visto no basófilo da Bárbara no celular).
+            Com um piso de leitura, o flex-wrap faz o grupo da direita descer de linha inteiro;
+            o ml-auto o mantém alinhado à direita também quando desce. */}
+        <div className="min-w-[11rem] flex-1">
           {showName && <p className="text-[13px] font-medium">{result.parameterName}</p>}
           {result.referenceValue && (
             <p className="text-[11px] text-muted-foreground">Referência: {result.referenceValue}</p>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           {result.isAbnormal === true && (
             <span className="whitespace-nowrap rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
               Fora da faixa
