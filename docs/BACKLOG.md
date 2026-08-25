@@ -87,6 +87,61 @@ até um `memoizedProps.points`, e inspecionar `points[i].referenceValue`.
 
 ---
 
+## ⬜ Marcar no gráfico QUAL ponto é o do exame que está aberto
+
+**Registrado em 2026-08-25**, a partir de observação do dono usando o sistema.
+
+### A dor
+
+Ao abrir um exame em `/resultados/{testId}` e expandir o histórico de um parâmetro, o `TrendChart`
+mostra a série INTEIRA daquele analito — inclusive exames **posteriores** ao que está aberto. Isso
+está certo e é proposital (o valor do produto é justamente o histórico), mas fica ambíguo: o
+usuário vê N bolinhas e nenhuma delas diz "esta aqui é a do laudo que você abriu". Num exame de
+2020 com 12 pontos, 11 são de outras datas e nada distingue a que pertence à tela.
+
+### O que fazer
+
+Um **anel em volta da bolinha** do ponto que veio deste exame — um `<circle>` extra, sem
+preenchimento, raio maior que o do ponto, na cor da marca. Marcação permanente (não é hover), para
+que a leitura "é este o dado desta tela" esteja disponível de relance.
+
+### Pontos de código
+
+- `src/components/trend-chart.tsx`
+  - `interface TrendPoint` (linha 19) — hoje carrega `date`, `value`, `referenceValue`,
+    `referenceMin/Max`, `laboratoryName`, `requestingDoctor`. **Não carrega identidade de exame.**
+  - O `points.map` que desenha as bolinhas (por volta da linha 440, `r={5}`) é onde o anel entra.
+    O bloco `hovered` logo abaixo (linha ~485) já faz um `<circle>` de raio maior — é o modelo de
+    como sobrepor sem quebrar o layout, mas o anel novo **não** pode ser o mesmo desenho: hover é
+    estado transitório, isto é marcação fixa. Convém que os dois coexistam sem virar borrão quando
+    o cursor está justamente sobre o ponto marcado.
+- `src/components/exam-detail-view.tsx` (linhas 116-124) — monta os `points` a partir de
+  `result.history`. É aqui que a informação de "qual ponto é o desta tela" precisa chegar.
+
+### Como identificar o ponto — decidir ao implementar
+
+Duas saídas, e a segunda é melhor:
+
+1. **Por data.** A tela já conhece o `examDate` do exame aberto; marcar o ponto cuja `date` bate.
+   Custo zero, sem mexer no back. Falha quando o usuário tem **dois laudos na mesma data** — que é
+   um caso real (ver o item de eGFR Afro/Não-Afro no backlog do back, dois valores no mesmo dia).
+2. **Por `testId` no ponto.** Expor `testId` em `ExamHistoryPoint` (`src/types/api.ts:176`) e no DTO
+   correspondente do back, e comparar com o `testId` da rota. Exato, sem ambiguidade.
+
+**A opção 2 é o mesmo pré-requisito do item "Tooltip do gráfico: abrir o exame original"** logo
+abaixo, que também precisa do `testId` por ponto. Vale fazer os dois na mesma passada — o custo do
+DTO se paga uma vez só.
+
+### Cuidado
+
+O `TrendChart` é usado em DUAS telas: o detalhe do exame (onde existe "o exame atual") e o
+histórico geral (`/resultados/geral`, via `history-view.tsx`), onde **não existe** — a série cruza
+todos os laudos e nenhum é o "de agora". A marcação tem de ser opcional: sem o ponto indicado, o
+gráfico desenha exatamente como hoje. O `laudo-sparkline.tsx` (laudo de impressão) merece a mesma
+pergunta — lá o exame atual É o último ponto, então talvez não precise.
+
+---
+
 ## ⬜ Tooltip do gráfico: abrir o exame original que gerou aquele ponto
 
 **Registrado em 2026-08-13.** Só o registro — não implementar agora.
