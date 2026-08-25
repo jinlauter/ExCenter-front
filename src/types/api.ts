@@ -230,7 +230,6 @@ export interface UserProfileResponse {
   dateOfBirth?: string | null;
   bloodType?: string | null;
   biologicalSex?: string | null;
-  preferredLanguage: string;
   avatarUpdatedAt?: string | null;
   /** Código do plano da conta (Free/Personal/Unlimited) — alimenta o badge. Ver lib/plans. */
   plan: string;
@@ -241,10 +240,6 @@ export interface UpdatePersonalInfoRequest {
   dateOfBirth?: string | null;
   bloodType?: string | null;
   biologicalSex?: string | null;
-}
-
-export interface UpdateLanguageRequest {
-  preferredLanguage: string;
 }
 
 export interface UpdatePasswordRequest {

@@ -17,7 +17,6 @@ const baseProfile: UserProfileResponse = {
   dateOfBirth: '1990-05-20T00:00:00Z',
   bloodType: null,
   biologicalSex: null,
-  preferredLanguage: 'pt-BR',
   avatarUpdatedAt: null,
   plan: 'Free',
 };
