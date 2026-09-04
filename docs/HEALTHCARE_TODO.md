@@ -1,10 +1,20 @@
-# Pendências de Saúde / LGPD
+# Nota técnica — Saúde / LGPD
 
-Lista de itens **não implementados** mas necessários para um sistema de saúde em produção no Brasil. Ordenados por urgência prática.
+Detalhamento técnico dos itens de LGPD: o que cada exigência pede, onde ela bate no sistema e os
+trade-offs de cada solução.
+
+> **ESTE ARQUIVO NÃO TEM STATUS — e isso é de propósito (03/09/2026).** Ele já foi uma lista de
+> pendências, e virou lixo: o filtro de PHI no Sentry ficou aqui marcado como não implementado por
+> dez dias depois de pronto, porque quem fez atualizou o `BACKLOG.md` e não esta cópia. Duas listas
+> com status divergem, sempre.
+>
+> **O que está feito e o que falta vive em `ExCenter-back/BACKLOG.md` § Privacidade/LGPD**, e a
+> ordem de execução em `ExCenter-back/BACKLOG_PRE_PRODUCAO.md` §2. Aqui fica só o raciocínio
+> técnico, que não muda quando o item é entregue. Ao implementar algo, atualize **lá**.
 
 ---
 
-## Alta prioridade (LGPD requer)
+## Exigências diretas da LGPD
 
 ### 1. Consentimento explícito no cadastro
 LGPD art. 7º e 11: tratamento de dados sensíveis (saúde) exige consentimento **específico** e **destacado**. Checkbox "aceito termos" genérico não basta — precisa ser específico para tratamento de dados de saúde.
@@ -44,7 +54,7 @@ Hoje contamos com encryption-at-rest do disco do Postgres (Neon ativa por padrã
 
 ---
 
-## Média prioridade (boas práticas de segurança)
+## Boas práticas de segurança
 
 ### 6. 2FA opcional via TOTP
 Permitir usuário ativar Google Authenticator / Authy.
@@ -81,17 +91,16 @@ Hoje é stub. Em produção:
 - Usuário define nova senha → token é invalidado, sessão atual também (logout em todos devices)
 
 ### 10. Filtro de PHI no Sentry
-Hoje temos `SendDefaultPii = false`. Mas se uma exception incluir um exame no `state` ou em `req.body`, vai pro Sentry.
+`SendDefaultPii = false` não basta: se uma exception carregar um exame no `state` ou no `req.body`, o
+corpo inteiro vai pro Sentry. O corte tem de ser no `BeforeSend`/`BeforeBreadcrumb`, sobre headers de
+credencial (`Authorization`, `Cookie`), corpo de `/api/auth/*` (senhas) e de `/api/bloodtests/*` (PHI),
+e campos `patientName`/`numericResultValue` em qualquer breadcrumb.
 
-**O que falta:** `BeforeSend` no `Sentry.WebHost.UseSentry(...)` que strip:
-- Headers `Authorization`, `Cookie`
-- Body de `/api/auth/*` (tem senhas)
-- Body de `/api/bloodtests/*` (tem PHI)
-- Campos `patientName`, `numericResultValue`, etc em qualquer breadcrumb
+*(Implementado como `SentryPhiScrubber` — este arquivo descreve o porquê; o status está no `BACKLOG.md`.)*
 
 ---
 
-## Baixa prioridade (features de produto)
+## Features de produto adjacentes
 
 ### 11. Compartilhamento com médicos
 Caso de uso clássico: paciente quer mandar 1 exame específico pro médico ver, sem dar acesso à conta inteira.
@@ -104,8 +113,18 @@ Caso de uso clássico: paciente quer mandar 1 exame específico pro médico ver,
 ### 12. Suporte a perfis (paciente vs médico vs cuidador)
 Se virar produto B2B+B2C, precisa de modelos de usuário diferentes com permissões diferentes (RBAC).
 
+> **Virou item real:** `ExCenter-back/BACKLOG.md` § Perfis de conta e a casa de apoio (03/09/2026),
+> com o desenho fechado — `User.AccountType`, painel de assistidos e o "entrar como". A conclusão
+> registrada lá diverge do "RBAC" sugerido aqui: **dois valores, sem tabela de permissões**, porque
+> não existe um terceiro caso. O item 11 acima (link tokenizado pro médico) segue sendo um caminho
+> diferente e continua não implementado.
+
 ### 13. Anonimização para analytics
 Se quiser analisar uso (ex: parâmetros mais comuns), trabalhar com dataset anonimizado: hashes irreversíveis de userId, sem PatientName.
+
+> Casa com o item de **mapa de calor e uso** (`docs/BACKLOG.md` § Alcance e credibilidade, e
+> `BACKLOG_PRE_PRODUCAO.md` §2), que chegou à mesma conclusão por outro caminho — ver também
+> "Telemetria do front" no fim deste arquivo, escrito antes e esquecido.
 
 ### 14. Retention policy automática
 Política configurável: "exames com mais de N anos são automaticamente arquivados/excluídos". Exigência variável conforme regulamentação (CFM tem regras para prontuários médicos: mínimo 20 anos).

@@ -5,10 +5,31 @@ Status: ⬜ pendente · 🔄 em andamento · ✅ concluído.
 
 ---
 
-## ⬜ Parser de faixa de referência não entende o conector "até" (só "a")
+## ✅ Parser de faixa de referência não entende o conector "até" (só "a") — RESOLVIDO 03/09/2026
 
-**Descoberto em 2026-08-13.** Escrito para ser executado sem redescobrir nada: sintoma, causa,
-evidência medida, ponto de código e a correção.
+**Descoberto em 2026-08-13.** O diagnóstico abaixo fica registrado porque explica um erro de
+regex que é fácil de reintroduzir. O que mudou na correção:
+
+- **`RANGE_CONNECTOR` em `reference-range.ts`** — `a` e `até`, definido UMA vez e usado tanto pela
+  faixa quanto pelo descarte de rótulo etário, que tinham o mesmo furo.
+- **A causa real do fracasso de um regex copiado do back:** `\baté\b` **nunca casa em JavaScript**.
+  Sem a flag `u`, `\b` usa `[A-Za-z0-9_]`, então `é` não é caractere de palavra e `é` seguido de
+  espaço são dois não-palavra, sem transição. No .NET do back o `\b` é Unicode-aware e o mesmo
+  padrão funciona. O fecho aqui é `(?![a-zà-ÿ])`. **Ninguém tinha percebido porque o teste que
+  cobria o caso afirmava o comportamento errado como esperado.**
+- **`history-view.tsx`** — o badge "Fora da faixa" da lista passou a usar
+  `resolveReferenceRange(referenceMin, referenceMax, referenceValue)`, igual ao gráfico logo acima
+  no mesmo arquivo. Era ali que o bug estava vivo: a lista parseava só texto e ignorava a faixa
+  estruturada que chegava no mesmo objeto.
+- 10 testes novos; suíte em 350 verdes.
+
+**Fica em aberto, e é divergência conhecida com o back** (registrada em teste, não esquecida): o
+front lê `X até Y` mas não `até N` sozinho (só teto), nem faixa com hífen (`13.5-17.5`), nem os
+comparadores `<`/`>`/`≤`/`≥` — todos lidos pelo `ReferenceRangeEvaluator`. Fechar isso exige portar
+a **máscara** de trechos já reconhecidos que o back tem, senão `de 65 até 175` conta como faixa E
+como teto e cai na regra das múltiplas cláusulas. **Prioridade baixa por um motivo concreto:** com
+`referenceMin`/`referenceMax` da extração estruturada (14/08) preferidos em todos os consumidores,
+o parse textual só atende linha gravada antes disso.
 
 ### Sintoma
 
@@ -57,19 +78,25 @@ outros analitos medidos no mesmo exame: Neutrófilos (`"de 1.600 até 7.700 /μL
 - Consumidores da cor: `src/components/trend-chart.tsx` (bolinhas do gráfico) e o badge
   "Fora da faixa" de `src/components/exam-detail-view.tsx` (esse vem do back — ver ressalva abaixo).
 
-### Ressalva importante — o back provavelmente tem o MESMO buraco
+### ~~Ressalva — o back provavelmente tem o MESMO buraco~~ — FALSO, verificado em 03/09/2026
 
-O comentário de `reference-range.ts` diz que este parser é **espelho de `ReferenceRangeEvaluator`
-no back**. Se for fiel, o back também não entende "até", e o `IsAbnormal` que ele calcula e grava
-(`ExamDetailResult.isAbnormal`, `BloodTestResultQueryResponse`) está errado para esses laudos —
-não só a cor do gráfico. A correção completa precisa arrumar os DOIS parsers em conjunto, senão
-front e back divergem. Fora do escopo do front; registrar para tratar junto.
+Esta ressalva ficou 20 dias no backlog dizendo que a correção seria "de par", front **e** back.
+**Não era.** O `ReferenceRangeEvaluator` do back lê `\baté\b` desde sempre, nas duas formas (faixa
+e teto), e o `IsAbnormal` gravado no banco estava correto o tempo todo. Era um "provavelmente"
+nunca conferido que virou fato no papel e dobrou o tamanho aparente do item.
 
-### Teste a adicionar
+**A lição, que vale mais que o item:** o comentário de `reference-range.ts` diz que ele é espelho
+do back — e a semelhança do código escondeu que os dois divergiam justamente porque `\b` significa
+coisas diferentes em .NET e em JavaScript. Espelho declarado não é espelho verificado.
 
-Caso em `reference-range` com `"de 2,0 até 10,0 %"` → `{min:2, max:10}`, e `isOutOfRange(11, "de 2,0 até 10,0 %")` → `true`. Mais um com `"de 1.600 até 7.700 /μL"` para o separador de milhar.
+### Testes — FEITOS
 
-### Paliativo já aplicado (2026-08-13) — NÃO é a solução definitiva
+`reference-range.test.ts` ganhou o describe do conector "até" (`de 2,0 até 10,0 %`,
+`de 1.600 até 7.700 /μL` com separador de milhar, `de 13,5 até 17,5 g/dL`, `65 até 175` sem o "de",
+o fim-a-fim do ponto que ficava verde, e a equivalência das duas grafias) e o do rótulo etário
+escrito com "até". `history-view.test.tsx` ganhou 3 testes do badge da lista.
+
+### Paliativo aplicado em 2026-08-13 — SUPERADO pela correção acima
 
 Enquanto o parser não entende "até", a bolinha passou a ser colorida pela **faixa exibida no
 gráfico** (a banda verde, que vem da faixa do exame mais recente que parseou), e não mais pela
@@ -175,3 +202,175 @@ O gráfico do histórico geral cruza VÁRIOS exames; cada ponto abre um exame di
 tela de destino (`/resultados/{testId}`) precisa existir e receber o `testId` — confirmar que a
 rota de detalhe aceita o id do ponto. Não regredir os ajustes finos de hover/tooltip/anti-colisão
 de rótulos que já foram feitos no `TrendChart`.
+
+---
+
+# Alcance e credibilidade (levantado pelo dono em 03/09/2026)
+
+Bloco criado a partir da preparação de um encontro de leads da área de saúde. Objetivo dos quatro
+itens abaixo: **ser encontrado** (busca tradicional e resposta de IA), **saber como o site é
+usado** e **dar segurança a quem está avaliando uma compra**. Diagnóstico do estado atual medido
+no repositório em 03/09/2026 — nada aqui é suposição.
+
+## ⬜ SEO técnico — hoje é literalmente zero
+
+### O que existe (medido em 03/09/2026)
+
+`src/app/layout.tsx` tem `title: 'ExCenter'` e `description: 'Seu histórico. Seu controle.'`.
+Só isso. **Não existe** `app/robots.ts`, `app/sitemap.ts`, `manifest`, `opengraph-image`, favicon
+próprio, `metadataBase`, canonical, Twitter card, nem JSON-LD em lugar nenhum. Compartilhar o link
+no WhatsApp hoje não mostra imagem, título nem descrição.
+
+### Pré-requisito que muda a ordem: o domínio vem PRIMEIRO
+
+O front está em `excenter.vercel.app` (ver `ExCenter-back/BACKLOG_PRE_PRODUCAO.md` §1). **Fazer
+SEO antes de trocar de domínio é jogar autoridade fora:** o que o Google indexar e os links que
+apontarem vão para o domínio velho, e a migração depois exige 301 em tudo e recomeça boa parte da
+construção de autoridade. O domínio custa ~R$40–60/ano e é o item mais barato do backlog inteiro.
+**Não começar este item antes dele.**
+
+### O que fazer
+
+- **Metadata completa** no `layout.tsx`: `metadataBase`, `title` com template, description de
+  verdade (a atual tem 4 palavras e não contém nenhum termo que alguém buscaria), `alternates.canonical`,
+  `openGraph`, `twitter`, `robots`.
+- **`app/opengraph-image.tsx`** — o card do link compartilhado. É o ativo com melhor retorno por
+  hora de trabalho de tudo desta lista: cada link colado num grupo de WhatsApp vira um anúncio.
+- **`app/robots.ts` e `app/sitemap.ts`** — hoje inexistentes. Bloquear `/(app)` e `/(auth)`; a
+  landing e as páginas públicas novas (quem somos, termos, privacidade) entram no sitemap.
+- **Favicon e manifest** — `public/` só tem `pdf.worker.min.mjs`.
+- **JSON-LD**: `Organization`, `SoftwareApplication` (com `offers` — os planos já estão na
+  landing) e **`FAQPage`**, que o FAQ existente já preenche sem escrever conteúdo novo.
+- **Google Search Console + Bing Webmaster** cadastrados (o Bing alimenta o ChatGPT Search).
+
+> **Antes de escrever qualquer um desses arquivos:** o front subiu para o **Next 16** em 19/07/2026
+> e o `AGENTS.md` da raiz avisa que as convenções podem divergir do que se conhece de versões
+> anteriores. `metadata`, `robots.ts`, `sitemap.ts` e `opengraph-image` são exatamente APIs de
+> convenção de arquivo — **ler `node_modules/next/dist/docs/` da versão instalada** em vez de
+> escrever de memória.
+
+### O limite honesto deste item
+
+Tag não traz tráfego; **conteúdo traz**. "ExCenter" não é termo buscado por ninguém. Quem tem o
+problema busca *"como juntar exames de laboratórios diferentes"*, *"acompanhar hemoglobina
+glicada ao longo do tempo"*, *"gráfico de exames de sangue"*. Uma página só, por melhor marcada
+que esteja, compete por nada. O item técnico acima é condição necessária e não suficiente — a
+parte que de fato traz gente é conteúdo, e isso é trabalho recorrente, não uma tarefa. Registrar
+essa expectativa agora evita a decepção de "fiz SEO e não veio ninguém".
+
+---
+
+## ⬜ Aparecer nas respostas de IA (ChatGPT, Perplexity, Google AI Overviews)
+
+Coisa **diferente** de SEO, e o dono pediu as duas. Buscador indexa e ranqueia; IA de busca lê,
+resume e **cita**. O que faz ser citado é conteúdo que responde a pergunta de forma direta, em
+HTML limpo, com estrutura clara.
+
+- **Decisão que precisa ser do dono, no `robots.ts`:** bloquear crawler de **treino** e liberar
+  crawler de **busca** são escolhas diferentes, e tratar tudo como uma coisa só tira o produto das
+  respostas de IA sem ganho nenhum. Grosso modo: os bots de treino (tipo `GPTBot`,
+  `Google-Extended`, `ClaudeBot`) alimentam modelo; os de busca (tipo `OAI-SearchBot`,
+  `PerplexityBot`) alimentam a resposta com citação e link. **Confirmar a lista e os nomes exatos
+  na documentação de cada fornecedor na hora de implementar** — essa lista muda com frequência e
+  não vale copiar deste arquivo meses depois.
+- **A landing inteira é `'use client'`.** O Google executa JS; boa parte dos crawlers de IA não —
+  eles leem o HTML que veio do servidor. Renderizar o **texto** (hero, "como funciona", segurança,
+  FAQ) em Server Component e deixar client só o que tem estado (seletor de planos, modal de
+  checkout, acordeão) é o que efetivamente muda o resultado aqui. **Isto é refactor de componente,
+  não configuração** — é o item mais caro do bloco, e o único que exige cuidado para não regredir
+  os 6 testes da landing.
+- **`public/llms.txt`** — convenção emergente, um arquivo de texto descrevendo o produto. Custo
+  quase zero, benefício incerto; entra junto porque é barato.
+- Perguntas frequentes escritas como **pergunta + resposta direta** são o formato que essas
+  ferramentas citam. O FAQ da landing já tem a forma certa; vale revisar as respostas para que
+  cada uma faça sentido lida fora do contexto da página.
+
+---
+
+## ⬜ Mapa de calor e uso — e por que a landing e o app NÃO podem levar a mesma solução
+
+O dono pediu "track de calor (uso) na landing page e no sistema em si". São dois problemas com
+níveis de risco opostos, e essa é a decisão principal deste item. Hoje **não há analytics nenhum**
+(nenhuma lib no `package.json`, verificado em 03/09/2026).
+
+### Na landing (público, sem dado de saúde) — tranquilo
+
+Mapa de calor e gravação de sessão aqui não têm nada de sensível: é uma página de marketing.
+Serve exatamente pro que ele quer — ver até onde as pessoas rolam, onde clicam, onde desistem.
+Candidatos: **Microsoft Clarity** (grátis, mapa de calor + replay de verdade), **PostHog**, ou
+**Vercel Analytics** (já estamos na Vercel, cookieless, zero configuração — mas dá números, não
+mapa de calor).
+
+### Dentro do app — gravação de sessão FILMA laudo
+
+A tela do sistema mostra nome do paciente, nome do laboratório, valores de exame e faixas de
+referência. **Session replay ali manda tudo isso para um terceiro.** É o mesmo raciocínio que
+gerou o `SentryPhiScrubber` no back (feito 24/08) — e ali só vazava um corpo de request, não a
+tela inteira.
+
+Se for usar, duas regras, e nenhuma é opcional:
+1. **Masking por padrão em tudo**, liberando seletivamente o que é seguro — nunca o contrário. A
+   lista de exceções erra pra menos com o tempo; a lista de liberações erra pra mais uma vez só.
+2. **Declarado na Política de Privacidade** com o fornecedor nomeado. Sem isso é tratamento de
+   dado sensível não informado.
+
+**Alternativa que provavelmente já resolve, sem nada disso:** eventos próprios sem conteúdo —
+"upload iniciado / concluído / falhou", "exame aberto", "gráfico visualizado", "exportou laudo".
+Responde *o que as pessoas usam e onde travam*, que é a pergunta real, sem filmar laudo de
+ninguém. Mapa de calor dentro do app é muito custo de risco para responder uma pergunta que
+evento resolve.
+
+### Banner de cookies
+
+Decorre da escolha: ferramenta **cookieless** (Vercel Analytics, Plausible) não exige banner;
+qualquer coisa com cookie ou fingerprint exige, e aí a landing ganha um banner. Escolher a
+ferramenta é escolher se o banner existe.
+
+---
+
+## ⬜ "Quem somos" e o que dá segurança numa venda
+
+### O que a landing tem hoje (medido em 03/09/2026)
+
+Hero, o problema, como funciona (3 passos), exemplo de mapeamento, recursos, segurança, preços
+(dois sets, pessoal e equipes), FAQ, CTA final e rodapé. O rodapé tem quatro âncoras internas
+(Recursos, Preços, Segurança, Entrar) e o aviso "Não substitui avaliação médica".
+
+**Não existe:** quem está por trás, página de contato, Termos de Uso, Política de Privacidade,
+nem qualquer prova. O único contato do site inteiro é um `mailto:contato@doutorgrowth.com.br`
+escondido dentro do plano Instituição.
+
+### A pergunta silenciosa do lead de saúde
+
+"Quem é você, e por que eu confiaria o dado do meu paciente a você?" A seção de segurança da
+landing responde com quatro promessas — *"só você vê seus exames"*, *"nunca vendemos seus
+dados"* — e hoje **não há um único documento por trás de nenhuma delas**. Quem trabalha com saúde
+vai procurar esse documento; não achar é pior do que a seção não existir.
+
+### O que dá segurança, em ordem de peso real
+
+1. **Termos de Uso e Política de Privacidade publicados.** Espec em
+   `ExCenter-back/BACKLOG_PRE_PRODUCAO.md` §2. É o item de maior peso do bloco e não é trabalho de
+   front — é decisão de negócio escrita. Sem ele, os outros quatro não sustentam.
+2. **Dizer onde o dado mora e quem toca nele.** Banco no Neon, arquivos no R2, extração por IA de
+   terceiro. **O laudo passa por um provedor de IA** — isso precisa estar escrito, e escrever
+   antes de perguntarem é o que transmite seriedade. Esconder e ser descoberto custa a venda.
+3. **Contato humano visível.** E-mail no rodapé e uma página de contato. Um produto de saúde sem
+   endereço de reclamação parece um site que some.
+4. **"Quem somos".** Curto e honesto: quem é, o que faz, e o problema real que originou o produto
+   (o histórico da própria família espalhado em PDFs de labs diferentes). É a origem do ExCenter e
+   é a melhor coisa que ele tem para contar — vale mais que qualquer texto institucional genérico.
+5. **Aviso médico com peso.** Existe, em letra miúda no rodapé. Para um lead da área de saúde,
+   afirmar com clareza *"isto organiza e mostra o seu histórico; não diagnostica e não substitui
+   o médico"* é sinal de seriedade, não de fraqueza — e é a fronteira que um profissional de saúde
+   testa primeiro.
+6. **Prova, sem inventar prova.** Não há cliente, então não existe depoimento nem logo. O que
+   existe e é verdade: laudos reais de anos e labs diferentes processados ponta a ponta, e um
+   dicionário de **25.047 analitos / 104.009 nomes de busca** com busca semântica. Isso é
+   substância técnica verificável — vale mais que um depoimento fabricado e não cria passivo.
+
+### Não fazer
+
+Selo de "LGPD compliant", "conformidade HIPAA" ou qualquer certificação: **nenhuma auditoria
+existe**, e num público de saúde essa é exatamente a afirmação que alguém sabe checar. Alegação de
+conformidade sem lastro é o caminho mais rápido de perder a única credibilidade que o produto tem.
