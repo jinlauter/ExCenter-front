@@ -5,7 +5,7 @@ import { Search, ArrowUp, ArrowDown, ChevronDown, Check, Info } from 'lucide-rea
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { TrendChart } from '@/components/trend-chart';
-import { isOutOfRange, resolveReferenceRange } from '@/lib/reference-range';
+import { isValueOutsideRange, resolveReferenceRange } from '@/lib/reference-range';
 import { computeHistoryAnalysis, type ParamSeries } from '@/lib/history-analysis';
 import { cn } from '@/lib/utils';
 import type { BloodTestResultQueryResponse } from '@/types/api';
@@ -255,7 +255,15 @@ export function HistoryView({ results }: { results: BloodTestResultQueryResponse
           </summary>
           <div className="px-4 pb-2">
             {items.map((r, i) => {
-              const outOfRange = isOutOfRange(r.numericResultValue, r.referenceValue);
+              // Mesma resolução da banda do gráfico acima: a faixa ESTRUTURADA da extração
+              // manda, e o texto livre só entra como fallback de linha gravada antes dela.
+              // Antes esta lista parseava só o texto, então referência que o parser não
+              // entende (o conector "até", faixa multi-nível) pintava de normal um valor
+              // alterado — com referenceMin/Max sem uso no mesmo objeto.
+              const outOfRange = isValueOutsideRange(
+                r.numericResultValue,
+                resolveReferenceRange(r.referenceMin, r.referenceMax, r.referenceValue),
+              );
               return (
                 <div
                   key={r.resultId}

@@ -138,11 +138,13 @@ describe('parseReferenceRange — rótulo de faixa etária em linha única', () 
 
 // Casos reais da segunda auditoria (07/08/2026), espelhos dos testes do ReferenceRangeEvaluator.
 describe('parseReferenceRange — rótulo com sexo/comparador e conector "entre"', () => {
-  // O rótulo é descartado (sem isso "> 21" viraria cláusula), mas o parser do front é mais
-  // estreito que o do back e não conhece o conector "até N" — então aqui ainda sai null. O
-  // veredicto desse caso vem do IsAbnormal GRAVADO pelo back, que o front exibe; este teste
-  // fixa a lacuna conhecida para ela não passar despercebida numa futura sincronização.
-  it('rótulo com sexo e comparador é descartado, mas "até N" ainda não é lido no front', () => {
+  // O rótulo é descartado (sem isso "> 21" viraria cláusula). O conector de FAIXA "X até Y" já
+  // é lido (ver o describe próprio abaixo), mas o "até N" SOZINHO — só teto, sem número antes —
+  // continua fora: lê-lo exige a máscara de trechos já reconhecidos que o back tem e o front
+  // não, senão "de 65 até 175" contaria como faixa E como teto e cairia na regra das múltiplas
+  // cláusulas. O veredicto deste caso vem do IsAbnormal GRAVADO pelo back, que o front exibe;
+  // este teste fixa a lacuna conhecida para ela não passar despercebida.
+  it('rótulo com sexo e comparador é descartado, mas "até N" sozinho ainda não é lido', () => {
     expect(parseReferenceRange('Masculino > 21 anos: até 39,8 pg/mL')).toBeNull();
   });
 
@@ -153,6 +155,33 @@ describe('parseReferenceRange — rótulo com sexo/comparador e conector "entre"
 
   it('"e" solto sem "entre" não vira faixa', () => {
     expect(parseReferenceRange('dosagens 15 e 40 conforme protocolo')).toBeNull();
+  });
+});
+
+// ── Conector "até" (o ponto verde que era vermelho) ─────────────────────────
+//
+// Labs brasileiros escrevem a faixa como "X a Y" e como "de X até Y", inclusive no MESMO analito
+// ao longo do tempo. Sem "até", parseReferenceRange devolvia null, isOutOfRange devolvia false em
+// silêncio e valor alterado aparecia como normal. Medido numa série real de Monócitos em
+// 13/08/2026: 9 dos 17 pontos usavam "até". O back (ReferenceRangeEvaluator.BetweenWords) já lia
+// as duas formas — era o front que divergia.
+describe('parseReferenceRange — conector "até"', () => {
+  it.each([
+    ['de 2,0 até 10,0 %', 2, 10],           // monócitos: o caso que motivou
+    ['de 1.600 até 7.700 /μL', 1600, 7700], // neutrófilos: "até" + separador de milhar
+    ['de 13,5 até 17,5 g/dL', 13.5, 17.5],  // hemoglobina
+    ['65 até 175', 65, 175],                // sem o "de" na frente
+  ])('%s → %d a %d', (raw, min, max) => {
+    expect(parseReferenceRange(raw)).toEqual({ min, max });
+  });
+
+  it('o ganho fim-a-fim: o ponto que ficava verde fica vermelho', () => {
+    expect(isOutOfRange(11, 'de 2,0 até 10,0 %')).toBe(true);
+    expect(isOutOfRange(8.3, 'de 2,0 até 10,0 %')).toBe(false);
+  });
+
+  it('as duas grafias da MESMA faixa dão o mesmo veredicto', () => {
+    expect(parseReferenceRange('de 2,0 até 10,0 %')).toEqual(parseReferenceRange('2,0 a 10,0'));
   });
 });
 
@@ -180,5 +209,20 @@ describe('resolveReferenceRange', () => {
   it('sem estruturada e sem texto parseável, devolve null', () => {
     expect(resolveReferenceRange(null, null, 'Não reagente')).toBeNull();
     expect(resolveReferenceRange(null, null, null)).toBeNull();
+  });
+});
+
+// O rótulo etário usa o MESMO conector da faixa — se só um dos dois conhecer "até", o rótulo
+// deixa de ser descartado e vira uma segunda cláusula, zerando o veredicto de um texto válido.
+describe('parseReferenceRange — rótulo etário escrito com "até"', () => {
+  it('descarta o rótulo e lê a faixa nas duas grafias', () => {
+    expect(parseReferenceRange('De 22 até 49 anos: 164,94 a 753,38 ng/dL')).toEqual({
+      min: 164.94,
+      max: 753.38,
+    });
+    expect(parseReferenceRange('17 até 40 anos: de 82 até 626 ng/dL')).toEqual({
+      min: 82,
+      max: 626,
+    });
   });
 });

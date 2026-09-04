@@ -109,3 +109,57 @@ describe('HistoryView — seleção de até 3 parâmetros', () => {
     expect(within(listbox).queryByText('Glicose')).not.toBeInTheDocument();
   });
 });
+
+// O badge "Fora da faixa" da LISTA (não do gráfico). Ele parseava só o texto de referenceValue e
+// ignorava referenceMin/referenceMax — que chegam no MESMO objeto, resolvidos pela extração. Efeito
+// medido: referência que o parser textual não entende ("de X até Y", multi-faixa) pintava de normal
+// um valor alterado. Estes testes fixam a preferência pela faixa estruturada.
+describe('HistoryView — badge "Fora da faixa" na lista', () => {
+  function makeSingleResult(
+    over: Partial<BloodTestResultQueryResponse>,
+  ): BloodTestResultQueryResponse[] {
+    return [
+      {
+        resultId: 'r1',
+        testId: 't1',
+        patientName: 'Test',
+        testDate: '2026-01-10T00:00:00Z',
+        parameterName: 'Monócitos',
+        numericResultValue: 11,
+        unit: '%',
+        referenceValue: null,
+        ...over,
+      },
+    ];
+  }
+
+  it('usa a faixa ESTRUTURADA quando o texto não é parseável', () => {
+    render(
+      <HistoryView
+        results={makeSingleResult({
+          referenceMin: 2,
+          referenceMax: 10,
+          referenceValue: 'Normal: 2 a 10. Limítrofe: 10 a 12. Elevado: acima de 12',
+        })}
+      />,
+    );
+
+    expect(screen.getByText('Fora da faixa')).toBeInTheDocument();
+  });
+
+  it('valor dentro da faixa estruturada não ganha badge', () => {
+    render(
+      <HistoryView
+        results={makeSingleResult({ numericResultValue: 8.3, referenceMin: 2, referenceMax: 10 })}
+      />,
+    );
+
+    expect(screen.queryByText('Fora da faixa')).not.toBeInTheDocument();
+  });
+
+  it('sem faixa estruturada, o texto com "até" agora é lido (linha antiga)', () => {
+    render(<HistoryView results={makeSingleResult({ referenceValue: 'de 2,0 até 10,0 %' })} />);
+
+    expect(screen.getByText('Fora da faixa')).toBeInTheDocument();
+  });
+});

@@ -24,8 +24,20 @@ export interface ReferenceRange {
 // O prefixo opcional de sexo e a forma com comparador cobrem "Masculino > 21 anos: até 39,8" —
 // caso real em que o "> 21" do rótulo virava uma segunda cláusula. Sem "anos", rótulo de sexo
 // puro ("Masculino: De 143 a 842") nem precisa de descarte: não é intervalo numérico.
-const AGE_LABEL_PREFIX =
-  /^\s*(?:masculino|feminino|homens|mulheres)?\s*[:,]?\s*(?:[<>]=?\s*\d+|(?:de\s+)?\d+\s*(?:\ba\b|\baté\b|[-–])\s*\d+|(?:acima|abaixo|a\s+partir)\s+de\s+\d+)\s*anos\b[^:\n]*:\s*/i;
+// Conector de faixa por extenso: "13,0 a 17,0" e "de 2,0 até 10,0". Definido UMA vez porque as
+// duas regras que precisam dele (o rótulo etário abaixo e a faixa em parseReferenceRange) não
+// podem divergir — um "até" reconhecido só num dos lados faz o rótulo virar segunda cláusula.
+//
+// O fecho de "até" é um lookahead de letra, NÃO um `\b`: sem a flag `u`, o `\b` do JavaScript usa
+// [A-Za-z0-9_], então "é" não é caractere de palavra e `\baté\b` NUNCA casa — "é" seguido de
+// espaço são dois não-palavra, sem transição. No .NET do back o `\b` é Unicode-aware e o mesmo
+// padrão funciona; é a divergência que faz um regex copiado de lá falhar em silêncio aqui.
+const RANGE_CONNECTOR = '(?:\\ba\\b|\\baté(?![a-zà-ÿ]))';
+
+const AGE_LABEL_PREFIX = new RegExp(
+  `^\\s*(?:masculino|feminino|homens|mulheres)?\\s*[:,]?\\s*(?:[<>]=?\\s*\\d+|(?:de\\s+)?\\d+\\s*(?:${RANGE_CONNECTOR}|[-–])\\s*\\d+|(?:acima|abaixo|a\\s+partir)\\s+de\\s+\\d+)\\s*anos\\b[^:\\n]*:\\s*`,
+  'i',
+);
 
 export function parseReferenceRange(rawText?: string | null): ReferenceRange | null {
   if (!rawText) return null;
@@ -35,8 +47,16 @@ export function parseReferenceRange(rawText?: string | null): ReferenceRange | n
 
   // O conector "e" SÓ é aceito atrás de "entre" ("Entre 15 e 40") — solto, "e" aparece em
   // prosa comum e casaria pares de números que não são faixa nenhuma.
+  //
+  // "até" é conector de faixa tanto quanto "a" ("de 2,0 até 10,0 %"), e labs brasileiros usam as
+  // duas formas — inclusive no mesmo analito ao longo do tempo. Sem ele, o texto não parseava,
+  // isOutOfRange devolvia false em silêncio e valor alterado aparecia como normal. Medido numa
+  // série real de Monócitos: 9 dos 17 pontos usavam "até". Mesmo conector do
+  // ReferenceRangeEvaluator.BetweenWords no back — ver RANGE_CONNECTOR.
   const ranges = [
-    ...raw.matchAll(new RegExp(`(${LAB_NUMBER_PATTERN})\\s*a\\s*(${LAB_NUMBER_PATTERN})`, 'gi')),
+    ...raw.matchAll(
+      new RegExp(`(${LAB_NUMBER_PATTERN})\\s*${RANGE_CONNECTOR}\\s*(${LAB_NUMBER_PATTERN})`, 'gi'),
+    ),
     ...raw.matchAll(new RegExp(`\\bentre\\s+(${LAB_NUMBER_PATTERN})\\s+e\\s+(${LAB_NUMBER_PATTERN})`, 'gi')),
   ];
   const upperBounds = [...raw.matchAll(new RegExp(`inferior\\s+a\\s*(${LAB_NUMBER_PATTERN})`, 'gi'))];
