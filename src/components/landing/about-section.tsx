@@ -1,4 +1,4 @@
-import { Building2, FileText, LineChart, Mail } from 'lucide-react';
+import { Building2, Mail } from 'lucide-react';
 
 export function AboutSection() {
   return (
@@ -78,32 +78,7 @@ export function AboutSection() {
           </div>
         </aside>
       </div>
-      <div className="mt-10 grid gap-5 md:grid-cols-3">
-        {[
-          {
-            icon: FileText,
-            title: 'Reunir o que está espalhado',
-            text: 'Facilitar a consulta a exames de diferentes laboratórios em um único lugar.',
-          },
-          {
-            icon: LineChart,
-            title: 'Dar contexto aos resultados',
-            text: 'Mostrar a evolução dos marcadores ao longo do tempo para apoiar uma conversa mais informada na consulta.',
-          },
-          {
-            icon: Building2,
-            title: 'Construir com quem usa',
-            text: 'Ouvir pacientes e profissionais para melhorar a experiência e orientar os próximos passos do ExCenter.',
-          },
-        ].map(({ icon: Icon, title, text }) => (
-          <article key={title} className="rounded-2xl border border-border bg-muted/30 p-6">
-            <Icon aria-hidden="true" className="mb-4 h-5 w-5 text-primary" />
-            <h3 className="font-semibold">{title}</h3>
-            <p className="mt-2 text-sm text-muted-foreground">{text}</p>
-          </article>
-        ))}
-      </div>
-      <p className="mt-7 border-l-2 border-primary pl-4 text-sm text-muted-foreground">
+      <p className="mt-10 border-l-2 border-primary pl-4 text-sm text-muted-foreground">
         O ExCenter organiza exames e apresenta seu histórico. A interpretação dos resultados e as
         decisões sobre cuidados de saúde cabem ao profissional que acompanha você.
       </p>

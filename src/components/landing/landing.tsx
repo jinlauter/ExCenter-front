@@ -8,22 +8,30 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { CheckoutModal, type CheckoutPlan } from './checkout-modal';
 import { AboutSection } from './about-section';
+import { AppHomeMockup } from './app-home-mockup';
+import { ExamListMockup } from './exam-list-mockup';
+import { LaudoMockup } from './laudo-mockup';
 
 // Landing pública (rota /). CTA abre um checkout SIMULADO — o fluxo real (waitlist/cadastro/
 // pagamento) está no BACKLOG do back, ainda a decidir. Copy revisada com o dono: sem mencionar
 // LOINC/IA nem detalhes técnicos de segurança; tese central = reunir exames de todos os labs.
 
-type PlanKey = 'Grátis' | 'Pessoal' | 'Ilimitado' | 'Equipe' | 'Clínica';
+type PlanKey = 'Grátis' | 'Pessoal' | 'Ilimitado' | 'Clínica' | 'Casa de Apoio';
 
-// Os dois planos de equipe derivam do Ilimitado (R$ 39): 3 contas ilimitadas com ~15% de
-// desconto sobre 3 avulsas, 10 contas com ~24% — o desconto cresce com o compromisso. O
-// terceiro degrau (Instituição) não tem preço: é conversa, não checkout.
+// A unidade cobrada é o ENVIO de laudo, não o "exame": um PDF pode trazer dezenas de
+// parâmetros, e cobrar por parâmetro puniria justamente quem manda o laudo completo.
+//
+// Os planos de equipe derivam do Ilimitado (R$ 39): Clínica com 5 contas ilimitadas a ~24% de
+// desconto sobre 5 avulsas, Casa de Apoio com 10 a ~28% — o desconto cresce com o compromisso.
+// Cada um vem ainda com METADE do total em contas Pessoal (arredondado pra cima na Clínica,
+// que dá 2,5), para quem acompanha pouco não ocupar uma conta ilimitada. O terceiro degrau
+// (Instituição) não tem preço: é conversa, não checkout.
 const PLANS: Record<PlanKey, { desc: string; monthly: string; annual: string }> = {
-  'Grátis': { desc: 'Comece sem cartão — 3 exames e histórico de 90 dias.', monthly: 'R$ 0', annual: 'R$ 0' },
-  'Pessoal': { desc: 'Até 20 exames por mês e histórico completo.', monthly: 'R$ 19', annual: 'R$ 16' },
-  'Ilimitado': { desc: 'Exames ilimitados — importe anos de uma vez.', monthly: 'R$ 39', annual: 'R$ 32' },
-  'Equipe': { desc: '3 contas com exames ilimitados, pagamento centralizado.', monthly: 'R$ 99', annual: 'R$ 82' },
-  'Clínica': { desc: '10 contas com exames ilimitados, pagamento centralizado.', monthly: 'R$ 299', annual: 'R$ 249' },
+  'Grátis': { desc: 'Comece sem cartão — 3 envios de exames e histórico de 90 dias.', monthly: 'R$ 0', annual: 'R$ 0' },
+  'Pessoal': { desc: 'Até 20 envios de exames por mês e histórico completo.', monthly: 'R$ 19', annual: 'R$ 16' },
+  'Ilimitado': { desc: 'Envios de exames ilimitados — importe anos de uma vez.', monthly: 'R$ 39', annual: 'R$ 32' },
+  'Clínica': { desc: '5 contas ilimitadas + 3 contas Pessoal, pagamento centralizado.', monthly: 'R$ 149', annual: 'R$ 124' },
+  'Casa de Apoio': { desc: '10 contas ilimitadas + 5 contas Pessoal, pagamento centralizado.', monthly: 'R$ 279', annual: 'R$ 232' },
 };
 
 const TEAM_CONTACT_EMAIL = 'jin_lauter@hotmail.com';
@@ -81,7 +89,7 @@ export function Landing() {
         <div className="grid items-center gap-12 md:grid-cols-2">
           <div>
             <span className="mb-5 inline-flex items-center gap-2 rounded-full bg-primary-light px-3 py-1.5 text-[13px] font-medium text-primary">
-              <Activity className="h-3.5 w-3.5" /> Um histórico só — de todos os laboratórios
+              <Activity className="h-3.5 w-3.5" /> O histórico que nenhum laboratório tem
             </span>
             <h1 className="text-balance text-4xl font-semibold leading-[1.08] tracking-tight md:text-5xl">
               Todos os seus exames, de <span className="text-primary">todos os laboratórios</span>, num histórico só.
@@ -95,7 +103,7 @@ export function Landing() {
               <a href="#como"><Button size="lg" variant="outline">Ver como funciona</Button></a>
             </div>
             <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Sem cartão para começar · 3 exames no plano grátis
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Sem cartão para começar · 3 envios de exames no plano grátis
             </p>
           </div>
 
@@ -163,7 +171,7 @@ export function Landing() {
                   <span className="font-semibold text-foreground">200 mg/dL</span>
                   <span className="text-muted-foreground"> · 12 de dez. de 24</span>
                 </div>
-                <div className="text-muted-foreground">Sabin · Dr. Bruno Lima</div>
+                <div className="text-muted-foreground">Frischmann Aisengart · Dr. Bruno Lima</div>
               </div>
             </div>
             <p className="mt-2.5 text-xs text-muted-foreground">
@@ -171,8 +179,8 @@ export function Landing() {
             </p>
             <div className="mt-2 flex flex-wrap gap-1.5 font-mono text-[11px]">
               <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-muted-foreground">Fleury</span>
-              <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-muted-foreground">Sabin</span>
-              <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-muted-foreground">Hermes Pardini</span>
+              <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-muted-foreground">Frischmann Aisengart</span>
+              <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-muted-foreground">Unimed</span>
             </div>
           </div>
         </div>
@@ -186,11 +194,11 @@ export function Landing() {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-2 px-6 py-4 text-center text-sm text-muted-foreground">
           <span>Reúne <b className="text-foreground">todos os laboratórios</b></span>
           <span className="hidden h-1 w-1 rounded-full bg-primary sm:block" />
-          <span><b className="text-foreground">Um nome só</b> por exame</span>
+          <span><b className="text-foreground">Um só nome</b> por exame</span>
           <span className="hidden h-1 w-1 rounded-full bg-primary sm:block" />
           <span>Seus dados <b className="text-foreground">nunca vendidos</b></span>
           <span className="hidden h-1 w-1 rounded-full bg-primary sm:block" />
-          <span><b className="text-foreground">Sem digitar nada</b></span>
+          <span><b className="text-foreground">Sem precisar digitar nada</b></span>
         </div>
       </div>
 
@@ -232,7 +240,7 @@ export function Landing() {
         <div className="mb-11 max-w-2xl">
           <div className="mb-3 font-mono text-xs uppercase tracking-widest text-primary">Como funciona</div>
           <h2 className="text-balance text-3xl font-semibold tracking-tight md:text-4xl">Do PDF ao histórico, em três passos.</h2>
-          <p className="mt-3.5 text-lg text-muted-foreground">Sem digitar nada. Sem planilha. Você envia; a gente faz o trabalho chato.</p>
+          <p className="mt-3.5 text-lg text-muted-foreground">Sem precisar digitar nada. Sem planilha. Você envia; a gente faz o trabalho chato.</p>
         </div>
         <div className="grid gap-5 md:grid-cols-3">
           {[
@@ -244,6 +252,24 @@ export function Landing() {
               <div className="mb-4 grid h-9 w-9 place-items-center rounded-lg bg-primary-light font-mono text-[13px] font-bold text-primary">{s.n}</div>
               <h3 className="mb-2 text-lg font-semibold tracking-tight">{s.t}</h3>
               <p className="text-sm text-muted-foreground">{s.d}</p>
+            </div>
+          ))}
+        </div>
+        {/* As telas de verdade logo abaixo dos passos: o texto promete simplicidade, os prints
+            entregam a prova antes de o visitante ter que acreditar. Ficam na ordem do passo que
+            cada um ilustra — envio (01) e acompanhamento (03); o passo 02 tem a seção inteira
+            de normalização logo em seguida. */}
+        <div className="mt-12 space-y-10">
+          {[
+            { n: '01', legend: 'Você arrasta os PDFs — de um laboratório ou de cinco.', Mockup: AppHomeMockup },
+            { n: '03', legend: 'Todos os exames viram uma lista só, de qualquer laboratório.', Mockup: ExamListMockup },
+          ].map(({ n, legend, Mockup }) => (
+            <div key={n}>
+              <div className="mb-3 flex items-center gap-2.5">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary-light font-mono text-[11px] font-bold text-primary">{n}</span>
+                <span className="text-sm text-muted-foreground">{legend}</span>
+              </div>
+              <Mockup />
             </div>
           ))}
         </div>
@@ -264,7 +290,7 @@ export function Landing() {
           </div>
           <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center">
             <div className="flex-1 space-y-2.5">
-              {[['Fleury', 'AST'], ['Sabin', 'Transaminase oxalacética'], ['Hermes Pardini', 'Aspartato aminotransferase']].map(([lab, raw]) => (
+              {[['Fleury', 'AST'], ['Frischmann Aisengart', 'Transaminase oxalacética'], ['Unimed', 'Aspartato aminotransferase']].map(([lab, raw]) => (
                 <div key={lab} className="rounded-xl border border-border bg-muted px-3.5 py-2.5">
                   <div className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">{lab}</div>
                   <div className="font-mono text-[13px] font-semibold">{raw}</div>
@@ -273,11 +299,45 @@ export function Landing() {
             </div>
             <div className="self-center rotate-90 text-2xl text-primary sm:rotate-0">→</div>
             <div className="flex-1 rounded-2xl border border-primary bg-primary-light px-4 py-4">
-              <div className="font-mono text-[10px] uppercase tracking-wider text-primary">Um nome só</div>
+              <div className="font-mono text-[10px] uppercase tracking-wider text-primary">Um só nome</div>
               <div className="text-lg font-semibold text-primary-dark">TGO</div>
               <div className="font-mono text-[11px] text-primary-soft">usado em todo o seu histórico</div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* LAUDO EXCENTER */}
+      {/* O produto tem uma saída física — um PDF. Mostrar a folha é o argumento mais concreto
+          da página, e é aqui que entra o laudo ORIGINAL: quem desconfia da extração precisa
+          saber que a fonte continua acessível. */}
+      <section className="mx-auto max-w-6xl px-6 py-20">
+        <div className="grid items-center gap-12 lg:grid-cols-[1fr_1.15fr]">
+          <div>
+            <div className="mb-3 font-mono text-xs uppercase tracking-widest text-primary">Para levar à consulta</div>
+            <h2 className="text-balance text-3xl font-semibold tracking-tight md:text-4xl">Um laudo novo, com o histórico junto.</h2>
+            <p className="mt-3.5 text-lg text-muted-foreground">
+              Cada exame vira um documento em PDF com todos os resultados daquele laudo — e, ao lado de
+              cada um, a evolução do marcador nos exames anteriores. O que estiver fora da faixa ganha
+              um gráfico grande no fim.
+            </p>
+            <ul className="mt-6 space-y-3.5">
+              {[
+                ['Todos os resultados daquele exame', 'Nada é resumido nem descartado: o laudo inteiro, no mesmo documento.'],
+                ['Cada valor com o seu histórico ao lado', 'Um mini-gráfico por linha mostra de onde o valor veio — mesmo que os exames anteriores sejam de outro laboratório.'],
+                ['O laudo original, se você preferir', 'O arquivo que o laboratório emitiu fica guardado: dá para abrir na tela ou baixar a qualquer momento, exatamente como veio.'],
+              ].map(([t, d]) => (
+                <li key={t} className="flex gap-3">
+                  <Check className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <div>
+                    <b className="text-[15px]">{t}</b>
+                    <div className="text-sm text-muted-foreground">{d}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <LaudoMockup />
         </div>
       </section>
 
@@ -289,11 +349,11 @@ export function Landing() {
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[
-            { i: FileText, t: 'Sem digitar nada', d: 'Você só envia o PDF do laudo — de qualquer laboratório. Extraímos resultados, unidades, material e faixas para você.', hl: false },
+            { i: FileText, t: 'Sem precisar digitar nada', d: 'Você só envia o PDF do laudo — de qualquer laboratório. Extraímos resultados, unidades, material e faixas para você.', hl: false },
             { i: Dna, t: 'Um exame, não dez nomes', d: 'Nomes e formatos diferentes para o mesmo exame são unificados com rigor — é isso que faz seu histórico cruzar laboratórios sem misturar nada.', hl: true },
             { i: LineChart, t: 'Tendências no tempo', d: 'Cada marcador vira uma série. Enxergue de um golpe se está subindo, caindo ou estável.', hl: false },
             { i: Target, t: 'Faixas & alertas', d: 'Sinalizamos o que está fora da referência — considerando material e, quando há, sexo e idade.', hl: false },
-            { i: Building2, t: 'Multi-laboratório', d: 'Fleury, Sabin, Hermes Pardini, o laboratório do bairro — tudo no mesmo lugar, comparável.', hl: false },
+            { i: Building2, t: 'Multi-laboratório', d: 'Fleury, Frischmann Aisengart, Unimed, o laboratório do bairro — tudo no mesmo lugar, comparável.', hl: false },
             { i: Share2, t: 'Leve ao seu médico', d: 'Exporte um resumo limpo com as tendências para a consulta — o que ele sempre quis ver e nunca teve.', hl: false },
           ].map(({ i: Icon, t, d, hl }) => (
             <div key={t} className={hl ? 'rounded-2xl border border-primary bg-primary p-6 text-primary-foreground' : 'rounded-2xl border border-border bg-card p-6 transition-shadow hover:shadow-md'}>
@@ -317,7 +377,7 @@ export function Landing() {
           </div>
           <ul className="space-y-4">
             {[
-              { i: Lock, t: 'Seu histórico é privado', d: 'Hoje, outras contas não acessam seus exames. O futuro acesso médico dependerá da sua autorização.' },
+              { i: Lock, t: 'Seu histórico é privado', d: 'Nenhuma outra conta alcança seus exames. Seu médico só vê o que você autorizar — e você tira o acesso quando quiser.' },
               { i: ShieldCheck, t: 'Cuidado à altura de um dado de saúde', d: 'Tratamos suas informações com a proteção séria que elas exigem.' },
               { i: Ban, t: 'Nunca vendemos seus dados', d: 'Seu histórico não é produto. Ponto.' },
               { i: Trash2, t: 'Você no controle', d: 'Apague seus exames — ou a conta inteira — quando quiser.' },
@@ -331,6 +391,28 @@ export function Landing() {
               </li>
             ))}
           </ul>
+        </div>
+      </section>
+
+      {/* PARA MÉDICOS */}
+      {/* Fica logo depois de Segurança porque o argumento do médico é a autorização do paciente
+          — a seção anterior acabou de explicar quem manda no acesso. E antes de Preços: quem se
+          reconhece aqui vai olhar a tabela com outra pergunta na cabeça. */}
+      <section id="medicos" aria-labelledby="medical-title" className="mx-auto max-w-6xl px-6 pb-6">
+        <div className="grid overflow-hidden rounded-3xl bg-primary-dark text-primary-foreground md:grid-cols-2">
+          <div className="flex flex-col items-start justify-center p-7 md:p-9 lg:p-11">
+            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-primary-foreground/80">Para médicos</p>
+            <h2 id="medical-title" className="text-balance text-2xl font-semibold tracking-tight md:text-3xl">Você é médico? Receba com facilidade o histórico pronto, não uma pilha de laudos espalhados.</h2>
+            <p className="mt-4 text-sm leading-relaxed text-primary-foreground/85">
+              Seu paciente autoriza, e você vê os exames com a evolução de cada marcador.
+            </p>
+            <Link href="/para-medicos" className={cn(buttonVariants({ variant: 'outline' }), 'mt-5 h-auto min-h-10 whitespace-normal border-white/25 bg-white text-center text-primary-dark hover:bg-white/90 hover:text-primary-dark')}>Ver o acesso para médicos →</Link>
+            <p className="mt-5 text-xs leading-relaxed text-primary-foreground/80">O acesso depende de verificação profissional e da autorização do paciente.</p>
+          </div>
+          <figure className="relative min-h-72 md:min-h-96">
+            <Image src="/images/medical-pilot-doctors.png" alt="Imagem ilustrativa de dois médicos conversando enquanto consultam um tablet." fill sizes="(min-width: 1152px) 552px, (min-width: 768px) 50vw, 100vw" className="object-cover object-center" />
+            <figcaption className="absolute bottom-3 right-3 rounded bg-black/50 px-2 py-1 text-[10px] text-white">Imagem ilustrativa gerada por IA</figcaption>
+          </figure>
         </div>
       </section>
 
@@ -354,37 +436,37 @@ export function Landing() {
           </div>
           {forTeams && (
             <p className="mt-4 text-sm text-muted-foreground">
-              Personal, médico, casa de repouso: você convida, cada pessoa tem a <b className="text-foreground">própria conta</b> com exames ilimitados, e o pagamento fica centralizado com você.
+              Clínica, casa de apoio, instituição: você convida, cada pessoa tem a <b className="text-foreground">própria conta</b> — privada como qualquer outra — e o pagamento fica centralizado com você.
             </p>
           )}
         </div>
 
         {forTeams ? (
         <div className="mx-auto grid max-w-md gap-5 md:max-w-none md:grid-cols-3">
-          {/* Equipe */}
-          <div className="flex flex-col rounded-2xl border border-border bg-card p-7 shadow-sm">
-            <div className="text-lg font-semibold">Equipe</div>
-            <div className="mt-1 min-h-[38px] text-sm text-muted-foreground">Personal trainer, nutricionista — você e seus primeiros acompanhados.</div>
-            <div className="mt-2 text-4xl font-semibold tracking-tight">{annual ? 'R$ 82' : 'R$ 99'}<span className="text-sm font-normal text-muted-foreground">/mês</span></div>
-            <div className="mb-5 mt-1 min-h-[18px] text-xs text-muted-foreground">{annual ? 'R$ 990/ano — 2 meses grátis.' : 'Cobrado mensalmente.'}</div>
-            <Button variant="outline" className="mb-6 w-full" onClick={() => openCheckout('Equipe')}>Assinar Equipe</Button>
+          {/* Clínica */}
+          <div className="relative flex flex-col rounded-2xl border-2 border-primary bg-card p-7 shadow-md">
+            <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3.5 py-1 text-xs font-bold text-primary-foreground">Mais procurado</span>
+            <div className="text-lg font-semibold">Clínica</div>
+            <div className="mt-1 min-h-[38px] text-sm text-muted-foreground">Consultórios e equipes de saúde acompanhando de perto.</div>
+            <div className="mt-2 text-4xl font-semibold tracking-tight">{annual ? 'R$ 124' : 'R$ 149'}<span className="text-sm font-normal text-muted-foreground">/mês</span></div>
+            <div className="mb-5 mt-1 min-h-[18px] text-xs text-muted-foreground">{annual ? 'R$ 1.490/ano — 2 meses grátis.' : 'Cobrado mensalmente.'}</div>
+            <Button className="mb-6 w-full" onClick={() => openCheckout('Clínica')}>Assinar Clínica</Button>
             <ul className="space-y-2.5 text-sm text-muted-foreground">
-              {['3 contas com exames ilimitados', 'Cada pessoa com a própria conta privada', 'Você convida e centraliza o pagamento'].map((f) => (
+              {['5 contas com envios de exames ilimitados', '+ 3 contas Pessoal (até 20 envios por mês cada)', 'Cada pessoa com a própria conta privada', 'Você convida e centraliza o pagamento'].map((f) => (
                 <li key={f} className="flex gap-2.5"><Check className="h-4 w-4 shrink-0 text-primary" /> {f}</li>
               ))}
             </ul>
           </div>
 
-          {/* Clínica */}
-          <div className="relative flex flex-col rounded-2xl border-2 border-primary bg-card p-7 shadow-md">
-            <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3.5 py-1 text-xs font-bold text-primary-foreground">Melhor custo por conta</span>
-            <div className="text-lg font-semibold">Clínica</div>
-            <div className="mt-1 min-h-[38px] text-sm text-muted-foreground">Consultórios e equipes de saúde acompanhando de perto.</div>
-            <div className="mt-2 text-4xl font-semibold tracking-tight">{annual ? 'R$ 249' : 'R$ 299'}<span className="text-sm font-normal text-muted-foreground">/mês</span></div>
-            <div className="mb-5 mt-1 min-h-[18px] text-xs text-muted-foreground">{annual ? 'R$ 2.990/ano — 2 meses grátis.' : 'Cobrado mensalmente.'}</div>
-            <Button className="mb-6 w-full" onClick={() => openCheckout('Clínica')}>Assinar Clínica</Button>
+          {/* Casa de Apoio */}
+          <div className="flex flex-col rounded-2xl border border-border bg-card p-7 shadow-sm">
+            <div className="text-lg font-semibold">Casa de Apoio</div>
+            <div className="mt-1 min-h-[38px] text-sm text-muted-foreground">Casas de apoio e de repouso, acompanhando muita gente ao mesmo tempo.</div>
+            <div className="mt-2 text-4xl font-semibold tracking-tight">{annual ? 'R$ 232' : 'R$ 279'}<span className="text-sm font-normal text-muted-foreground">/mês</span></div>
+            <div className="mb-5 mt-1 min-h-[18px] text-xs text-muted-foreground">{annual ? 'R$ 2.790/ano — 2 meses grátis.' : 'Cobrado mensalmente.'}</div>
+            <Button variant="outline" className="mb-6 w-full" onClick={() => openCheckout('Casa de Apoio')}>Assinar Casa de Apoio</Button>
             <ul className="space-y-2.5 text-sm text-muted-foreground">
-              {['10 contas com exames ilimitados', 'Cada pessoa com a própria conta privada', 'Você convida e centraliza o pagamento'].map((f) => (
+              {['10 contas com envios de exames ilimitados', '+ 5 contas Pessoal (até 20 envios por mês cada)', 'Cada pessoa com a própria conta privada', 'Melhor custo por conta'].map((f) => (
                 <li key={f} className="flex gap-2.5"><Check className="h-4 w-4 shrink-0 text-primary" /> {f}</li>
               ))}
             </ul>
@@ -394,7 +476,7 @@ export function Landing() {
               qualquer QUANTIDADE customizada de contas (4, 7, 40...) é conversa, não checkout. */}
           <div className="flex flex-col rounded-2xl border border-border bg-card p-7 shadow-sm">
             <div className="text-lg font-semibold">Instituição ou personalizado</div>
-            <div className="mt-1 min-h-[38px] text-sm text-muted-foreground">Casas de repouso, operadoras — ou o número exato de contas que você precisa.</div>
+            <div className="mt-1 min-h-[38px] text-sm text-muted-foreground">Operadoras, redes e programas de saúde — ou o número exato de contas que você precisa.</div>
             <div className="mt-2 text-3xl font-semibold tracking-tight">Sob medida</div>
             <div className="mb-5 mt-1 min-h-[18px] text-xs text-muted-foreground">Do seu tamanho, seja ele qual for.</div>
             {/* Âncora com a cara de botão (buttonVariants): mailto é link, não ação de página. */}
@@ -405,7 +487,7 @@ export function Landing() {
               Falar com a gente
             </a>
             <ul className="space-y-2.5 text-sm text-muted-foreground">
-              {['Quantidade de contas sob medida — 4, 7, 40…', 'Cada pessoa com a própria conta privada', 'Implantação acompanhada'].map((f) => (
+              {['Quantidade de contas sob medida — 4, 7, 40…', 'Mistura de contas ilimitadas e Pessoal como você precisar', 'Cada pessoa com a própria conta privada', 'Implantação acompanhada'].map((f) => (
                 <li key={f} className="flex gap-2.5"><Check className="h-4 w-4 shrink-0 text-primary" /> {f}</li>
               ))}
             </ul>
@@ -421,7 +503,7 @@ export function Landing() {
             <div className="mb-5 mt-1 min-h-[18px] text-xs text-muted-foreground">Sem cartão.</div>
             <Button variant="outline" className="mb-6 w-full" onClick={() => openCheckout('Grátis')}>Começar agora</Button>
             <ul className="space-y-2.5 text-sm text-muted-foreground">
-              {['3 exames', 'Histórico de 90 dias', 'Gráficos básicos', 'Envio por PDF (por foto: em breve)'].map((f) => (
+              {['3 envios de exames', 'Histórico de 90 dias', 'Gráficos básicos', 'Envio por PDF (por foto: em breve)'].map((f) => (
                 <li key={f} className="flex gap-2.5"><Check className="h-4 w-4 shrink-0 text-primary" /> {f}</li>
               ))}
               {['Tendências completas', 'Exportar para o médico'].map((f) => (
@@ -439,7 +521,7 @@ export function Landing() {
             <div className="mb-5 mt-1 min-h-[18px] text-xs text-muted-foreground">{annual ? 'R$ 190/ano — 2 meses grátis.' : 'Cobrado mensalmente.'}</div>
             <Button className="mb-6 w-full" onClick={() => openCheckout('Pessoal')}>Assinar Pessoal</Button>
             <ul className="space-y-2.5 text-sm text-muted-foreground">
-              {['Até 20 exames por mês', 'Histórico completo, sem limite de tempo', 'Todas as tendências e comparações', 'Alertas de fora-da-faixa', 'Exportar resumo para o médico', 'Suporte prioritário'].map((f) => (
+              {['Até 20 envios de exames por mês', 'Histórico completo, sem limite de tempo', 'Todas as tendências e comparações', 'Alertas de fora-da-faixa', 'Exportar resumo para o médico', 'Suporte prioritário'].map((f) => (
                 <li key={f} className="flex gap-2.5"><Check className="h-4 w-4 shrink-0 text-primary" /> {f}</li>
               ))}
             </ul>
@@ -453,7 +535,7 @@ export function Landing() {
             <div className="mb-5 mt-1 min-h-[18px] text-xs text-muted-foreground">{annual ? 'R$ 390/ano — 2 meses grátis.' : 'Cobrado mensalmente.'}</div>
             <Button variant="outline" className="mb-6 w-full" onClick={() => openCheckout('Ilimitado')}>Assinar Ilimitado</Button>
             <ul className="space-y-2.5 text-sm text-muted-foreground">
-              {['Tudo do Pessoal', 'Exames ilimitados', 'Ideal para importar exames antigos de uma vez', 'Acompanhamento frequente, sem teto'].map((f) => (
+              {['Tudo do Pessoal', 'Envios de exames ilimitados', 'Ideal para importar exames antigos de uma vez', 'Acompanhamento frequente, sem teto'].map((f) => (
                 <li key={f} className="flex gap-2.5"><Check className="h-4 w-4 shrink-0 text-primary" /> {f}</li>
               ))}
             </ul>
@@ -472,13 +554,15 @@ export function Landing() {
         </div>
         <div>
           {[
-            { q: 'De quais laboratórios funciona?', a: 'De qualquer um. Você envia o PDF ou a foto do laudo e nós padronizamos os resultados — então Fleury, Sabin, Hermes Pardini ou o laboratório do seu bairro caem todos no mesmo histórico comparável.' },
+            { q: 'De quais laboratórios funciona?', a: 'De qualquer um. Você envia o PDF ou a foto do laudo e nós padronizamos os resultados — então Fleury, Frischmann Aisengart, Unimed ou o laboratório do seu bairro caem todos no mesmo histórico comparável.' },
             { q: 'Meus dados estão seguros?', a: 'Sim. Seu histórico é só seu: não vendemos seus dados e você pode apagar seus exames ou a conta inteira quando quiser.' },
+            { q: 'Consigo ver o laudo original do laboratório?', a: 'Sim. O arquivo que o laboratório emitiu fica guardado junto do exame: você abre na tela ou baixa quando quiser, exatamente como veio. O histórico organizado é uma leitura a mais, não um substituto do documento original.' },
             { q: 'Preciso de médico para usar?', a: 'Não. O ExCenter organiza e mostra a evolução dos seus exames — é uma ferramenta de acompanhamento, não substitui avaliação médica. Ele deixa sua consulta mais produtiva: você chega com o histórico pronto.' },
-            { q: 'Meu médico já pode acessar meus exames pelo ExCenter?', a: 'Ainda não. Hoje você pode exportar um resumo para a consulta. O acesso médico está em desenvolvimento: a proposta é verificar o profissional e permitir que você escolha os exames, o histórico e se deseja compartilhar novos exames adicionados ao ExCenter. Pagar por uma conta não dará acesso aos exames de outra pessoa.' },
+            { q: 'Meu médico pode acessar meus exames pelo ExCenter?', a: 'Pode, se você autorizar. O médico passa por verificação profissional e você escolhe o que compartilhar: quais exames, se inclui o histórico anterior e se os próximos exames que você enviar também vão para ele. O acesso é de leitura e você encerra quando quiser. Pagar por uma conta não dá acesso aos exames de outra pessoa.' },
             { q: 'Posso cancelar quando quiser?', a: 'A qualquer momento, em um clique. Sem multa. E mesmo depois de cancelar, seu histórico continua seu — você pode exportar tudo.' },
-            { q: 'Como funciona o plano grátis?', a: 'Você guarda até 3 exames com histórico de 90 dias e gráficos básicos, sem cartão. Quando quiser exames ilimitados e o histórico completo, é só assinar.' },
-            { q: 'Sou personal / tenho uma clínica — como funciona para equipes?', a: 'Nos planos para equipes, você contrata um pacote de contas (3 na Equipe, 10 na Clínica), convida cada pessoa, e cada uma tem a própria conta com exames ilimitados — privada como qualquer outra. O pagamento fica centralizado com você. Precisa de outra quantidade de contas — mais ou menos que os pacotes? Fale com a gente e montamos sob medida.' },
+            { q: 'Como funciona o plano grátis?', a: 'Você guarda até 3 envios de exames com histórico de 90 dias e gráficos básicos, sem cartão. Quando quiser envios ilimitados e o histórico completo, é só assinar.' },
+            { q: 'O que conta como um "envio de exame"?', a: 'Cada laudo que você manda para o ExCenter — um PDF, um exame. Não importa quantos parâmetros ele traga: um hemograma com 25 linhas conta como um envio, igual a um exame de glicose sozinho.' },
+            { q: 'Tenho uma clínica / casa de apoio — como funciona para equipes?', a: 'Você contrata um pacote de contas (5 ilimitadas + 3 Pessoal na Clínica; 10 ilimitadas + 5 Pessoal na Casa de Apoio), convida cada pessoa, e cada uma tem a própria conta — privada como qualquer outra. As contas Pessoal existem para quem acompanha menos de perto e não precisa de envios ilimitados. O pagamento fica centralizado com você. Precisa de outra quantidade? Fale com a gente e montamos sob medida.' },
           ].map(({ q, a }, idx) => (
             <details key={q} open={idx === 0} className="group border-b border-border py-1.5">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-[1.06rem] font-semibold [&::-webkit-details-marker]:hidden">
@@ -505,21 +589,6 @@ export function Landing() {
 
       {/* FOOTER */}
       <footer className="border-t border-border">
-        <section id="medicos" aria-labelledby="medical-footer-title" className="mx-auto max-w-6xl px-6 pt-10">
-          <div className="grid overflow-hidden rounded-2xl bg-primary-dark text-primary-foreground md:grid-cols-2">
-            <div className="flex flex-col items-start justify-center p-7 md:p-9 lg:p-11">
-              <p className="mb-3 text-xs font-medium uppercase tracking-widest text-primary-foreground/80">Para médicos · Piloto em desenvolvimento</p>
-              <h2 id="medical-footer-title" className="text-balance text-2xl font-semibold tracking-tight md:text-3xl">Você é médico? Mais contexto para acompanhar seus pacientes.</h2>
-              <p className="mt-4 text-sm leading-relaxed text-primary-foreground/85">Estamos preparando um painel para você consultar exames de diferentes laboratórios, comparar a evolução dos resultados e conferir os laudos que seus pacientes autorizarem.</p>
-              <Link href="/para-medicos" className={cn(buttonVariants({ variant: 'outline' }), 'mt-5 h-auto min-h-10 whitespace-normal border-white/25 bg-white text-center text-primary-dark hover:bg-white/90 hover:text-primary-dark')}>Conhecer o piloto médico →</Link>
-              <p className="mt-5 text-xs leading-relaxed text-primary-foreground/80">Recurso ainda indisponível. O acesso dependerá de verificação profissional e autorização do paciente.</p>
-            </div>
-            <figure className="relative min-h-72 md:min-h-96">
-              <Image src="/images/medical-pilot-doctors.png" alt="Imagem ilustrativa de dois médicos conversando enquanto consultam um tablet." fill sizes="(min-width: 1152px) 552px, (min-width: 768px) 50vw, 100vw" className="object-cover object-center" />
-              <figcaption className="absolute bottom-3 right-3 rounded bg-black/50 px-2 py-1 text-[10px] text-white">Imagem ilustrativa gerada por IA</figcaption>
-            </figure>
-          </div>
-        </section>
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-sm text-muted-foreground">
           <span className="flex items-center gap-2 font-semibold text-foreground">
             <span className="grid h-6 w-6 place-items-center rounded-md bg-primary-light"><Activity className="h-3.5 w-3.5 text-primary" /></span>
@@ -530,7 +599,7 @@ export function Landing() {
             <a href="#precos" className="hover:text-primary">Preços</a>
             <a href="#seguranca" className="hover:text-primary">Segurança</a>
             <Link href="/login" className="hover:text-primary">Entrar</Link>
-            <Link href="/para-medicos" className="hover:text-primary">É médico? Conheça o piloto</Link>
+            <Link href="/para-medicos" className="hover:text-primary">Para médicos</Link>
             <a href="#quem-somos" className="hover:text-primary">Quem somos</a>
             <a href={`mailto:${TEAM_CONTACT_EMAIL}`} className="hover:text-primary">Contato</a>
           </div>
