@@ -3,6 +3,67 @@
 Itens aprovados mas ainda não feitos (ou feitos por paliativo, com a solução definitiva pendente).
 Status: ⬜ pendente · 🔄 em andamento · ✅ concluído.
 
+## ✅ Seção Quem somos e preservação da navegação — 06/09/2026
+
+Implementação local na landing: empresa sediada em Curitiba/PR, fundada em 2026 (informações
+fornecidas pelo dono), missão de reunir exames e facilitar acompanhamento/visibilidade histórica.
+Contato real por e-mail; endereço e telefone de exemplo explicitamente fictícios e sem links
+de telefone/mapa. Substituir placeholders quando o dono fornecer dados reais. Não inventar CNPJ,
+certificações, equipe, depoimentos ou atendimento presencial. Aviso sobre interpretação médica.
+
+**Preferência explícita do dono:** preservar botões/links existentes no topo; adicionar é permitido,
+remover não. Landing conserva Como funciona, Recursos, Segurança, Preços, Entrar e Começar grátis,
+acrescentando Para médicos e Quem somos. No celular, navegação completa em linhas que se ajustam.
+Página médica também tem acesso às seções da landing. Termos e política de privacidade continuam
+pendentes no item de credibilidade abaixo; esta seção não substitui esses documentos.
+
+**Ajuste aprovado em 06/09/2026:** "Para médicos" passa da navegação de seções para o grupo de
+ações, na ordem **Para médicos → Começar grátis → Entrar**, também no celular. A caixa de
+compartilhamento voltada ao paciente foi movida para o rodapé e reescrita para o médico:
+pacientes autorizados, histórico de marcadores e novos exames mediante autorização. Continua
+explicitamente em desenvolvimento. Link final: "É médico? Conheça o piloto".
+
+**Refino visual:** quadro do rodapé dividido em metades iguais no desktop, texto/CTA à esquerda e
+foto ilustrativa de médicos à direita; empilhado no celular. Asset gerado por IA em
+`public/images/medical-pilot-doctors.png`, identificado como ilustrativo, sem representar equipe
+ou parceiros reais. Marca (ícone + ExCenter) centralizada acima das três ações em telas menores
+que 640px, mantendo o nome visível inclusive abaixo de 360px.
+
+## ✅ Landing e página pública para médicos — 06/09/2026
+
+Implementação local: `/para-medicos`, metadados próprios, prévia com dados fictícios, proposta de
+verificação profissional e compartilhamento autorizado. Landing mantém foco no paciente, com
+acesso à página médica no desktop/celular, seção e FAQ indicando **em desenvolvimento**.
+O formulário abre e-mail para `jin_lauter@hotmail.com`, por escolha do dono; não envia pelo
+servidor, não armazena leads e não afirma cadastro concluído. O remetente precisa enviar no seu
+aplicativo. Contato direto disponível como alternativa. Não há acesso médico real nesta entrega.
+
+## ⬜ Preferências de compartilhamento nas configurações do usuário — aprovado 06/09/2026
+
+Especificação de autorização e sequência: `ExCenter-back/BACKLOG.md`, seção "Acesso médico e
+compartilhamento autorizado". **Entrou na fila; propriedades, migrations e UI ainda não criadas.**
+
+- `AutoShareImportedExamsWithRequestingDoctor` (JSON `autoShareImportedExamsWithRequestingDoctor`),
+  booleano, padrão `false`: **Compartilhar novos exames com o médico solicitante autorizado**.
+  Ajuda: "Quando o solicitante for um médico verificado que você já autorizou, compartilhar
+  os novos exames que você adicionar ao ExCenter."
+- `IncludeMatchingAnalyteHistoryOnAutoShare` (JSON `includeMatchingAnalyteHistoryOnAutoShare`),
+  booleano, padrão `false`: **Incluir o histórico dos mesmos marcadores**.
+  Ajuda: "Incluir resultados anteriores dos marcadores presentes no exame compartilhado,
+  dentro do período autorizado. Não inclui automaticamente outros laudos completos."
+- Preparação inicial: propriedades persistidas e editáveis apenas pelo próprio usuário,
+  **sem gerar compartilhamento, conceder permissão ou enviar notificações**. Se expostas antes
+  do lançamento, mostrar aviso permanente "Preferências para um recurso em desenvolvimento;
+  nenhum exame será compartilhado por estas opções agora". Não apresentar como proteção ativa.
+- Segunda opção só editável quando a primeira estiver ligada. Desligar a primeira desliga as duas;
+  religar a primeira não religa a segunda silenciosamente. API deve refletir a mesma regra.
+- Ao lançar: reconfirmar as preferências antigas e definir médico/escopo/período do vínculo
+  antes de qualquer automação. Depois dessa autorização, não perguntar em cada importação.
+- Histórico amplo continua sendo autorização separada; pagar uma conta não concede acesso.
+- Painel futuro "Quem pode acessar meus exames": profissional, escopo, data, status e revogação.
+  Distinguir parar compartilhamentos futuros de revogar acesso aos exames já compartilhados.
+
+
 ---
 
 ## ✅ Parser de faixa de referência não entende o conector "até" (só "a") — RESOLVIDO 03/09/2026

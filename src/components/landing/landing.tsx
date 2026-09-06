@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Activity, Check, FileText, LineChart, Target, Building2, Share2, Dna, Lock, ShieldCheck, Ban, Trash2, Minus, Plus } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { CheckoutModal, type CheckoutPlan } from './checkout-modal';
+import { AboutSection } from './about-section';
 
 // Landing pública (rota /). CTA abre um checkout SIMULADO — o fluxo real (waitlist/cadastro/
 // pagamento) está no BACKLOG do back, ainda a decidir. Copy revisada com o dono: sem mencionar
@@ -45,32 +47,31 @@ export function Landing() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground [&_section[id]]:scroll-mt-48">
       {/* HEADER */}
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur">
-        {/* px menor no celular: com "Entrar" de volta ao lado do CTA, o header precisa de 379px
-            para caber inteiro — mais que os 360px de um Android comum. */}
-        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
-          <span className="flex items-center gap-2 font-semibold">
+        {/* No celular, marca centralizada acima das ações; todas as seções continuam acessíveis. */}
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-2 gap-y-2 px-4 py-3 sm:gap-x-4 sm:px-6">
+          <span className="flex w-full items-center justify-center gap-2 font-semibold sm:w-auto sm:justify-start">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary-light">
               <Activity className="h-5 w-5 text-primary" strokeWidth={1.9} />
             </span>
-            {/* Abaixo de 360px (iPhone SE 1ª geração e afins) nem o padding menor salva: some o
-                nome e fica só o ícone, que continua identificando a marca. */}
-            <span className="hidden text-lg min-[360px]:inline">ExCenter</span>
+            <span className="text-lg">ExCenter</span>
           </span>
-          <nav className="ml-3 hidden gap-1 md:flex">
+          <nav aria-label="Seções da página" className="order-last flex w-full flex-wrap justify-center gap-1 border-t border-border/50 pt-2 max-sm:[&_a]:px-2 max-sm:[&_a]:text-xs lg:order-none lg:w-auto lg:flex-1 lg:border-0 lg:pt-0">
             <a href="#como" className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">Como funciona</a>
             <a href="#recursos" className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">Recursos</a>
             <a href="#seguranca" className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">Segurança</a>
             <a href="#precos" className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">Preços</a>
+            <a href="#quem-somos" className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">Quem somos</a>
           </nav>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex w-full items-center justify-center gap-1 sm:w-auto sm:justify-end sm:gap-2">
             {/* Visível SEMPRE, inclusive no celular: escondido abaixo de sm, quem já tem conta e
                 caía na landing pelo telefone ficava sem porta de entrada — só via "Começar grátis",
                 que leva a cadastro. */}
-            <Link href="/login"><Button variant="ghost" size="sm">Entrar</Button></Link>
-            <Button size="sm" onClick={() => openCheckout('Pessoal')}>Começar grátis</Button>
+            <Link href="/para-medicos" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'px-2 text-xs text-primary sm:px-3 sm:text-sm')}>Para médicos</Link>
+            <Button size="sm" className="px-2 text-xs sm:px-3 sm:text-sm" onClick={() => openCheckout('Pessoal')}>Começar grátis</Button>
+            <Link href="/login" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'px-2 text-xs sm:px-3 sm:text-sm')}>Entrar</Link>
           </div>
         </div>
       </header>
@@ -316,7 +317,7 @@ export function Landing() {
           </div>
           <ul className="space-y-4">
             {[
-              { i: Lock, t: 'Só você vê seus exames', d: 'Seu histórico é privado — ninguém além de você acessa.' },
+              { i: Lock, t: 'Seu histórico é privado', d: 'Hoje, outras contas não acessam seus exames. O futuro acesso médico dependerá da sua autorização.' },
               { i: ShieldCheck, t: 'Cuidado à altura de um dado de saúde', d: 'Tratamos suas informações com a proteção séria que elas exigem.' },
               { i: Ban, t: 'Nunca vendemos seus dados', d: 'Seu histórico não é produto. Ponto.' },
               { i: Trash2, t: 'Você no controle', d: 'Apague seus exames — ou a conta inteira — quando quiser.' },
@@ -461,6 +462,8 @@ export function Landing() {
         )}
       </section>
 
+      <AboutSection />
+
       {/* FAQ */}
       <section className="mx-auto max-w-3xl px-6 py-20">
         <div className="mb-8 text-center">
@@ -472,6 +475,7 @@ export function Landing() {
             { q: 'De quais laboratórios funciona?', a: 'De qualquer um. Você envia o PDF ou a foto do laudo e nós padronizamos os resultados — então Fleury, Sabin, Hermes Pardini ou o laboratório do seu bairro caem todos no mesmo histórico comparável.' },
             { q: 'Meus dados estão seguros?', a: 'Sim. Seu histórico é só seu: não vendemos seus dados e você pode apagar seus exames ou a conta inteira quando quiser.' },
             { q: 'Preciso de médico para usar?', a: 'Não. O ExCenter organiza e mostra a evolução dos seus exames — é uma ferramenta de acompanhamento, não substitui avaliação médica. Ele deixa sua consulta mais produtiva: você chega com o histórico pronto.' },
+            { q: 'Meu médico já pode acessar meus exames pelo ExCenter?', a: 'Ainda não. Hoje você pode exportar um resumo para a consulta. O acesso médico está em desenvolvimento: a proposta é verificar o profissional e permitir que você escolha os exames, o histórico e se deseja compartilhar novos exames adicionados ao ExCenter. Pagar por uma conta não dará acesso aos exames de outra pessoa.' },
             { q: 'Posso cancelar quando quiser?', a: 'A qualquer momento, em um clique. Sem multa. E mesmo depois de cancelar, seu histórico continua seu — você pode exportar tudo.' },
             { q: 'Como funciona o plano grátis?', a: 'Você guarda até 3 exames com histórico de 90 dias e gráficos básicos, sem cartão. Quando quiser exames ilimitados e o histórico completo, é só assinar.' },
             { q: 'Sou personal / tenho uma clínica — como funciona para equipes?', a: 'Nos planos para equipes, você contrata um pacote de contas (3 na Equipe, 10 na Clínica), convida cada pessoa, e cada uma tem a própria conta com exames ilimitados — privada como qualquer outra. O pagamento fica centralizado com você. Precisa de outra quantidade de contas — mais ou menos que os pacotes? Fale com a gente e montamos sob medida.' },
@@ -501,6 +505,21 @@ export function Landing() {
 
       {/* FOOTER */}
       <footer className="border-t border-border">
+        <section id="medicos" aria-labelledby="medical-footer-title" className="mx-auto max-w-6xl px-6 pt-10">
+          <div className="grid overflow-hidden rounded-2xl bg-primary-dark text-primary-foreground md:grid-cols-2">
+            <div className="flex flex-col items-start justify-center p-7 md:p-9 lg:p-11">
+              <p className="mb-3 text-xs font-medium uppercase tracking-widest text-primary-foreground/80">Para médicos · Piloto em desenvolvimento</p>
+              <h2 id="medical-footer-title" className="text-balance text-2xl font-semibold tracking-tight md:text-3xl">Você é médico? Mais contexto para acompanhar seus pacientes.</h2>
+              <p className="mt-4 text-sm leading-relaxed text-primary-foreground/85">Estamos preparando um painel para você consultar exames de diferentes laboratórios, comparar a evolução dos resultados e conferir os laudos que seus pacientes autorizarem.</p>
+              <Link href="/para-medicos" className={cn(buttonVariants({ variant: 'outline' }), 'mt-5 h-auto min-h-10 whitespace-normal border-white/25 bg-white text-center text-primary-dark hover:bg-white/90 hover:text-primary-dark')}>Conhecer o piloto médico →</Link>
+              <p className="mt-5 text-xs leading-relaxed text-primary-foreground/80">Recurso ainda indisponível. O acesso dependerá de verificação profissional e autorização do paciente.</p>
+            </div>
+            <figure className="relative min-h-72 md:min-h-96">
+              <Image src="/images/medical-pilot-doctors.png" alt="Imagem ilustrativa de dois médicos conversando enquanto consultam um tablet." fill sizes="(min-width: 1152px) 552px, (min-width: 768px) 50vw, 100vw" className="object-cover object-center" />
+              <figcaption className="absolute bottom-3 right-3 rounded bg-black/50 px-2 py-1 text-[10px] text-white">Imagem ilustrativa gerada por IA</figcaption>
+            </figure>
+          </div>
+        </section>
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-sm text-muted-foreground">
           <span className="flex items-center gap-2 font-semibold text-foreground">
             <span className="grid h-6 w-6 place-items-center rounded-md bg-primary-light"><Activity className="h-3.5 w-3.5 text-primary" /></span>
@@ -511,6 +530,9 @@ export function Landing() {
             <a href="#precos" className="hover:text-primary">Preços</a>
             <a href="#seguranca" className="hover:text-primary">Segurança</a>
             <Link href="/login" className="hover:text-primary">Entrar</Link>
+            <Link href="/para-medicos" className="hover:text-primary">É médico? Conheça o piloto</Link>
+            <a href="#quem-somos" className="hover:text-primary">Quem somos</a>
+            <a href={`mailto:${TEAM_CONTACT_EMAIL}`} className="hover:text-primary">Contato</a>
           </div>
           <span>© 2026 ExCenter · Não substitui avaliação médica</span>
         </div>
