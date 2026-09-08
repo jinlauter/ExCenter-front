@@ -38,7 +38,7 @@ O formulário abre e-mail para `jin_lauter@hotmail.com`, por escolha do dono; n�
 servidor, não armazena leads e não afirma cadastro concluído. O remetente precisa enviar no seu
 aplicativo. Contato direto disponível como alternativa. Não há acesso médico real nesta entrega.
 
-## ⬜ Página pública de exame compartilhado — aprovado 07/09/2026
+## ✅ Página pública de exame compartilhado — ENTREGUE 08/09/2026 (aprovado 07/09/2026)
 
 Espec canônica (desenho de snapshot, token e expiração): `ExCenter-back/BACKLOG.md`, seção
 "Link público de compartilhamento de exame". O back entrega a página **já montada** num único
@@ -90,7 +90,7 @@ Console em 07/09/2026, então o crawler vai passar.
 - **Proxy do PDF:** route handler próprio, no molde do
   `app/api/bloodtests/files/[fileId]/download/route.ts`.
 
-## ⬜ Compartilhamento de exame merece espaço na landing — pedido do dono 08/09/2026
+## ✅ Compartilhamento de exame merece espaço na landing — FEITO 08/09/2026
 
 O recurso de **link público de exame** (espec em `ExCenter-back/BACKLOG.md`, implementação em
 `FRENTE 6` do `TRABALHO_ATUAL.md`) não aparece na landing hoje. O dono pediu espaço para ele.
