@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -9,6 +9,7 @@ import {
   Eye,
   Info,
   LineChart,
+  Loader2,
   RefreshCw,
 } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -142,8 +143,20 @@ interface ExamResultsViewProps {
 export function ExamResultsView({ data }: ExamResultsViewProps) {
   const router = useRouter();
   const [isRefreshing, startRefresh] = useTransition();
-  const [isNavigating, startNavigation] = useTransition();
-  const isGridLoading = useDelayedFlag(isNavigating || isRefreshing);
+  const [isPaging, startPaging] = useTransition();
+  const [isOpening, startOpening] = useTransition();
+  const [pendingTestId, setPendingTestId] = useState<string | null>(null);
+
+  // Duas esperas DIFERENTES, e por isso dois indicadores. Paginar/atualizar troca o conteúdo da
+  // grid: o véu cinza sobre a tabela inteira diz a verdade ("estas linhas estão sendo trocadas").
+  // Abrir um exame não troca linha nenhuma — cinzar tudo dava a entender que a lista recarregava,
+  // e quem clicou perdia de vista qual foi a linha que clicou.
+  const isGridLoading = useDelayedFlag(isPaging || isRefreshing);
+
+  // A linha que está abrindo. Derivada da transição (e não só do estado) pra se limpar sozinha
+  // se a navegação terminar sem desmontar a tela — sem effect de faxina.
+  const openingTestId = isOpening ? pendingTestId : null;
+  const showRowSpinner = useDelayedFlag(isOpening);
 
   function pushParams(next: Partial<{ page: number; pageSize: number }>) {
     const merged = { page: data.page, pageSize: data.pageSize, ...next };
@@ -151,11 +164,15 @@ export function ExamResultsView({ data }: ExamResultsViewProps) {
     if (merged.page > 1) qs.set('page', String(merged.page));
     if (merged.pageSize !== DEFAULT_PAGE_SIZE) qs.set('pageSize', String(merged.pageSize));
     const query = qs.toString();
-    startNavigation(() => router.push(query ? `/resultados?${query}` : '/resultados'));
+    startPaging(() => router.push(query ? `/resultados?${query}` : '/resultados'));
   }
 
   function openExam(testId: string) {
-    startNavigation(() => router.push(`/resultados/${testId}`));
+    // Com um exame já abrindo, a grid para de aceitar clique: abrir dois exames em sequência
+    // só troca o destino da navegação e faz o indicador apontar pra linha errada.
+    if (openingTestId) return;
+    setPendingTestId(testId);
+    startOpening(() => router.push(`/resultados/${testId}`));
   }
 
   const rangeStart = (data.page - 1) * data.pageSize + 1;
@@ -233,10 +250,19 @@ export function ExamResultsView({ data }: ExamResultsViewProps) {
                     // olhinho no fim pra manter o padrão de Exames enviados. O hover pinta a
                     // linha com o verde-claro da marca e acende o olhinho — affordance dupla
                     // de que a linha navega.
+                    //
+                    // Enquanto um exame abre, a linha clicada TRAVA no verde e as outras perdem
+                    // o hover e a mãozinha: o destaque só comunica "é esta que estou abrindo" se
+                    // nenhuma outra puder acender junto embaixo do mouse.
                     <tr
                       key={exam.testId}
                       onClick={() => openExam(exam.testId)}
-                      className="group cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-primary-light/30"
+                      aria-busy={openingTestId === exam.testId}
+                      className={cn(
+                        'group border-b border-border transition-colors last:border-0',
+                        openingTestId === exam.testId && 'bg-primary-light/60',
+                        openingTestId ? 'cursor-default' : 'cursor-pointer hover:bg-primary-light/30',
+                      )}
                     >
                       <td className="whitespace-nowrap px-4 py-2.5 font-medium">
                         {formatExamDate(exam.examDate) ?? <MissingValue label="a data" />}
@@ -272,18 +298,33 @@ export function ExamResultsView({ data }: ExamResultsViewProps) {
                               e escapava do indicador de carregamento que a linha já mostra. */}
                           <button
                             type="button"
-                            title="Ver resultado do exame"
-                            aria-label="Ver resultado do exame"
+                            title={openingTestId === exam.testId ? 'Abrindo o exame…' : 'Ver resultado do exame'}
+                            aria-label={openingTestId === exam.testId ? 'Abrindo o exame' : 'Ver resultado do exame'}
+                            disabled={openingTestId !== null}
                             onClick={(e) => {
                               e.stopPropagation();
                               openExam(exam.testId);
                             }}
                             className={cn(
                               buttonVariants({ variant: 'ghost', size: 'icon' }),
-                              'h-8 w-8 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground',
+                              'h-8 w-8 text-primary transition-colors',
+                              // Sem o hover aceso nas outras linhas enquanto uma abre — o mesmo
+                              // motivo do verde travado na linha clicada.
+                              !openingTestId && 'group-hover:bg-primary group-hover:text-primary-foreground',
+                              // disabled:opacity do buttonVariants apagaria justamente o spinner.
+                              'disabled:opacity-100',
                             )}
                           >
-                            <Eye className="h-4 w-4" />
+                            {/* O spinner entra atrasado (useDelayedFlag) pelo mesmo motivo do véu
+                                da grid: navegação que resolve em 150ms acenderia e apagaria o
+                                spinner num piscar que incomoda mais do que informa. O verde
+                                travado na linha, esse sim, é imediato — não pisca, porque é a
+                                própria cor do hover que já estava embaixo do mouse. */}
+                            {showRowSpinner && openingTestId === exam.testId ? (
+                              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
                           </button>
                         </div>
                       </td>
@@ -319,7 +360,7 @@ export function ExamResultsView({ data }: ExamResultsViewProps) {
                   size="icon"
                   className="h-8 w-8"
                   title="Página anterior"
-                  disabled={data.page <= 1 || isNavigating}
+                  disabled={data.page <= 1 || isPaging || openingTestId !== null}
                   onClick={() => pushParams({ page: data.page - 1 })}
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -332,7 +373,7 @@ export function ExamResultsView({ data }: ExamResultsViewProps) {
                   size="icon"
                   className="h-8 w-8"
                   title="Próxima página"
-                  disabled={data.page >= data.totalPages || isNavigating}
+                  disabled={data.page >= data.totalPages || isPaging || openingTestId !== null}
                   onClick={() => pushParams({ page: data.page + 1 })}
                 >
                   <ChevronRight className="h-4 w-4" />
