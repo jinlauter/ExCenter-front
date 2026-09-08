@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { Activity } from 'lucide-react';
+import { BrandLogo } from '@/components/brand-logo';
 import { LoginForm } from '@/components/login-form';
 import { isGoogleEnabled, isMicrosoftEnabled } from '@/lib/env';
 
@@ -14,12 +14,13 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm rounded-3xl border border-input bg-card p-6 shadow-sm">
-        <header className="mb-6 flex flex-col items-center gap-2">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-light">
-            <Activity className="h-6 w-6 text-primary" strokeWidth={1.75} />
-          </div>
-          <h1 className="mt-1 text-xl font-medium text-primary-dark">ExCenter</h1>
-          <p className="text-center text-sm text-primary-soft">Seu histórico. Seu controle.</p>
+        <header className="mb-6 flex flex-col items-center">
+          {/* h1 aqui e não dentro do BrandLogo: a marca aparece em barra de navegação na maior
+              parte dos lugares, onde ela NÃO é o título da página — só nesta é. */}
+          <h1>
+            <BrandLogo size="lg" stacked className="text-primary-dark" />
+          </h1>
+          <p className="mt-3 text-center text-sm text-primary-soft">Seus exames, um histórico.</p>
         </header>
         <Suspense>
           <LoginForm googleEnabled={isGoogleEnabled} microsoftEnabled={isMicrosoftEnabled} />

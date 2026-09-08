@@ -1,12 +1,16 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Activity, ArrowRight, Check, LockKeyhole, Stethoscope } from 'lucide-react';
+import { ArrowRight, Check, LockKeyhole, Stethoscope } from 'lucide-react';
+import { BrandLogo } from '@/components/brand-logo';
 import { buttonVariants } from '@/components/ui/button';
 import { MedicalPilotForm } from '@/components/landing/medical-pilot-form';
 import { DoctorExamsMockup } from '@/components/landing/doctor-exams-mockup';
 
 export const metadata: Metadata = {
-  title: 'Para médicos | ExCenter',
+  // Só o nome da página: o sufixo "| ExCenter" vem do template em app/layout.tsx. Repetir a
+  // marca aqui gerava "Para médicos | ExCenter | ExCenter" na aba.
+  title: 'Para médicos',
+  alternates: { canonical: '/para-medicos' },
   description:
     'Conheça o piloto em desenvolvimento: a lista dos exames que seus pacientes compartilharam com você, com busca por nome, CPF, nascimento e período — e cada exame no laudo ExCenter ou no original do laboratório.',
 };
@@ -23,9 +27,10 @@ export default function MedicalPilotPage() {
               "Quem somos" falam todos do produto do PACIENTE — daqui, cada um era só um jeito
               disfarçado de voltar pra home. Um "Voltar ao início" diz a mesma coisa sem
               fingir que são cinco destinos. A marca também leva pra home, como em toda parte. */}
-          <Link href="/" className="flex items-center gap-2 text-lg font-semibold hover:text-primary">
-            <Activity aria-hidden="true" className="h-6 w-6 text-primary" />
-            ExCenter
+          {/* Sem a assinatura aqui: esta página é sobre o produto do MÉDICO, e "Seus exames,
+              um histórico" fala com o paciente. A marca é a mesma, a promessa não. */}
+          <Link href="/" className="hover:text-primary">
+            <BrandLogo size="md" />
           </Link>
           <div className="flex flex-wrap items-center gap-4 text-sm">
             <Link href="/" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
