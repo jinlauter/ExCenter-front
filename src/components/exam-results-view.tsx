@@ -76,7 +76,7 @@ function formatExamDate(value?: string | null) {
 function MissingValue({ label }: { label: string }) {
   return (
     <Tooltip content={`Não foi possível extrair ${label} deste exame.`}>
-      <span className="cursor-help text-muted-foreground">—</span>
+      <span className="cursor-default text-muted-foreground">—</span>
     </Tooltip>
   );
 }
@@ -106,7 +106,7 @@ function IncludedExamsCell({ names }: { names: string[] }) {
 
   return (
     <Tooltip content={tooltipContent} placement="right">
-      <span className="inline-flex cursor-help items-center gap-1.5 whitespace-nowrap">
+      <span className="inline-flex cursor-default items-center gap-1.5 whitespace-nowrap">
         <span>{inline.endsWith('...') ? inline : `${inline}...`}</span>
         <Info className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       </span>
@@ -245,7 +245,7 @@ export function ExamResultsView({ data }: ExamResultsViewProps) {
                         {exam.requestingDoctor ? (
                           exam.requestingDoctor.length > DOCTOR_NAME_MAX_LENGTH ? (
                             <Tooltip content={exam.requestingDoctor}>
-                              <span className="cursor-help">
+                              <span className="cursor-default">
                                 {`${exam.requestingDoctor.slice(0, DOCTOR_NAME_MAX_LENGTH)}...`}
                               </span>
                             </Tooltip>

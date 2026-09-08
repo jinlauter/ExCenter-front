@@ -37,7 +37,7 @@ function formatExamDate(value?: string | null) {
 function MissingValue({ label }: { label: string }) {
   return (
     <Tooltip content={`Não foi possível extrair ${label} deste exame.`}>
-      <span className="cursor-help text-muted-foreground">—</span>
+      <span className="cursor-default text-muted-foreground">—</span>
     </Tooltip>
   );
 }

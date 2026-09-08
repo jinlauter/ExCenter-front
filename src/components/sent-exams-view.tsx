@@ -97,14 +97,14 @@ function ExtractedFieldCell({
   if (IN_PROGRESS_STATUSES.has(file.status)) {
     return (
       <Tooltip content="Ainda em processamento — se essa informação estiver no exame, será preenchida automaticamente.">
-        <span className="cursor-help text-muted-foreground">—</span>
+        <span className="cursor-default text-muted-foreground">—</span>
       </Tooltip>
     );
   }
 
   return (
     <Tooltip content="Não foi possível extrair essa informação do exame.">
-      <span className="cursor-help text-muted-foreground">—</span>
+      <span className="cursor-default text-muted-foreground">—</span>
     </Tooltip>
   );
 }
@@ -448,7 +448,7 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
                               tocando fora. */}
                           {statusReason && (
                             <Tooltip content={statusReason}>
-                              <span className="cursor-help">
+                              <span className="cursor-default">
                                 <Info className="h-3.5 w-3.5 text-amber-600" />
                               </span>
                             </Tooltip>
@@ -468,7 +468,7 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
                             // "help" sem ter ajuda nenhuma a dar.
                             doctor.length > DOCTOR_NAME_MAX_LENGTH ? (
                               <Tooltip content={doctor}>
-                                <span className="cursor-help">
+                                <span className="cursor-default">
                                   {truncate(doctor, DOCTOR_NAME_MAX_LENGTH)}
                                 </span>
                               </Tooltip>

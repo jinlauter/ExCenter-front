@@ -78,7 +78,7 @@ describe('ExamResultsView — colunas principais', () => {
       const cell = dataCell(container, col);
       expect(cell.textContent).toContain('—');
 
-      const trigger = cell.querySelector('.cursor-help')!;
+      const trigger = cell.querySelector('.cursor-default')!;
       await userEvent.hover(trigger);
       expect(await screen.findByRole('tooltip')).toHaveTextContent(/Não foi possível extrair/);
       await userEvent.unhover(trigger);
@@ -102,7 +102,7 @@ describe('ExamResultsView — célula "Exames incluídos"', () => {
     const cell = dataCell(container, 3);
     expect(cell.textContent).toContain('Hemograma, Ferritina, Glicose...');
 
-    await userEvent.hover(cell.querySelector('.cursor-help')!);
+    await userEvent.hover(cell.querySelector('.cursor-default')!);
     const tooltip = await screen.findByRole('tooltip');
     for (const name of names) expect(tooltip.textContent).toContain(name);
   });
@@ -114,7 +114,7 @@ describe('ExamResultsView — célula "Exames incluídos"', () => {
     const { container } = renderView([makeExam({ includedExams: names })]);
 
     const cell = dataCell(container, 3);
-    await userEvent.hover(cell.querySelector('.cursor-help')!);
+    await userEvent.hover(cell.querySelector('.cursor-default')!);
     const tooltip = await screen.findByRole('tooltip');
     expect(tooltip.textContent).toContain('Painel 10');
     expect(tooltip.textContent).not.toContain('Painel 11');

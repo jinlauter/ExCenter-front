@@ -78,11 +78,11 @@ describe('SentExamsView — colunas de data do exame e médico solicitante', () 
       ]);
 
       // As DUAS colunas extraídas por IA (data do exame + médico) têm o gatilho de tooltip.
-      expect(dataCell(container, 2).querySelector('.cursor-help')).not.toBeNull();
-      expect(dataCell(container, 3).querySelector('.cursor-help')).not.toBeNull();
+      expect(dataCell(container, 2).querySelector('.cursor-default')).not.toBeNull();
+      expect(dataCell(container, 3).querySelector('.cursor-default')).not.toBeNull();
 
       // O tooltip só monta no DOM durante o hover (ver ui/tooltip.tsx).
-      await userEvent.hover(dataCell(container, 2).querySelector('.cursor-help')!);
+      await userEvent.hover(dataCell(container, 2).querySelector('.cursor-default')!);
       expect(await screen.findByRole('tooltip')).toHaveTextContent('Ainda em processamento');
     },
   );
@@ -113,7 +113,7 @@ describe('SentExamsView — colunas de data do exame e médico solicitante', () 
     expect(cell.textContent).toContain('Luis Eduardo Agner Mac...');
 
     // O tooltip só entra no DOM durante o hover (ver ui/tooltip.tsx) — pairar é parte do teste.
-    await userEvent.hover(cell.querySelector('.cursor-help')!);
+    await userEvent.hover(cell.querySelector('.cursor-default')!);
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Luis Eduardo Agner Machado Martins');
   });
 
@@ -138,7 +138,7 @@ describe('SentExamsView — colunas de data do exame e médico solicitante', () 
     ]);
 
     expect(dataCell(container, 2).textContent).toContain('—');
-    await userEvent.hover(dataCell(container, 2).querySelector('.cursor-help')!);
+    await userEvent.hover(dataCell(container, 2).querySelector('.cursor-default')!);
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Não foi possível extrair essa informação do exame.');
   });
 
@@ -174,7 +174,7 @@ describe('SentExamsView — colunas de data do exame e médico solicitante', () 
     expect(screen.getByText('Laudo duplicado')).toBeInTheDocument();
 
     // O gatilho fica na coluna de status (índice 1), ao lado da badge.
-    const trigger = dataCell(container, 1).querySelector('.cursor-help');
+    const trigger = dataCell(container, 1).querySelector('.cursor-default');
     expect(trigger).not.toBeNull();
     await userEvent.hover(trigger!);
     expect(await screen.findByRole('tooltip')).toHaveTextContent(reason);
