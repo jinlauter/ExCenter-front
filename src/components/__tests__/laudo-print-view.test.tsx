@@ -26,6 +26,7 @@ const history = [
 function makeExam(overrides: Partial<ExamDetailResponse> = {}): ExamDetailResponse {
   return {
     testId: 'test-1',
+    patientName: 'MARIA APARECIDA DE SOUZA',
     examDate: '2026-01-20T00:00:00Z',
     requestingDoctor: 'Luis Eduardo Agner Machado Martins',
     laboratoryName: 'FRISCHMANN AISENGART',

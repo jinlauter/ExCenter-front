@@ -209,6 +209,9 @@ export interface ExamDetailGroup {
 
 export interface ExamDetailResponse {
   testId: string;
+  /** Nome do paciente COMO SAIU DO LAUDO — não o nome da conta. É o que faz o documento ser
+   *  verificável por quem recebe um link compartilhado: confere com o exame original. */
+  patientName: string;
   examDate?: string | null;
   requestingDoctor?: string | null;
   laboratoryName?: string | null;
@@ -255,4 +258,23 @@ export interface RegisterRequest {
   fullName: string;
   /** Data ISO curta: YYYY-MM-DD. */
   dateOfBirth: string;
+}
+
+// ── Link público de exame ───────────────────────────────────────────────────
+
+/** Resposta da CRIAÇÃO do link. É a única vez que o token existe em claro — depois só o hash
+ *  fica no banco, então quem recebe isto precisa montar a URL na hora ou perder o link. */
+export interface CreateExamShareResponse {
+  token: string;
+  expiresAt: string;
+}
+
+/** O link vivo de um exame. Deliberadamente SEM o token: ele não existe mais em claro. */
+export interface ExamShareSummaryResponse {
+  createdAt: string;
+  expiresAt: string;
+  viewCount: number;
+  lastViewedAt?: string | null;
+  /** Se o laudo original acompanha o link — o botão só aparece na página pública quando true. */
+  hasOriginalFile: boolean;
 }

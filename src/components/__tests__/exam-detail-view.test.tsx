@@ -45,6 +45,7 @@ function makeResult(overrides: Partial<ExamDetailResult> = {}): ExamDetailResult
 function makeExam(overrides: Partial<ExamDetailResponse> = {}): ExamDetailResponse {
   return {
     testId: 'test-1',
+    patientName: 'MARIA APARECIDA DE SOUZA',
     examDate: '2025-08-02T00:00:00Z',
     requestingDoctor: 'Jean Rodrigo Tafarel',
     laboratoryName: 'FRISCHMANN AISENGART',

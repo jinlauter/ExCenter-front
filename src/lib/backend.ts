@@ -91,6 +91,40 @@ export async function backendFetch<T>(path: string, options: FetchOptions = {}):
 }
 
 /**
+ * Chamada ao back SEM sessão, para as rotas `/api/public/*`.
+ *
+ * Existe porque o `backendFetch` acima faz três coisas que aqui seriam bug, não conveniência:
+ * exige `accessToken`, tenta refresh em 401 e destrói a sessão quando o refresh falha. Um
+ * visitante que abre um link compartilhado não tem sessão nenhuma — e, se por acaso tiver
+ * (ele também é usuário do ExCenter), reaproveitá-la seria pior ainda: um 401 no link público
+ * derrubaria a sessão dele, que não tem nada a ver com o assunto.
+ *
+ * O que NÃO muda: `BACKEND_URL` continua server-only e o browser nunca fala com o .NET direto.
+ * Esta função roda em server component / route handler, como todas as outras deste módulo.
+ *
+ * `raw` devolve a `Response` intacta, para o proxy do laudo repassar o stream do PDF sem
+ * bufferizar o arquivo inteiro na memória do BFF.
+ */
+export async function backendFetchPublic<T>(path: string): Promise<T> {
+  const response = await callPublicBackend(path);
+
+  if (!response.ok) {
+    throw new BackendError(response.status, await safeReadBody(response));
+  }
+
+  if (response.status === 204) return undefined as T;
+  return (await response.json()) as T;
+}
+
+export function backendFetchPublicRaw(path: string): Promise<Response> {
+  return callPublicBackend(path);
+}
+
+function callPublicBackend(path: string): Promise<Response> {
+  return fetch(`${env.BACKEND_URL}${path}`, { cache: 'no-store' });
+}
+
+/**
  * Variante de backendFetch pra uso em server components (as páginas
  * `(app)/*`): se a sessão estiver ausente/expirada, redireciona pro login em
  * vez de deixar a UnauthenticatedError estourar como erro de render.
