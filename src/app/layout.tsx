@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Poppins } from 'next/font/google';
+import { VercelAnalytics } from '@/components/vercel-analytics';
 import { SITE_URL } from '@/lib/site';
 import './globals.css';
 
@@ -83,7 +84,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className={poppins.variable}>
-      <body className="font-sans">{children}</body>
+      <body className="font-sans">
+        {children}
+        {/* Não renderiza nada visível. Vai pelo wrapper e não pelo <Analytics /> cru porque a
+            URL precisa ser higienizada antes do envio — a rota do exame compartilhado tem o
+            token no endereço. Ver o comentário do componente. */}
+        <VercelAnalytics />
+      </body>
     </html>
   );
 }
