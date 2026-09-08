@@ -38,6 +38,94 @@ O formulário abre e-mail para `jin_lauter@hotmail.com`, por escolha do dono; n�
 servidor, não armazena leads e não afirma cadastro concluído. O remetente precisa enviar no seu
 aplicativo. Contato direto disponível como alternativa. Não há acesso médico real nesta entrega.
 
+## ⬜ Página pública de exame compartilhado — aprovado 07/09/2026
+
+Espec canônica (desenho de snapshot, token e expiração): `ExCenter-back/BACKLOG.md`, seção
+"Link público de compartilhamento de exame". O back entrega a página **já montada** num único
+payload — aqui não se remonta nada, só se renderiza. O que cabe a este repo:
+
+- **Rota nova, fora do prefixo protegido.** `/resultados-compartilhados/[token]` (escolha do dono),
+  em route group `(publico)` com layout sem sidebar: o mesmo desenho do group `(print)`, menos a
+  guarda de sessão do `app/(print)/layout.tsx`.
+- **Cuidado sutil que precisa de teste.** O nome escapa da proteção porque o `proxy.ts` testa
+  `pathname === p || pathname.startsWith(`${p}/`)` — `/resultados-compartilhados` não casa com
+  `/resultados` nem com `/resultados/`. Se alguém "simplificar" aquilo pra `startsWith(p)`, a
+  página pública passa a redirecionar pro login **em silêncio**. Prender num teste do `proxy.ts`.
+- **Chamada sem sessão.** `lib/backend.ts` injeta Bearer e redireciona pro login em 401 — nada
+  disso serve aqui, e o redirect seria um bug visível pro visitante. Precisa de
+  `backendFetchPublic`, sem sessão e sem refresh. `BACKEND_URL` continua server-only; o browser
+  não fala com o .NET direto nem nesta rota.
+
+### `noindex` — requisito do dono (07/09/2026), nenhum item é opcional
+
+Página de exame de sangue indexada é **incidente, não bug de SEO** — e o domínio entrou no Search
+Console em 07/09/2026, então o crawler vai passar.
+
+1. `robots: { index: false, follow: false }` no `metadata` da rota.
+2. `Disallow: /resultados-compartilhados` no `robots.ts`.
+3. Header `X-Robots-Tag: noindex, nofollow` **também vindo do back** (ver espec) — o BFF não é a
+   única porta.
+4. `<meta name="referrer" content="no-referrer">`. **O token está na URL:** sem isso, um clique em
+   qualquer link externo vaza o token inteiro no header `Referer`.
+5. **OpenGraph neutro** — "Exame compartilhado — ExCenter", sem nome, sem data, sem resultado.
+   Quando o link cair no WhatsApp/Telegram/Slack o bot de preview **vai buscar a página**: sem
+   metadados próprios, o cartão estampa dado de saúde na conversa (e ainda infla o contador de
+   acessos).
+
+### Resto do trabalho no front
+
+- **Extrair o corpo do `ExamDetailView`.** Hoje o componente é cabeçalho + `BackLink` +
+  `ExamActions` + corpo. A página compartilhada quer o mesmo corpo com outro cabeçalho e uma ação
+  só. O corpo (card do exame + `GroupCard`/`ResultRow`/`TrendChart`) vira componente próprio;
+  `ExamDetailView` e `SharedExamView` viram cascas finas. `LaudoPrintView` fica como está — é
+  outro template, não outra casca. O payload do snapshot usa **o mesmo formato** que esse
+  componente já consome: nada de um segundo tipo no front.
+- **Ícone de compartilhar em `ExamActions`** + diálogo com prazo (24h · **4 dias, padrão** ·
+  15 dias · 30 dias), copiar URL, ver expiração/acessos e revogar. Aviso sem eufemismo: qualquer
+  pessoa com o link vê o exame, sem conta.
+- **Botão do laudo na página compartilhada:** ícone **com texto**, visivelmente clicável — é a
+  única ação da tela, ao contrário dos três ícones discretos do detalhe.
+- **Nome do paciente na tela.** `ExamDetailResponse` ainda não traz `patientName`; o campo entra no
+  DTO do back e passa a ser exibido nas duas páginas.
+- **Proxy do PDF:** route handler próprio, no molde do
+  `app/api/bloodtests/files/[fileId]/download/route.ts`.
+
+## ⬜ Compartilhamento de exame merece espaço na landing — pedido do dono 08/09/2026
+
+O recurso de **link público de exame** (espec em `ExCenter-back/BACKLOG.md`, implementação em
+`FRENTE 6` do `TRABALHO_ATUAL.md`) não aparece na landing hoje. O dono pediu espaço para ele.
+
+**Por que ele merece a vitrine, e não é só mais um item:** é a única coisa do produto que o
+usuário faz *com outra pessoa*. Todo o resto da landing fala de guardar e acompanhar — ações
+solitárias. "Mandar o exame pro médico agora, sem ele precisar de conta" é o momento em que o
+ExCenter encosta em alguém que ainda não é usuário, e esse alguém costuma ser um médico. É
+aquisição, não só recurso.
+
+**Cuidado que a copy tem que ter:** não confundir com o **acesso médico verificado**
+(`BACKLOG.md` § Acesso médico e compartilhamento autorizado), que continua "em desenvolvimento"
+e é outra coisa — vínculo, verificação de CRM, auditoria por ator. Este é o irmão leve: qualquer
+pessoa com a URL, por poucos dias. Anunciar os dois como a mesma promessa gera expectativa que
+o piloto médico ainda não cumpre.
+
+**O que dizer, sem prometer o que não existe:**
+- link temporário, com prazo escolhido por quem compartilha (padrão 4 dias);
+- quem recebe abre no browser, sem instalar nem criar conta;
+- abre o histórico do marcador junto, não só o resultado do dia — é isso que diferencia de
+  mandar o PDF pelo WhatsApp;
+- o laudo original do laboratório vai junto, para conferência;
+- dá para revogar antes do prazo.
+
+**O que NÃO dizer:** que o médico "tem acesso à sua conta", que o compartilhamento é
+monitoramento contínuo, ou qualquer coisa que sugira avaliação clínica.
+
+**Onde encaixa (a decidir):** a seção de recursos já tem um ícone `Share2` em uso; a caixa do
+rodapé hoje é do piloto médico. Ver se vira card próprio em Recursos, se entra no FAQ (que já
+tem a pergunta "Meu médico pode acessar meus exames pelo ExCenter?" e hoje só responde pelo
+piloto), ou os dois.
+
+**Depende de:** a `FRENTE 6` estar no ar. Anunciar antes de existir é o erro que o próprio
+backlog do piloto médico registrou como a evitar.
+
 ## ⬜ Preferências de compartilhamento nas configurações do usuário — aprovado 06/09/2026
 
 Especificação de autorização e sequência: `ExCenter-back/BACKLOG.md`, seção "Acesso médico e
