@@ -1,4 +1,4 @@
-import { FileText } from 'lucide-react';
+import { CalendarClock, FileText } from 'lucide-react';
 import { BrandLogo } from '@/components/brand-logo';
 import { ExamReportBody } from '@/components/exam-report-body';
 import { buttonVariants } from '@/components/ui/button';
@@ -22,7 +22,31 @@ import type { ExamDetailResponse } from '@/types/api';
 // do laboratório.
 // =============================================================================
 
-export function SharedExamView({ exam, token }: { exam: ExamDetailResponse; token: string }) {
+// Só a data, sem hora: o que a tarja precisa dizer é DESDE QUANDO o documento está congelado,
+// e a hora só acrescentaria precisão que ninguém usa.
+//
+// O fuso vai fixo em São Paulo porque esta é uma página renderizada no SERVIDOR (Vercel roda em
+// UTC): sem o fuso explícito, um exame compartilhado às 21h no Brasil apareceria como sendo do
+// dia seguinte. O produto é pt-BR, então o fuso do país é a resposta certa — e é o mesmo motivo
+// pelo qual as datas puras de exame são formatadas em UTC nas outras telas.
+function formatarDataDoCompartilhamento(iso: string) {
+  return new Date(iso).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'America/Sao_Paulo',
+  });
+}
+
+export function SharedExamView({
+  exam,
+  sharedAt,
+  token,
+}: {
+  exam: ExamDetailResponse;
+  sharedAt: string;
+  token: string;
+}) {
   const temLaudoOriginal = Boolean(exam.sourceFileId);
 
   return (
@@ -45,6 +69,22 @@ export function SharedExamView({ exam, token }: { exam: ExamDetailResponse; toke
           </a>
         )}
       </header>
+
+      {/* A tarja de procedência, ANTES do documento. Quem recebe o link não tem como saber que
+          está vendo uma fotografia: os resultados e o histórico de cada marcador foram montados
+          no instante da publicação e não mudam mais. Sem este aviso, um exame enviado depois
+          (que o titular vê na conta dele) simplesmente não estaria aqui, e a ausência pareceria
+          erro do sistema — ou, pior, passaria despercebida por quem está avaliando o caso. */}
+      <div className="flex gap-2.5 rounded-lg border border-border bg-muted/40 p-3 text-[13px] text-muted-foreground">
+        <CalendarClock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <p>
+          <span className="font-medium text-foreground">
+            Compartilhado em {formatarDataDoCompartilhamento(sharedAt)}.
+          </span>{' '}
+          Este documento é uma cópia congelada nessa data — exames enviados depois disso não
+          aparecem aqui, nem no histórico de cada marcador.
+        </p>
+      </div>
 
       <ExamReportBody exam={exam} />
 

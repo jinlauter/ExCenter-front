@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { BackendError, backendFetchPublic } from '@/lib/backend';
 import { SharedExamView } from '@/components/shared-exam-view';
-import type { ExamDetailResponse } from '@/types/api';
+import type { SharedExamDocument } from '@/types/api';
 
 // =============================================================================
 // /resultados-compartilhados/{token} — o exame aberto por quem recebeu o link
@@ -37,9 +37,9 @@ export const metadata: Metadata = {
 export default async function SharedExamPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
 
-  let exam: ExamDetailResponse;
+  let documento: SharedExamDocument;
   try {
-    exam = await backendFetchPublic<ExamDetailResponse>(
+    documento = await backendFetchPublic<SharedExamDocument>(
       `/api/public/shared-exams/${encodeURIComponent(token)}`,
     );
   } catch (err) {
@@ -49,5 +49,5 @@ export default async function SharedExamPage({ params }: { params: Promise<{ tok
     throw err;
   }
 
-  return <SharedExamView exam={exam} token={token} />;
+  return <SharedExamView exam={documento.exam} sharedAt={documento.sharedAt} token={token} />;
 }

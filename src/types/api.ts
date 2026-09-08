@@ -269,6 +269,14 @@ export interface CreateExamShareResponse {
   expiresAt: string;
 }
 
+/** O que a página pública recebe: o exame CONGELADO no momento da publicação, mais o instante
+ *  em que isso aconteceu. A data não é enfeite — é o que explica por que um exame enviado
+ *  depois não aparece ali, e o back a monta na leitura (da coluna CreatedAt do snapshot). */
+export interface SharedExamDocument {
+  sharedAt: string;
+  exam: ExamDetailResponse;
+}
+
 /** O link vivo de um exame. Deliberadamente SEM o token: ele não existe mais em claro. */
 export interface ExamShareSummaryResponse {
   createdAt: string;
