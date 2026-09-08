@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="ExCenter">
+  <!--
+    Ícone da aba do navegador (convenção `app/icon.svg` do App Router).
+
+    Mesmas cores da marca na tela: quadrado arredondado em primary-light (#e0f5ed) com a linha
+    de pulso em primary (#0f705b) — o mesmo par que o BrandLogo usa. A primeira versão invertia
+    (fundo verde, traço branco) buscando contraste em 16px, e o resultado foi uma aba com um
+    verde mais escuro do que a logo do site.
+
+    SVG e não .ico: nítido em qualquer densidade e acompanha o zoom da aba, sem exportar cinco
+    tamanhos.
+  -->
+  <rect width="32" height="32" rx="7" fill="#e0f5ed"/>
+  <path d="M27 16h-4.5l-3.4 10.1L12.9 5.9 9.5 16H5"
+        fill="none" stroke="#0f705b" stroke-width="2.8"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
