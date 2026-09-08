@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Check, Copy, Link2, Loader2, X } from 'lucide-react';
+import { AlertTriangle, Check, Copy, Link2, Loader2, RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ExamShareSummaryResponse } from '@/types/api';
@@ -37,8 +37,14 @@ function formatarData(iso: string) {
   });
 }
 
+// Como terminou a consulta que decide QUAL das duas telas mostrar. É um estado de três valores,
+// e não um booleano de "carregando", porque falha e "não tem link" precisam ser distinguidas:
+// tratar as duas como "não tem link" oferece o botão de criar a quem já tem um — e criar de novo
+// DERRUBA o link anterior (um ativo por exame), que pode já estar na mão de outra pessoa.
+type EstadoDaConsulta = 'carregando' | 'respondida' | 'falhou';
+
 export function ShareExamDialog({ testId, onClose }: { testId: string; onClose: () => void }) {
-  const [carregando, setCarregando] = useState(true);
+  const [consulta, setConsulta] = useState<EstadoDaConsulta>('carregando');
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [dias, setDias] = useState<number>(PRAZO_PADRAO);
@@ -58,12 +64,29 @@ export function ShareExamDialog({ testId, onClose }: { testId: string; onClose: 
   const carregarLinkAtivo = useCallback(async () => {
     try {
       const resposta = await fetch(`/api/exams/${testId}/share`);
+
       // 404 é resposta normal: este exame simplesmente não tem link.
-      setLinkAtivo(resposta.ok ? ((await resposta.json()) as ExamShareSummaryResponse) : null);
+      if (resposta.status === 404) {
+        setLinkAtivo(null);
+        setConsulta('respondida');
+        return;
+      }
+
+      // Qualquer outro status é falha de verdade — sessão expirada, back fora do ar, timeout.
+      // A mensagem do handler vai junto (ele repassa a do back) porque "não deu" sem dizer o
+      // que houve é o que transforma um 503 momentâneo em "o compartilhamento está quebrado".
+      if (!resposta.ok) {
+        const corpo = (await resposta.json().catch(() => null)) as { message?: string } | null;
+        setErro(corpo?.message ?? `Não foi possível consultar o link deste exame (erro ${resposta.status}).`);
+        setConsulta('falhou');
+        return;
+      }
+
+      setLinkAtivo((await resposta.json()) as ExamShareSummaryResponse);
+      setConsulta('respondida');
     } catch {
       setErro('Não foi possível consultar o link deste exame.');
-    } finally {
-      setCarregando(false);
+      setConsulta('falhou');
     }
   }, [testId]);
 
@@ -165,8 +188,17 @@ export function ShareExamDialog({ testId, onClose }: { testId: string; onClose: 
           </p>
         </div>
 
-        {carregando ? (
+        {consulta === 'carregando' ? (
           <p className="py-6 text-center text-sm text-muted-foreground">Carregando…</p>
+        ) : consulta === 'falhou' ? (
+          <ConsultaFalhou
+            ocupado={ocupado}
+            onTentarDeNovo={() => {
+              setErro(null);
+              setConsulta('carregando');
+              void carregarLinkAtivo();
+            }}
+          />
         ) : linkAtivo ? (
           <LinkAtivo
             link={linkAtivo}
@@ -182,6 +214,24 @@ export function ShareExamDialog({ testId, onClose }: { testId: string; onClose: 
 
         {erro && <p className="mt-3 text-sm text-destructive">{erro}</p>}
       </div>
+    </div>
+  );
+}
+
+// A consulta não respondeu — e AQUI o botão de criar não aparece, de propósito. Sem saber se
+// existe link ativo, oferecer "Criar link" é oferecer a revogação silenciosa de um link que
+// pode estar circulando: criar de novo derruba o anterior. Tentar de novo é a única saída, e
+// o endereço recém-criado (quando há um) volta intacto quando a consulta funcionar.
+function ConsultaFalhou({ ocupado, onTentarDeNovo }: { ocupado: boolean; onTentarDeNovo: () => void }) {
+  return (
+    <div className="py-4 text-center">
+      <p className="text-sm text-muted-foreground">
+        Não deu para verificar se este exame já tem um link ativo.
+      </p>
+      <Button type="button" variant="outline" onClick={onTentarDeNovo} disabled={ocupado} className="mt-3">
+        <RefreshCw className="h-4 w-4" aria-hidden="true" />
+        Tentar de novo
+      </Button>
     </div>
   );
 }
