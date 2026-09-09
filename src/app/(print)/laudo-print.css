@@ -175,6 +175,26 @@
   color: #6b7280;
 }
 
+/* Segundo nivel: laudo que imprime "Hemograma com Contagem de Plaquetas" acima de "Serie
+   Vermelha". O painel e o cabecalho do card; a secao e uma faixa discreta dentro dele. */
+.laudo-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding: 5px 12px 2px;
+}
+.laudo-section-header h3 {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #4b5563;
+  margin: 0;
+}
+.laudo-section-header span {
+  font-size: 8.5px;
+  color: #6b7280;
+}
+
 .laudo-row {
   display: flex;
   align-items: center;

@@ -7,6 +7,7 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { TrendChart } from '@/components/trend-chart';
 import { resolveReferenceRange } from '@/lib/reference-range';
 import { cn } from '@/lib/utils';
+import { blocosPorPainel, procedencia } from '@/lib/exam-groups';
 import type { ExamDetailGroup, ExamDetailResponse, ExamDetailResult } from '@/types/api';
 
 // =============================================================================
@@ -135,13 +136,19 @@ function ResultRow({ result, showName }: { result: ExamDetailResult; showName: b
   );
 }
 
+function Linhas({ group }: { group: ExamDetailGroup }) {
+  return (
+    <div className="mt-1">
+      {group.results.map((result) => (
+        // Exame avulso: o nome já é o título do card — repetir na linha seria eco.
+        <ResultRow key={result.resultId} result={result} showName={!group.isSingle} />
+      ))}
+    </div>
+  );
+}
+
 function GroupCard({ group }: { group: ExamDetailGroup }) {
-  const materialMethod = [
-    group.material ? `Material: ${group.material}` : null,
-    group.method ? `Método: ${group.method}` : null,
-  ]
-    .filter(Boolean)
-    .join('  ·  ');
+  const materialMethod = procedencia(group);
 
   return (
     <Card className="border-border px-4 py-3">
@@ -149,15 +156,36 @@ function GroupCard({ group }: { group: ExamDetailGroup }) {
         <h2 className="text-[13px] font-semibold">{group.name}</h2>
         {materialMethod && <p className="text-[11px] text-muted-foreground">{materialMethod}</p>}
       </div>
-      <div className="mt-1">
-        {group.results.map((result) => (
-          // Exame avulso: o nome já é o título do card — repetir na linha seria eco.
-          <ResultRow key={result.resultId} result={result} showName={!group.isSingle} />
-        ))}
-      </div>
+      <Linhas group={group} />
     </Card>
   );
 }
+
+// Laudo brasileiro aninha dois níveis: "Hemograma com Contagem de Plaquetas" acima de "Série
+// Vermelha" e "Série Branca". Sem este card as seções virariam cards soltos e o exame que o
+// médico PEDIU não apareceria em lugar nenhum — que é exatamente como estava até 09/09/2026.
+function PanelCard({ panelName, groups }: { panelName: string; groups: ExamDetailGroup[] }) {
+  return (
+    <Card className="border-border px-4 py-3">
+      <h2 className="text-[13px] font-semibold">{panelName}</h2>
+      {groups.map((group) => {
+        const materialMethod = procedencia(group);
+        return (
+          <div key={group.name} className="mt-2 border-l-2 border-border/60 pl-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+              <h3 className="text-[12px] font-medium text-muted-foreground">{group.name}</h3>
+              {materialMethod && (
+                <p className="text-[11px] text-muted-foreground">{materialMethod}</p>
+              )}
+            </div>
+            <Linhas group={group} />
+          </div>
+        );
+      })}
+    </Card>
+  );
+}
+
 
 // O documento: cabeçalho com os dados que o laudo impresso traz no topo, e os painéis abaixo.
 // Recebe o exame já pronto — não busca nada, não conhece rota e não conhece sessão. É o que
@@ -202,9 +230,20 @@ export function ExamReportBody({ exam }: { exam: ExamDetailResponse }) {
         </div>
       </Card>
 
-      {exam.groups.map((group) => (
-        <GroupCard key={group.name} group={group} />
-      ))}
+      {blocosPorPainel(exam.groups).map((bloco, indice) =>
+        bloco.panelName ? (
+          <PanelCard
+            key={`${bloco.panelName}-${indice}`}
+            panelName={bloco.panelName}
+            groups={bloco.groups}
+          />
+        ) : (
+          // Sem painel externo é sempre um grupo só, mas mapear evita indexar às cegas.
+          // Chave com o índice porque o mesmo nome de seção pode aparecer em painéis
+          // diferentes do mesmo laudo.
+          bloco.groups.map((group) => <GroupCard key={`${group.name}-${indice}`} group={group} />)
+        ),
+      )}
     </div>
   );
 }

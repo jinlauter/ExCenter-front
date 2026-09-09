@@ -4,6 +4,8 @@ import { Activity, Printer, X } from 'lucide-react';
 import { LaudoSparkline } from '@/components/laudo-sparkline';
 import { TrendChart } from '@/components/trend-chart';
 import { resolveReferenceRange } from '@/lib/reference-range';
+import { Fragment } from 'react';
+import { blocosPorPainel, procedencia } from '@/lib/exam-groups';
 import type { ExamDetailResponse, ExamDetailResult } from '@/types/api';
 
 // =============================================================================
@@ -138,22 +140,37 @@ export function LaudoPrintView({ exam }: { exam: ExamDetailResponse }) {
           )}
         </div>
 
-        {exam.groups.map((group) => {
-          const materialMethod = [
-            group.material ? `Material: ${group.material}` : null,
-            group.method ? `Método: ${group.method}` : null,
-          ]
-            .filter(Boolean)
-            .join('  ·  ');
+        {blocosPorPainel(exam.groups).map((bloco, indice) => {
+          const linhas = bloco.groups.reduce((total, g) => total + g.results.length, 0);
+          const titulo = bloco.panelName ?? bloco.groups[0]?.name ?? '';
+          // Com painel externo, cada seção ganha seu próprio subtítulo dentro do card; sem
+          // ele o comportamento é o de sempre, um card por grupo.
+          const temSecoes = bloco.panelName !== null;
+
           return (
             // Painel pequeno não quebra de página no meio; grande (hemograma) precisa poder.
-            <section key={group.name} className={`laudo-panel${group.results.length > 8 ? ' laudo-panel-big' : ''}`}>
+            <section
+              key={`${titulo}-${indice}`}
+              className={`laudo-panel${linhas > 8 ? ' laudo-panel-big' : ''}`}
+            >
               <div className="laudo-panel-header">
-                <h2>{group.name}</h2>
-                {materialMethod && <span>{materialMethod}</span>}
+                <h2>{titulo}</h2>
+                {!temSecoes && procedencia(bloco.groups[0]) && (
+                  <span>{procedencia(bloco.groups[0])}</span>
+                )}
               </div>
-              {group.results.map((result) => (
-                <LaudoRow key={result.resultId} result={result} showName={!group.isSingle} />
+              {bloco.groups.map((group) => (
+                <Fragment key={group.name}>
+                  {temSecoes && (
+                    <div className="laudo-section-header">
+                      <h3>{group.name}</h3>
+                      {procedencia(group) && <span>{procedencia(group)}</span>}
+                    </div>
+                  )}
+                  {group.results.map((result) => (
+                    <LaudoRow key={result.resultId} result={result} showName={!group.isSingle} />
+                  ))}
+                </Fragment>
               ))}
             </section>
           );

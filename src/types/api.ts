@@ -101,6 +101,7 @@ export interface BatchStatusResponse {
 
 export interface BloodTestResultFilterRequest {
   parameterName?: string;
+  panelName?: string | null;
   groupName?: string;
   laboratoryName?: string;
   isAbnormal?: boolean;
@@ -118,6 +119,7 @@ export interface BloodTestResultQueryResponse {
   requestingDoctor?: string | null;
   testDate: string;
   parameterName: string;
+  panelName?: string | null;
   groupName?: string | null;
   numericResultValue?: number | null;
   stringResultValue?: string | null;
@@ -200,6 +202,10 @@ export interface ExamDetailResult {
 
 export interface ExamDetailGroup {
   name: string;
+  /** Cabeçalho mais EXTERNO do laudo ("Hemograma com Contagem de Plaquetas"), quando o
+   *  documento aninha dois níveis. null quando só há um. Grupos consecutivos com o mesmo
+   *  panelName pertencem ao mesmo exame e são renderizados dentro de um card só. */
+  panelName?: string | null;
   /** true = exame avulso (o "grupo" é o próprio exame, não repetir o nome no corpo). */
   isSingle: boolean;
   material?: string | null;
