@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Poppins } from 'next/font/google';
 import { VercelAnalytics } from '@/components/vercel-analytics';
+import { VercelSpeedInsights } from '@/components/vercel-speed-insights';
 import { SITE_URL } from '@/lib/site';
 import './globals.css';
 
@@ -86,10 +87,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR" className={poppins.variable}>
       <body className="font-sans">
         {children}
-        {/* Não renderiza nada visível. Vai pelo wrapper e não pelo <Analytics /> cru porque a
-            URL precisa ser higienizada antes do envio — a rota do exame compartilhado tem o
-            token no endereço. Ver o comentário do componente. */}
+        {/* Nenhum dos dois renderiza nada visível, e nenhum dos dois vai cru: os DOIS reportam a
+            URL, e a rota do exame compartilhado tem o token no endereço. Os wrappers higienizam
+            antes do envio — basta um deles escapar para a credencial estar no painel da Vercel.
+            Ver o comentário dos componentes. */}
         <VercelAnalytics />
+        <VercelSpeedInsights />
       </body>
     </html>
   );
