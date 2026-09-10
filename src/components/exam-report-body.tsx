@@ -164,20 +164,26 @@ function GroupCard({ group }: { group: ExamDetailGroup }) {
 // Laudo brasileiro aninha dois níveis: "Hemograma com Contagem de Plaquetas" acima de "Série
 // Vermelha" e "Série Branca". Sem este card as seções virariam cards soltos e o exame que o
 // médico PEDIU não apareceria em lugar nenhum — que é exatamente como estava até 09/09/2026.
-function PanelCard({ panelName, groups }: { panelName: string; groups: ExamDetailGroup[] }) {
+function PanelCard({ titulo, groups }: { titulo: string; groups: ExamDetailGroup[] }) {
   return (
     <Card className="border-border px-4 py-3">
-      <h2 className="text-[13px] font-semibold">{panelName}</h2>
+      <h2 className="text-[13px] font-semibold">{titulo}</h2>
       {groups.map((group) => {
         const materialMethod = procedencia(group);
+        // Medição que pendura direto no cabeçalho externo chega como um grupo com o MESMO nome do
+        // painel. Repetir o nome como subtítulo seria eco; as linhas entram direto sob o título.
+        const ehOProprioPainel = group.name === titulo;
+
         return (
           <div key={group.name} className="mt-2 border-l-2 border-border/60 pl-3">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-              <h3 className="text-[12px] font-medium text-muted-foreground">{group.name}</h3>
-              {materialMethod && (
-                <p className="text-[11px] text-muted-foreground">{materialMethod}</p>
-              )}
-            </div>
+            {!ehOProprioPainel && (
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                <h3 className="text-[12px] font-medium text-muted-foreground">{group.name}</h3>
+                {materialMethod && (
+                  <p className="text-[11px] text-muted-foreground">{materialMethod}</p>
+                )}
+              </div>
+            )}
             <Linhas group={group} />
           </div>
         );
@@ -232,11 +238,7 @@ export function ExamReportBody({ exam }: { exam: ExamDetailResponse }) {
 
       {blocosPorPainel(exam.groups).map((bloco, indice) =>
         bloco.panelName ? (
-          <PanelCard
-            key={`${bloco.panelName}-${indice}`}
-            panelName={bloco.panelName}
-            groups={bloco.groups}
-          />
+          <PanelCard key={`${bloco.titulo}-${indice}`} titulo={bloco.titulo} groups={bloco.groups} />
         ) : (
           // Sem painel externo é sempre um grupo só, mas mapear evita indexar às cegas.
           // Chave com o índice porque o mesmo nome de seção pode aparecer em painéis

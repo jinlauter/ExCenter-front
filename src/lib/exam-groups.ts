@@ -25,29 +25,41 @@ export function procedencia(group: ExamDetailGroup | undefined) {
  * visível em exame real (09/09/2026): o hemograma vinha partido em DOIS cards com o mesmo título,
  * com outros exames no meio.
  */
-export function blocosPorPainel(groups: ExamDetailGroup[]) {
-  const blocos: { panelName: string | null; groups: ExamDetailGroup[] }[] = [];
-  const porPainel = new Map<string, { panelName: string | null; groups: ExamDetailGroup[] }>();
+export interface BlocoDePainel {
+  /** Título do card: o painel externo, ou o nome do grupo quando ele é o próprio topo. */
+  titulo: string;
+  /** null quando nenhum grupo do bloco declarou painel externo — aí são cards soltos. */
+  panelName: string | null;
+  groups: ExamDetailGroup[];
+}
+
+export function blocosPorPainel(groups: ExamDetailGroup[]): BlocoDePainel[] {
+  const blocos: BlocoDePainel[] = [];
+  const porChave = new Map<string, BlocoDePainel>();
 
   for (const group of groups) {
     const painel = group.panelName?.trim() ? group.panelName : null;
 
-    // Sem painel externo, cada grupo é o seu próprio bloco — não há o que juntar.
-    if (!painel) {
-      blocos.push({ panelName: null, groups: [group] });
-      continue;
-    }
+    // A chave é o painel externo OU o próprio nome do grupo. Isso junta duas formas que o mesmo
+    // laudo produz para o mesmo exame: as seções internas ("Série Vermelha", com painel externo
+    // preenchido) e a medição que pendura DIRETO no cabeçalho externo (que chega como um grupo
+    // chamado "Hemograma com Contagem de Plaquetas", sem painel). Sem isso o hemograma voltaria a
+    // aparecer em dois cards com o mesmo título — o mesmo defeito, de outra forma.
+    const chave = painel ?? group.name;
 
-    const existente = porPainel.get(painel);
+    const existente = porChave.get(chave);
     if (existente) {
       existente.groups.push(group);
+      // Um irmão com painel declarado confirma que o bloco é um painel de verdade.
+      if (painel) existente.panelName = painel;
       continue;
     }
 
-    const novo = { panelName: painel, groups: [group] };
-    porPainel.set(painel, novo);
+    const novo: BlocoDePainel = { titulo: chave, panelName: painel, groups: [group] };
+    porChave.set(chave, novo);
     blocos.push(novo);
   }
 
   return blocos;
 }
+

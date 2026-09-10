@@ -142,7 +142,7 @@ export function LaudoPrintView({ exam }: { exam: ExamDetailResponse }) {
 
         {blocosPorPainel(exam.groups).map((bloco, indice) => {
           const linhas = bloco.groups.reduce((total, g) => total + g.results.length, 0);
-          const titulo = bloco.panelName ?? bloco.groups[0]?.name ?? '';
+          const titulo = bloco.titulo;
           // Com painel externo, cada seção ganha seu próprio subtítulo dentro do card; sem
           // ele o comportamento é o de sempre, um card por grupo.
           const temSecoes = bloco.panelName !== null;
@@ -161,7 +161,7 @@ export function LaudoPrintView({ exam }: { exam: ExamDetailResponse }) {
               </div>
               {bloco.groups.map((group) => (
                 <Fragment key={group.name}>
-                  {temSecoes && (
+                  {temSecoes && group.name !== titulo && (
                     <div className="laudo-section-header">
                       <h3>{group.name}</h3>
                       {procedencia(group) && <span>{procedencia(group)}</span>}

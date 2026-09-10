@@ -54,6 +54,34 @@ describe('blocosPorPainel', () => {
     expect(blocos.map((b) => b.panelName)).toEqual(['Painel B', 'Hemograma']);
   });
 
+  // O caso que o prompt passou a produzir em 09/09/2026: uma medição que pendura DIRETO no
+  // cabeçalho externo chega como grupo com o nome do painel e SEM painelName. Tem que cair no
+  // mesmo card, senão o hemograma volta a aparecer duas vezes — o mesmo defeito, de outra forma.
+  it('junta grupo sem painel cujo NOME é o do painel', () => {
+    const blocos = blocosPorPainel([
+      grupo('Série Vermelha', 'Hemograma com Contagem de Plaquetas'),
+      grupo('Hemograma com Contagem de Plaquetas'),
+      grupo('Série Branca', 'Hemograma com Contagem de Plaquetas'),
+    ]);
+
+    expect(blocos).toHaveLength(1);
+    expect(blocos[0]?.titulo).toBe('Hemograma com Contagem de Plaquetas');
+    expect(blocos[0]?.panelName).toBe('Hemograma com Contagem de Plaquetas');
+    expect(blocos[0]?.groups).toHaveLength(3);
+  });
+
+  // E na ordem inversa: o grupo sem painel chega PRIMEIRO e o irmão com painel confirma depois
+  // que o bloco é um painel de verdade.
+  it('irmão com painel confirma o bloco criado por um grupo sem painel', () => {
+    const blocos = blocosPorPainel([
+      grupo('Hemograma'),
+      grupo('Série Vermelha', 'Hemograma'),
+    ]);
+
+    expect(blocos).toHaveLength(1);
+    expect(blocos[0]?.panelName).toBe('Hemograma');
+  });
+
   it('trata painel em branco como ausente', () => {
     const blocos = blocosPorPainel([grupo('Série Vermelha', '   ')]);
 
