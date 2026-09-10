@@ -28,16 +28,30 @@ describe('blocosPorPainel', () => {
     expect(blocos.every((b) => b.panelName === null)).toBe(true);
   });
 
-  // Por ADJACÊNCIA, não por chave: os grupos chegam na ordem do laudo, e reagrupar por nome
-  // reordenaria o documento — o leitor perderia a correspondência com o papel.
-  it('não funde painéis iguais que não são vizinhos', () => {
+  // O caso que quebrou em exame real: a ordem que chega do back NÃO é a do laudo (ele itera
+  // test.Results sem ORDER BY), então painel igual aparece separado por outros exames. Agrupando
+  // por adjacência, o hemograma vinha partido em dois cards com o mesmo título.
+  it('funde painéis iguais mesmo separados por outros exames', () => {
     const blocos = blocosPorPainel([
       grupo('Série Vermelha', 'Hemograma'),
       grupo('Perfil Lipídico'),
       grupo('Série Branca', 'Hemograma'),
     ]);
 
-    expect(blocos.map((b) => b.panelName)).toEqual(['Hemograma', null, 'Hemograma']);
+    expect(blocos.map((b) => b.panelName)).toEqual(['Hemograma', null]);
+    expect(blocos[0]?.groups.map((g) => g.name)).toEqual(['Série Vermelha', 'Série Branca']);
+  });
+
+  // A ordem é a da PRIMEIRA aparição de cada painel: o hemograma abre o exame porque a primeira
+  // seção dele veio antes, mesmo que a última venha depois de tudo.
+  it('mantém a ordem da primeira aparição de cada painel', () => {
+    const blocos = blocosPorPainel([
+      grupo('Bioquímica', 'Painel B'),
+      grupo('Série Vermelha', 'Hemograma'),
+      grupo('Outra', 'Painel B'),
+    ]);
+
+    expect(blocos.map((b) => b.panelName)).toEqual(['Painel B', 'Hemograma']);
   });
 
   it('trata painel em branco como ausente', () => {
