@@ -54,6 +54,26 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
 
+  experimental: {
+    // O CSS vai INLINE no <head> em vez de <link rel="stylesheet">.
+    //
+    // Motivo medido (PageSpeed Insights, 11/09/2026): o único recurso bloqueando a primeira
+    // renderização era o chunk de CSS (10,7 KiB / 150 ms), e ele também era o segundo elo da
+    // cadeia crítica — o browser só descobria o <link> depois de baixar e parsear o HTML, e só
+    // então abria a segunda requisição. Inline, o estilo chega JUNTO com o HTML: a cadeia
+    // crítica cai de dois elos para um e o bloqueio de renderização some.
+    //
+    // O trade-off (documentado pelo Next em docs/.../inlineCss.md) é que CSS inline não é
+    // cacheável separado do HTML — visitante recorrente rebaixa os mesmos 10,7 KiB. Vale aqui
+    // porque: (1) é Tailwind, ou seja CSS atômico que não cresce com a complexidade da tela;
+    // (2) a página que importa pra esta métrica é a landing, cujo visitante é, por definição,
+    // primeira visita. Trocar 10,7 KiB de rebaixa por um round-trip a menos é o lado certo.
+    //
+    // Requer 'unsafe-inline' em style-src no CSP — que já está declarado acima.
+    // Não tem efeito em `next dev`, só em build de produção.
+    inlineCss: true,
+  },
+
   // pdfjs-dist (usado por react-pdf pra visualizar PDF no celular) tenta condicionalmente
   // carregar o pacote Node "canvas" pra renderização server-side, que não existe/não é
   // necessário no bundle do browser — sem isso o bundler tenta resolver e empacotar esse
