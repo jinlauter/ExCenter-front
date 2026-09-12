@@ -22,7 +22,20 @@ const DEFAULT_COOKIE_NAME = 'excenter-session';
 const COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? DEFAULT_COOKIE_NAME;
 
 const PROTECTED_PREFIXES = ['/home', '/exames-enviados', '/resultados', '/configuracoes'];
-const AUTH_ROUTES = ['/login', '/registrar'];
+
+// Rotas públicas que não fazem sentido para quem já entrou: a landing de vendas e as duas telas
+// de acesso. Quem tem sessão é mandado pro /home antes de qualquer uma delas renderizar.
+//
+// A landing ('/') entrou nesta lista em 11/09/2026. O mesmo redirect vivia dentro do
+// `app/page.tsx`, via `getSession()` — e ler sessão num server component torna a rota DINÂMICA:
+// a raiz respondia `Cache-Control: no-store` e era renderizada de novo a cada visita, enquanto
+// /para-medicos, que é estática, já vinha do CDN. Decidido aqui no edge, a landing volta a ser
+// pré-renderizada.
+//
+// O que se perde: aqui só dá pra checar PRESENÇA do cookie (ver o bloco acima), então um cookie
+// vencido leva ao /home e de lá é rebatido pro /login, em vez de mostrar a landing. É o mesmo
+// comportamento que /login e /registrar já tinham desde sempre.
+const ROUTES_REDIRECTED_WHEN_SIGNED_IN = ['/', '/login', '/registrar'];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -38,8 +51,8 @@ export function proxy(request: NextRequest) {
     }
   }
 
-  // Já autenticado tentando ver /login → manda pra home.
-  if (AUTH_ROUTES.includes(pathname) && hasSession) {
+  // Já autenticado tentando ver a landing ou o login → manda pra home.
+  if (ROUTES_REDIRECTED_WHEN_SIGNED_IN.includes(pathname) && hasSession) {
     const homeUrl = request.nextUrl.clone();
     homeUrl.pathname = '/home';
     return NextResponse.redirect(homeUrl);
