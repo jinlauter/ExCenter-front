@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Landing } from '../landing';
 
 // O seletor "Para você / Para equipes" na seção de preços (24/08/2026): mesmo padrão visual do
@@ -53,15 +54,28 @@ describe('Landing — planos para equipes', () => {
     expect(screen.getByText(/R\$ 232/)).toBeInTheDocument();
   });
 
-  it('assinar um plano de equipe abre o checkout com o plano certo', () => {
-    render(<Landing />);
-    fireEvent.click(screen.getByRole('button', { name: 'Para equipes' }));
+  // Vender assento de equipe antes de existir assento entregaria uma cobrança sem conta nenhuma
+  // do outro lado: os dois checkouts ficam fechados até a máquina de contas Manager existir.
+  it.each(['Assinar Clínica', 'Assinar Casa de Apoio'])(
+    '%s está desabilitado e explica o motivo no hover',
+    async (nome) => {
+      render(<Landing />);
+      fireEvent.click(screen.getByRole('button', { name: 'Para equipes' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Assinar Casa de Apoio' }));
+      const assinar = screen.getByRole('button', { name: nome });
+      expect(assinar).toBeDisabled();
 
-    // A descrição EXATA do PLANS (com ", pagamento centralizado.") só existe dentro do modal.
-    expect(screen.getByText('10 contas ilimitadas + 5 contas Pessoal, pagamento centralizado.')).toBeInTheDocument();
-  });
+      // O wrapper captura o hover mesmo com o botão desabilitado — é o motivo de o Tooltip
+      // envolver o botão em vez de viver ao lado dele.
+      await userEvent.hover(assinar.parentElement!);
+      expect(await screen.findByRole('tooltip')).toHaveTextContent(
+        /Planos para equipes em implementação/,
+      );
+
+      await userEvent.click(assinar);
+      expect(screen.queryByText(/Checkout de demonstração/)).not.toBeInTheDocument();
+    },
+  );
 
   it('Instituição ou personalizado não tem checkout: é um link de e-mail com assunto pronto', () => {
     render(<Landing />);
@@ -79,5 +93,34 @@ describe('Landing — planos para equipes', () => {
 
     expect(screen.getByRole('button', { name: 'Assinar Pessoal' })).toBeInTheDocument();
     expect(screen.queryByText('Clínica')).not.toBeInTheDocument();
+  });
+});
+
+// Cada linha abaixo é uma trava que o back vai cobrar (envios, janela de histórico,
+// compartilhamento, exportação do laudo, prioridade na fila). A landing é onde a promessa é
+// feita: se o número aqui divergir do enforcement, o produto vende o que não entrega.
+describe('Landing — limites de plano prometidos nos cards individuais', () => {
+  it('Grátis promete os tetos e marca o que não tem', () => {
+    render(<Landing />);
+
+    expect(screen.getByText('3 envios de exames')).toBeInTheDocument();
+    expect(screen.getByText('Histórico de 90 dias')).toBeInTheDocument();
+    expect(screen.getByText('1 compartilhamento por mês (link de até 7 dias)')).toBeInTheDocument();
+    // Duas ocorrências, e é o ponto: a mesma frase aparece riscada no Grátis e prometida no
+    // Pessoal. Texto diferente nos dois lados deixaria o leitor sem saber que é a mesma coisa.
+    expect(screen.getAllByText('Exportar o laudo do ExCenter em PDF')).toHaveLength(2);
+    expect(screen.getByText('Processamento prioritário')).toBeInTheDocument();
+  });
+
+  it('Pessoal e Ilimitado prometem os próprios tetos de compartilhamento', () => {
+    render(<Landing />);
+
+    expect(
+      screen.getByText('10 compartilhamentos por mês (link de até 30 dias)'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Compartilhamentos ilimitados (link de até 90 dias)'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Processamento prioritário dos envios')).toBeInTheDocument();
   });
 });

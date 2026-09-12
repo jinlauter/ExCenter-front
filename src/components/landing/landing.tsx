@@ -20,6 +20,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { CheckoutModal, type CheckoutPlan } from './checkout-modal';
 import { AboutSection } from './about-section';
@@ -73,6 +74,11 @@ const PLANS: Record<PlanKey, { desc: string; monthly: string; annual: string }> 
 };
 
 const TEAM_CONTACT_EMAIL = 'jin_lauter@hotmail.com';
+
+// Os pacotes de equipe estão à venda na vitrine, mas a máquina por trás (assentos, convite de
+// membro, cobrança agregada) ainda não existe — então o checkout deles fica fechado, e o motivo
+// aparece no hover em vez de o clique levar a um checkout que não entrega conta nenhuma.
+const TEAM_CHECKOUT_TOOLTIP = 'Planos para equipes em implementação. Use "Falar com a gente" que a gente monta o seu.';
 
 export function Landing() {
   const [annual, setAnnual] = useState(false);
@@ -920,9 +926,16 @@ export function Landing() {
               <div className="mb-5 mt-1 min-h-[18px] text-xs text-muted-foreground">
                 {annual ? 'R$ 1.490/ano — 2 meses grátis.' : 'Cobrado mensalmente.'}
               </div>
-              <Button className="mb-6 w-full" onClick={() => openCheckout('Clínica')}>
-                Assinar Clínica
-              </Button>
+              {/* Desabilitado enquanto a máquina de contas de equipe (assentos, convite,
+                cobrança agregada) não existe — ver "Contas Manager (B2B)" no BACKLOG do back.
+                O onClick fica: reabrir é tirar o `disabled`. O Tooltip envolve o botão porque
+                botão desabilitado não dispara hover próprio — o `disabled:pointer-events-none`
+                do Button deixa o evento chegar no span do Tooltip. */}
+              <Tooltip content={TEAM_CHECKOUT_TOOLTIP} className="mb-6 w-full">
+                <Button className="w-full" disabled onClick={() => openCheckout('Clínica')}>
+                  Assinar Clínica
+                </Button>
+              </Tooltip>
               <ul className="space-y-2.5 text-sm text-muted-foreground">
                 {[
                   '5 contas com envios de exames ilimitados',
@@ -950,13 +963,16 @@ export function Landing() {
               <div className="mb-5 mt-1 min-h-[18px] text-xs text-muted-foreground">
                 {annual ? 'R$ 2.790/ano — 2 meses grátis.' : 'Cobrado mensalmente.'}
               </div>
-              <Button
-                variant="outline"
-                className="mb-6 w-full"
-                onClick={() => openCheckout('Casa de Apoio')}
-              >
-                Assinar Casa de Apoio
-              </Button>
+              <Tooltip content={TEAM_CHECKOUT_TOOLTIP} className="mb-6 w-full">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled
+                  onClick={() => openCheckout('Casa de Apoio')}
+                >
+                  Assinar Casa de Apoio
+                </Button>
+              </Tooltip>
               <ul className="space-y-2.5 text-sm text-muted-foreground">
                 {[
                   '10 contas com envios de exames ilimitados',
@@ -1029,14 +1045,15 @@ export function Landing() {
                 {[
                   '3 envios de exames',
                   'Histórico de 90 dias',
-                  'Gráficos básicos',
+                  'Gráficos de evolução dentro dos 90 dias',
+                  '1 compartilhamento por mês (link de até 7 dias)',
                   'Envio por PDF (por foto: em breve)',
                 ].map((f) => (
                   <li key={f} className="flex gap-2.5">
                     <Check className="h-4 w-4 shrink-0 text-primary" /> {f}
                   </li>
                 ))}
-                {['Tendências completas', 'Exportar para o médico'].map((f) => (
+                {['Exportar o laudo do ExCenter em PDF', 'Processamento prioritário'].map((f) => (
                   <li key={f} className="flex gap-2.5 text-muted-foreground/60">
                     <Minus className="h-4 w-4 shrink-0" /> {f}
                   </li>
@@ -1069,7 +1086,9 @@ export function Landing() {
                   'Histórico completo, sem limite de tempo',
                   'Todas as tendências e comparações',
                   'Alertas de fora-da-faixa',
-                  'Exportar resumo para o médico',
+                  '10 compartilhamentos por mês (link de até 30 dias)',
+                  'Exportar o laudo do ExCenter em PDF',
+                  'Processamento prioritário dos envios',
                   'Suporte prioritário',
                 ].map((f) => (
                   <li key={f} className="flex gap-2.5">
@@ -1103,6 +1122,7 @@ export function Landing() {
                 {[
                   'Tudo do Pessoal',
                   'Envios de exames ilimitados',
+                  'Compartilhamentos ilimitados (link de até 90 dias)',
                   'Ideal para importar exames antigos de uma vez',
                   'Acompanhamento frequente, sem teto',
                 ].map((f) => (
