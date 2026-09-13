@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SentExamsView } from '@/components/sent-exams-view';
+import { PlanProvider } from '@/components/plan-context';
 import type { SentFileResponse, SentFilesPageResponse } from '@/types/api';
 
 const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
@@ -540,5 +541,45 @@ describe('SentExamsView — pista de rolagem lateral no celular', () => {
 
     expect(containerQueRola).not.toBeNull();
     expect(containerQueRola).toHaveClass('horizontal-scroll-visible');
+  });
+});
+
+// Excluir NÃO devolve o envio consumido (decisão do dono). Como isso contraria o que qualquer
+// pessoa supõe, o diálogo avisa — mas SÓ quando é verdade pra aquele arquivo e pra aquele plano.
+describe('SentExamsView — aviso de que excluir não devolve a cota', () => {
+  function renderComPlano(plan: string, file: SentFileResponse) {
+    return render(
+      <PlanProvider plan={plan}>
+        <SentExamsView data={makePage([file])} sortBy={null} sortDir="desc" search="" />
+      </PlanProvider>,
+    );
+  }
+
+  it('no Grátis, exame processado avisa que o envio continua contando', async () => {
+    renderComPlano('Free', makeFile({ status: 'done', isValidExam: true }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Excluir arquivo' }));
+
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      /não devolve o envio usado: ele continua contando no limite do seu plano/,
+    );
+  });
+
+  // Falha e laudo duplicado JÁ foram estornados pelo worker — avisar que se perde uma vaga que
+  // voltou seria mentira, e das que fazem a pessoa não apagar o que devia apagar.
+  it.each(['failed', 'duplicateExam'])('status=%s não avisa: a cota já voltou', async (status) => {
+    renderComPlano('Free', makeFile({ status, isValidExam: undefined }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Excluir arquivo' }));
+
+    expect(screen.getByRole('alertdialog')).not.toHaveTextContent(/não devolve o envio usado/);
+  });
+
+  it('no Ilimitado não avisa: não existe teto pra consumir', async () => {
+    renderComPlano('Unlimited', makeFile({ status: 'done', isValidExam: true }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Excluir arquivo' }));
+
+    expect(screen.getByRole('alertdialog')).not.toHaveTextContent(/não devolve o envio usado/);
   });
 });

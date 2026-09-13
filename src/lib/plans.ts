@@ -31,3 +31,14 @@ export function planLabel(plan: string): string {
 export function canExportExamPdf(plan: string): boolean {
   return plan === 'Personal' || plan === 'Unlimited';
 }
+
+/**
+ * Se o plano tem teto de envios — ou seja, se consumir uma vaga significa alguma coisa.
+ *
+ * ESPELHO da tabela do back (PlanEntitlements): Grátis tem teto vitalício, Pessoal tem teto
+ * mensal, Ilimitado não tem. Só serve pra UX — decidir se vale a pena avisar o usuário de algo
+ * que, no Ilimitado, não tem consequência nenhuma.
+ */
+export function hasUploadCap(plan: string): boolean {
+  return plan === 'Free' || plan === 'Personal';
+}

@@ -25,6 +25,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Toast } from '@/components/ui/toast';
 import { FilePreviewModal } from '@/components/file-preview-modal';
+import { usePlan } from '@/components/plan-context';
 import { NavBanner } from '@/components/nav-banner';
 import { cn } from '@/lib/utils';
 import { useDelayedFlag } from '@/lib/use-delayed-flag';
@@ -131,14 +132,30 @@ const UNDELETABLE_STATUSES = new Set(['processing', 'retrying']);
 // gráficos) que some junto. Exigir 3 segundos de espera pra apagar um PDF que a IA nem
 // reconheceu como exame seria atrito sem motivo — e atrito sem motivo é o que faz o usuário
 // parar de ler as confirmações que importam.
-function buildDeleteCopy(file: SentFileResponse) {
+//
+// Excluir NÃO devolve o envio consumido — o custo de IA já foi pago, e devolver seria o caminho
+// óbvio de furar o teto. Como isso contraria o que qualquer pessoa supõe, o diálogo avisa ANTES.
+//
+// Só avisa quando aquele arquivo de fato consumiu: `done` consome (inclusive "não é exame", que
+// custou a extração igual), enquanto `failed` e `duplicateExam` já foram ESTORNADOS pelo worker.
+// Avisar que se perde uma vaga que já voltou seria mentira — e das que fazem a pessoa não apagar
+// um arquivo que ela devia apagar.
+function consumiuEnvio(file: SentFileResponse) {
+  return file.status === 'done';
+}
+
+const AVISO_COTA = ' Isso não devolve o envio usado: ele continua contando no limite do seu plano.';
+
+function buildDeleteCopy(file: SentFileResponse, avisaCota: boolean) {
+  const avisoCota = avisaCota && consumiuEnvio(file) ? AVISO_COTA : '';
   const isProcessedExam = file.status === 'done' && file.isValidExam === true;
 
   if (isProcessedExam) {
     return {
       title: 'Excluir este exame?',
       description:
-        'O arquivo e todos os resultados extraídos dele serão apagados de forma permanente. Não tem como recuperar depois.',
+        'O arquivo e todos os resultados extraídos dele serão apagados de forma permanente. Não tem como recuperar depois.'
+        + avisoCota,
       countdownSeconds: 3,
     };
   }
@@ -146,9 +163,10 @@ function buildDeleteCopy(file: SentFileResponse) {
   const isInvalidExam = file.status === 'done' && file.isValidExam === false;
   return {
     title: 'Excluir este arquivo?',
-    description: isInvalidExam && file.invalidReason
-      ? `O sistema interpretou que este arquivo é: "${file.invalidReason}". Tem certeza que deseja excluir?`
-      : 'Tem certeza que deseja excluir?',
+    description:
+      (isInvalidExam && file.invalidReason
+        ? `O sistema interpretou que este arquivo é: "${file.invalidReason}". Tem certeza que deseja excluir?`
+        : 'Tem certeza que deseja excluir?') + avisoCota,
     countdownSeconds: 0,
   };
 }
@@ -167,6 +185,9 @@ interface SentExamsViewProps {
 // compartilhável e sem estado duplicado entre client e servidor.
 export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewProps) {
   const router = useRouter();
+  // Só pra decidir se o diálogo de exclusão avisa sobre a cota: no Ilimitado o aviso não teria
+  // sentido nenhum.
+  const { hasUploadCap } = usePlan();
   const [searchTerm, setSearchTerm] = useState(search);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [isRefreshing, startRefresh] = useTransition();
@@ -607,7 +628,7 @@ export function SentExamsView({ data, sortBy, sortDir, search }: SentExamsViewPr
 
       {fileToDelete && (
         <ConfirmDialog
-          {...buildDeleteCopy(fileToDelete)}
+          {...buildDeleteCopy(fileToDelete, hasUploadCap)}
           icon={<Trash2 className="h-5 w-5 text-destructive" />}
           highlight={
             <div className="flex items-center gap-2.5 overflow-hidden rounded-lg border border-border bg-background px-3 py-2.5">

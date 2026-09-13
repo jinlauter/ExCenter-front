@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext } from 'react';
-import { canExportExamPdf, type PlanTier } from '@/lib/plans';
+import { canExportExamPdf, hasUploadCap, type PlanTier } from '@/lib/plans';
 
 // O plano da conta, disponível pra qualquer tela da área autenticada.
 //
@@ -29,5 +29,8 @@ export function usePlan() {
   return {
     plan,
     canExportExamPdf: plan === null || canExportExamPdf(plan),
+    // Desconhecido conta como SEM teto: avisar sobre uma cota que talvez nem exista assusta
+    // à toa. Aqui errar pra menos é o lado seguro — ao contrário do botão de exportar.
+    hasUploadCap: plan !== null && hasUploadCap(plan),
   };
 }
