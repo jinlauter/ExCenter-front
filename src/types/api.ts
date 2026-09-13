@@ -47,6 +47,14 @@ export interface UploadBatchResponse {
   duplicateFileNames: string[];
   /** Derivado de duplicateFileNames no back — os dois nunca divergem. */
   duplicateCount: number;
+  /**
+   * Nomes dos que não couberam no teto de envios do plano — o lote é APARADO, não recusado
+   * inteiro. Lista separada da de duplicatas porque o que o usuário faz a respeito é diferente:
+   * duplicata já está no sistema; fora da cota volta a caber no mês seguinte, ou com outro plano.
+   */
+  overQuotaFileNames: string[];
+  /** Derivado de overQuotaFileNames no back. */
+  overQuotaCount: number;
   message: string;
 }
 

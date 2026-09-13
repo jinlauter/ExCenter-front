@@ -170,7 +170,9 @@ export function UploadCard() {
           return;
         }
 
-        setFeedback(buildUploadFeedback(data.fileCount, data.duplicateFileNames ?? []));
+        setFeedback(
+          buildUploadFeedback(data.fileCount, data.duplicateFileNames ?? [], data.overQuotaFileNames ?? []),
+        );
         setSelectedFiles([]);
 
         // O card de resumo é renderizado no SERVIDOR (a home busca /files/summary), então o

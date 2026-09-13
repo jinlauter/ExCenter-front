@@ -28,8 +28,7 @@ describe('buildUploadFeedback — envio parcial', () => {
     expect(f.type).toBe('warning');
     expect(f.title).toBe('1 arquivo não foi enviado');
     expect(f.message).toContain('2 arquivos de 3 foram enviados');
-    expect(f.message).toContain('Já havia sido enviado antes');
-    expect(f.duplicateFileNames).toEqual(['c.pdf']);
+    expect(f.excluded).toEqual([{ label: 'Já enviado antes:', names: ['c.pdf'] }]);
   });
 
   it('2 duplicatas: título e concordância no plural', () => {
@@ -37,7 +36,7 @@ describe('buildUploadFeedback — envio parcial', () => {
 
     expect(f.title).toBe('2 arquivos não foram enviados');
     expect(f.message).toContain('3 arquivos de 5 foram enviados');
-    expect(f.message).toContain('Já haviam sido enviados antes');
+    expect(f.excluded?.[0]?.label).toBe('Já enviados antes:');
   });
 
   it('1 enviado e 1 barrado: as duas metades no singular', () => {
@@ -59,14 +58,14 @@ describe('buildUploadFeedback — nada enviado', () => {
 
     expect(f.type).toBe('warning');
     expect(f.title).toBe('Nenhum arquivo foi enviado');
-    expect(f.message).toMatch(/^Esse arquivo já havia sido enviado/);
+    expect(f.message).toMatch(/^O arquivo selecionado não entrou na fila/);
     // Sem novidade na lista: prometer "ver agora" seria mentira.
     expect(f.showSentListLink).toBeUndefined();
   });
 
   it('vários: texto no plural', () => {
     expect(buildUploadFeedback(0, ['a.pdf', 'b.pdf']).message).toMatch(
-      /^Todos os arquivos selecionados já haviam sido enviados/,
+      /^Nenhum dos arquivos selecionados entrou na fila/,
     );
   });
 });
@@ -96,5 +95,47 @@ describe('UploadFeedbackAlert — renderização', () => {
     );
 
     expect(screen.getByRole('button', { name: 'Abrindo...' })).toBeDisabled();
+  });
+});
+
+// O teto do plano apara o lote: o back aceita o que cabe e devolve o nome do resto. Os dois
+// motivos de exclusão convivem no MESMO envio, e o usuário faz coisas diferentes com cada um —
+// duplicata já está no sistema, fora da cota volta a caber depois ou com outro plano.
+describe('buildUploadFeedback — teto do plano', () => {
+  it('lista os que não couberam com o motivo próprio', () => {
+    const f = buildUploadFeedback(2, [], ['c.pdf']);
+
+    expect(f.type).toBe('warning');
+    expect(f.title).toBe('1 arquivo não foi enviado');
+    expect(f.excluded).toEqual([
+      { label: 'Fora do limite de envios do seu plano:', names: ['c.pdf'] },
+    ]);
+  });
+
+  it('duplicata e cota no mesmo envio viram DOIS grupos, cada um com sua etiqueta', () => {
+    const f = buildUploadFeedback(1, ['b.pdf'], ['c.pdf', 'd.pdf']);
+
+    expect(f.title).toBe('3 arquivos não foram enviados');
+    expect(f.message).toContain('1 arquivo de 4 foi enviado');
+    expect(f.excluded).toEqual([
+      { label: 'Já enviado antes:', names: ['b.pdf'] },
+      { label: 'Fora do limite de envios do seu plano:', names: ['c.pdf', 'd.pdf'] },
+    ]);
+  });
+
+  it('cota esgotada sem nada entrar na fila não oferece o link pra lista', () => {
+    const f = buildUploadFeedback(0, [], ['a.pdf']);
+
+    expect(f.title).toBe('Nenhum arquivo foi enviado');
+    expect(f.showSentListLink).toBeUndefined();
+  });
+
+  it('os dois grupos aparecem na tela, com os nomes sob cada etiqueta', () => {
+    render(<UploadFeedbackAlert feedback={buildUploadFeedback(1, ['b.pdf'], ['c.pdf'])} />);
+
+    expect(screen.getByText('Já enviado antes:')).toBeInTheDocument();
+    expect(screen.getByText('Fora do limite de envios do seu plano:')).toBeInTheDocument();
+    expect(screen.getByText('b.pdf')).toBeInTheDocument();
+    expect(screen.getByText('c.pdf')).toBeInTheDocument();
   });
 });

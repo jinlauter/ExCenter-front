@@ -302,9 +302,10 @@ describe('UploadCard — revisão antes do envio', () => {
     clickEnviar();
 
     expect(await screen.findByText('Nenhum arquivo foi enviado')).toBeInTheDocument();
-    expect(
-      screen.getByText(/Todos os arquivos selecionados já haviam sido enviados e processados anteriormente/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Nenhum dos arquivos selecionados entrou na fila/)).toBeInTheDocument();
+    // O motivo agora é etiqueta do grupo, e não parte da frase: com dois motivos possíveis no
+    // mesmo envio (duplicata e teto do plano), uma lista misturada não diria o que fazer.
+    expect(screen.getByText('Já enviados antes:')).toBeInTheDocument();
     expect(screen.getByText('a.pdf')).toBeInTheDocument();
     expect(screen.getByText('b.pdf')).toBeInTheDocument();
   });
@@ -327,9 +328,7 @@ describe('UploadCard — revisão antes do envio', () => {
     await selectFiles([makeFile('a.pdf', 1000)]);
     clickEnviar();
 
-    expect(
-      await screen.findByText(/Esse arquivo já havia sido enviado e processado anteriormente/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/O arquivo selecionado não entrou na fila/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ver agora' })).not.toBeInTheDocument();
   });
 

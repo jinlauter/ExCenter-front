@@ -12,13 +12,23 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 // âmbar, o que NÃO entrou vira título, e os arquivos barrados são listados pelo nome.
 // =============================================================================
 
+/** Um grupo de arquivos que ficou de fora, com o motivo na etiqueta. */
+export interface ExcludedFiles {
+  label: string;
+  names: string[];
+}
+
 export interface UploadFeedback {
   type: 'success' | 'warning' | 'error';
-  /** Manchete do desfecho. Só nos casos com duplicata: no sucesso limpo não há o que destacar. */
+  /** Manchete do desfecho. Só quando algo ficou de fora: no sucesso limpo não há o que destacar. */
   title?: string;
   message: string;
-  /** Listados sob a mensagem, para o usuário saber QUAL arquivo ficou de fora. */
-  duplicateFileNames?: string[];
+  /**
+   * Os arquivos barrados, AGRUPADOS POR MOTIVO — e não numa lista só, porque o que o usuário
+   * faz a respeito é diferente: duplicata já está no sistema e não há o que fazer; fora da cota
+   * volta a caber no mês seguinte, ou com outro plano.
+   */
+  excluded?: ExcludedFiles[];
   /** Só quando algo entrou na fila: sem isso, "Ver agora" promete novidade que não existe. */
   showSentListLink?: boolean;
 }
@@ -27,14 +37,43 @@ function pluralizeFiles(count: number) {
   return count === 1 ? '1 arquivo' : `${count} arquivos`;
 }
 
-/**
- * Traduz a resposta do upload nos três desfechos possíveis. O back detecta duplicata pelo hash
- * do conteúdo e nunca reprocessa o arquivo — aqui só damos nome ao que aconteceu.
- */
-export function buildUploadFeedback(fileCount: number, duplicateFileNames: string[]): UploadFeedback {
-  const duplicateCount = duplicateFileNames.length;
+function groupsOf(duplicateFileNames: string[], overQuotaFileNames: string[]): ExcludedFiles[] {
+  const groups: ExcludedFiles[] = [];
 
-  if (duplicateCount === 0) {
+  if (duplicateFileNames.length > 0) {
+    groups.push({
+      label: duplicateFileNames.length === 1 ? 'Já enviado antes:' : 'Já enviados antes:',
+      names: duplicateFileNames,
+    });
+  }
+
+  // Etiqueta sem prazo ("volta mês que vem") de propósito: o teto do Grátis é vitalício e o do
+  // Pessoal é mensal, e o front não sabe qual é o da conta. Prometer renovação aqui seria
+  // mentira pra metade dos planos.
+  if (overQuotaFileNames.length > 0) {
+    groups.push({
+      label: 'Fora do limite de envios do seu plano:',
+      names: overQuotaFileNames,
+    });
+  }
+
+  return groups;
+}
+
+/**
+ * Traduz a resposta do upload nos três desfechos possíveis. Um arquivo fica de fora por dois
+ * motivos independentes, que podem acontecer no MESMO envio: já ter sido enviado antes (o back
+ * detecta pelo hash do conteúdo) ou não caber no teto de envios do plano.
+ */
+export function buildUploadFeedback(
+  fileCount: number,
+  duplicateFileNames: string[],
+  overQuotaFileNames: string[] = [],
+): UploadFeedback {
+  const excluded = groupsOf(duplicateFileNames, overQuotaFileNames);
+  const excludedCount = duplicateFileNames.length + overQuotaFileNames.length;
+
+  if (excludedCount === 0) {
     return {
       type: 'success',
       message: `${pluralizeFiles(fileCount)} enviado${fileCount === 1 ? '' : 's'}. O processamento ocorre em segundo plano — acompanhe em "Exames enviados".`,
@@ -48,18 +87,18 @@ export function buildUploadFeedback(fileCount: number, duplicateFileNames: strin
       type: 'warning',
       title: 'Nenhum arquivo foi enviado',
       message:
-        duplicateCount === 1
-          ? 'Esse arquivo já havia sido enviado e processado anteriormente:'
-          : 'Todos os arquivos selecionados já haviam sido enviados e processados anteriormente:',
-      duplicateFileNames,
+        excludedCount === 1
+          ? 'O arquivo selecionado não entrou na fila:'
+          : 'Nenhum dos arquivos selecionados entrou na fila:',
+      excluded,
     };
   }
 
   return {
     type: 'warning',
-    title: `${pluralizeFiles(duplicateCount)} não ${duplicateCount === 1 ? 'foi enviado' : 'foram enviados'}`,
-    message: `${pluralizeFiles(fileCount)} de ${fileCount + duplicateCount} ${fileCount === 1 ? 'foi enviado' : 'foram enviados'} e ${fileCount === 1 ? 'está sendo processado' : 'estão sendo processados'}. Já ${duplicateCount === 1 ? 'havia sido enviado antes' : 'haviam sido enviados antes'}:`,
-    duplicateFileNames,
+    title: `${pluralizeFiles(excludedCount)} não ${excludedCount === 1 ? 'foi enviado' : 'foram enviados'}`,
+    message: `${pluralizeFiles(fileCount)} de ${fileCount + excludedCount} ${fileCount === 1 ? 'foi enviado' : 'foram enviados'} e ${fileCount === 1 ? 'está sendo processado' : 'estão sendo processados'}.`,
+    excluded,
     showSentListLink: true,
   };
 }
@@ -96,17 +135,23 @@ export function UploadFeedbackAlert({
       <AlertDescription>
         {feedback.message}
 
-        {feedback.duplicateFileNames && feedback.duplicateFileNames.length > 0 && (
-          <ul className="mt-1 space-y-0.5">
-            {feedback.duplicateFileNames.map((name) => (
-              // break-all: nome de laudo baixado de portal costuma ser uma string longa e sem
-              // espaço — sem isso ele estoura a largura do alerta no mobile.
-              <li key={name} className="break-all font-medium">
-                {name}
-              </li>
-            ))}
-          </ul>
-        )}
+        {feedback.excluded?.map((group) => (
+          <div key={group.label} className="mt-1.5">
+            {/* A etiqueta do motivo repete em cada grupo em vez de virar uma frase só na
+                mensagem: com dois motivos no mesmo envio, "estes ficaram de fora" seguido de
+                uma lista misturada não diz ao usuário o que fazer com cada arquivo. */}
+            <p>{group.label}</p>
+            <ul className="mt-0.5 space-y-0.5">
+              {group.names.map((name) => (
+                // break-all: nome de laudo baixado de portal costuma ser uma string longa e sem
+                // espaço — sem isso ele estoura a largura do alerta no mobile.
+                <li key={name} className="break-all font-medium">
+                  {name}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
 
         {feedback.showSentListLink && onOpenSentList && (
           <p className="mt-1">
