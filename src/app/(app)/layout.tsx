@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { getSession } from '@/lib/session';
 import { backendFetchOrRedirect } from '@/lib/backend';
+import { PlanProvider } from '@/components/plan-context';
 import { SidebarShell } from '@/components/sidebar-shell';
 import { SessionExpiredWatcher } from '@/components/session-expired-watcher';
 import type { UserProfileResponse } from '@/types/api';
@@ -33,7 +34,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         plan={profile.plan}
         initialCollapsed={sidebarCollapsed}
       />
-      <main className="flex-1 p-6 md:p-10">{children}</main>
+      {/* O plano desce por contexto porque o perfil JÁ foi buscado aqui pra Sidebar — cada
+          página perguntar de novo seria uma chamada a /me a mais por navegação. */}
+      <main className="flex-1 p-6 md:p-10">
+        <PlanProvider plan={profile.plan}>{children}</PlanProvider>
+      </main>
       {/* Aviso proativo de sessão morta — sem ele, o usuário só descobre quando a
           próxima ação falha com erro seco. Ver comentário no componente. */}
       <SessionExpiredWatcher />

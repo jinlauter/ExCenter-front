@@ -20,3 +20,14 @@ export const PLAN_OPTIONS: PlanTier[] = ['Free', 'Personal', 'Unlimited'];
 export function planLabel(plan: string): string {
   return PLAN_LABELS[plan as PlanTier] ?? plan;
 }
+
+/**
+ * Se o plano inclui exportar o laudo do ExCenter em PDF.
+ *
+ * ESPELHO de PlanEntitlements.CanExportExamPdf no back, e existe só pra UX — o front usa isto
+ * pra não oferecer um botão que vai ser recusado. A trava é o back, que responde 403 em
+ * `GET /api/bloodtests/exams/{id}?forExport=true`. Se os dois divergirem, quem manda é lá.
+ */
+export function canExportExamPdf(plan: string): boolean {
+  return plan === 'Personal' || plan === 'Unlimited';
+}

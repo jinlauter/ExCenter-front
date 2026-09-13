@@ -3,6 +3,30 @@
 Itens aprovados mas ainda não feitos (ou feitos por paliativo, com a solução definitiva pendente).
 Status: ⬜ pendente · 🔄 em andamento · ✅ concluído.
 
+## 🔄 Enforcement dos planos no front — 12/09/2026
+
+Espec e matriz completas no `BACKLOG.md` do back, § Monetização. **A regra que vale pra tudo neste
+item: o front é UX, o back é a trava.** Nada aqui pode ser a única barreira — o que o front faz é
+não oferecer o que vai ser recusado, e explicar a recusa quando ela chega.
+
+**Feito (12/09/2026):**
+- `PlanProvider`/`usePlan` (`components/plan-context.tsx`): o plano desce por contexto a partir da
+  layout autenticada, que **já busca `/api/users/me`** pra Sidebar. Cada página buscar o perfil de
+  novo seria uma chamada a mais por navegação, e no Neon isso é compute.
+- Laudo em PDF: a rota `/resultados/[id]/imprimir` manda `?forExport=true` e trata o **403** com
+  tela de upgrade (sem disparar o diálogo de impressão); na tela do exame o botão fica
+  **desabilitado com o motivo no hover** — não escondido, porque ninguém assina o que não viu.
+- `canExportExamPdf` em `lib/plans.ts` — espelho da tabela do back, marcado como UX no comentário.
+
+**Falta:**
+- **Contador "2 de 3 envios"** na tela de upload. O back já devolve o necessário
+  (`GetQuotaStatusAsync`); falta decidir COM O DONO se entra agora ou só o gate.
+- **Aviso no diálogo de exclusão** de que apagar o exame NÃO devolve a cota consumida. Decisão do
+  dono, e contraria o que qualquer pessoa supõe — sem o aviso, a pessoa apaga achando que libera.
+- **Resposta do upload com lote aparado:** o back já devolve `OverQuotaFileNames` (os arquivos que
+  não couberam no teto), no mesmo padrão de `DuplicateFileNames`. O alerta de upload precisa
+  mostrar esses nomes — hoje eles chegam e ninguém lê.
+
 ## ✅ Seção Quem somos e preservação da navegação — 06/09/2026
 
 Implementação local na landing: empresa sediada em Curitiba/PR, fundada em 2026 (informações

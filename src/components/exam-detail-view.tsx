@@ -5,6 +5,7 @@ import { Download, Eye, FileLineChart, Share2 } from 'lucide-react';
 import { BackLink } from '@/components/back-link';
 import { ExamReportBody } from '@/components/exam-report-body';
 import { FilePreviewModal } from '@/components/file-preview-modal';
+import { usePlan } from '@/components/plan-context';
 import { ShareExamDialog } from '@/components/share-exam-dialog';
 import { buttonVariants } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -41,6 +42,10 @@ function ExamActions({
 }) {
   const hasOriginal = Boolean(sourceFileId);
   const disabledReason = 'Este exame não tem arquivo original guardado.';
+
+  // UX apenas: a recusa de verdade é o 403 do back em ?forExport=true, que a própria página de
+  // impressão trata. Isto só evita abrir uma aba nova pra mostrar uma negativa.
+  const { canExportExamPdf } = usePlan();
 
   return (
     <div className="flex items-center gap-1">
@@ -88,16 +93,39 @@ function ExamActions({
       {/* Documento COM gráfico: separa visualmente o "arquivo do laboratório" do "documento que o
           ExCenter monta". Abre em aba nova — a rota de impressão chama o diálogo sozinha e a
           página do exame continua onde estava. */}
-      <Tooltip content="Baixar este exame com o seu histórico ExCenter em PDF, pronto pra levar ao médico">
-        <a
-          href={`/resultados/${testId}/imprimir`}
-          target="_blank"
-          rel="noopener"
-          aria-label="Baixar o exame com o histórico ExCenter"
-          className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-9 w-9 text-primary')}
-        >
-          <FileLineChart className="h-4 w-4" />
-        </a>
+      <Tooltip
+        content={
+          canExportExamPdf
+            ? 'Baixar este exame com o seu histórico ExCenter em PDF, pronto pra levar ao médico'
+            : 'Exportar o laudo do ExCenter em PDF está disponível a partir do plano Pessoal.'
+        }
+      >
+        {canExportExamPdf ? (
+          <a
+            href={`/resultados/${testId}/imprimir`}
+            target="_blank"
+            rel="noopener"
+            aria-label="Baixar o exame com o histórico ExCenter"
+            className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-9 w-9 text-primary')}
+          >
+            <FileLineChart className="h-4 w-4" />
+          </a>
+        ) : (
+          // Desabilitado declarado, mesmo tratamento do exame sem arquivo original logo acima:
+          // o botão continua visível com o motivo no hover. Escondê-lo faria a funcionalidade
+          // simplesmente não existir pra quem está no Grátis, e ninguém assina o que não viu.
+          <button
+            type="button"
+            disabled
+            aria-label="Baixar o exame com o histórico ExCenter"
+            className={cn(
+              buttonVariants({ variant: 'ghost', size: 'icon' }),
+              'h-9 w-9 cursor-not-allowed text-muted-foreground',
+            )}
+          >
+            <FileLineChart className="h-4 w-4" />
+          </button>
+        )}
       </Tooltip>
 
       {/* Compartilhar fica por ÚLTIMO e visualmente separado: as três ações anteriores mexem

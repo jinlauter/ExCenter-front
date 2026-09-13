@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ExamDetailView } from '@/components/exam-detail-view';
+import { PlanProvider } from '@/components/plan-context';
 import type { ExamDetailResponse, ExamDetailResult } from '@/types/api';
 
 const push = vi.fn();
@@ -238,5 +239,51 @@ describe('ExamDetailView — ações do laudo (ver/baixar o original)', () => {
     const pdf = screen.getByRole('link', { name: 'Baixar o exame com o histórico ExCenter' });
     expect(pdf).toHaveAttribute('href', '/resultados/test-1/imprimir');
     expect(pdf).toHaveAttribute('target', '_blank');
+  });
+});
+
+// Exportar o laudo é do Pessoal pra cima. Aqui é só UX — quem recusa é o back, com 403 em
+// ?forExport=true — mas a UX importa: abrir uma aba nova pra mostrar uma negativa é pior que
+// dizer no hover, e esconder o botão faria a funcionalidade não existir pra quem está no Grátis.
+describe('ExamDetailView — laudo em PDF conforme o plano', () => {
+  const comArquivo = { sourceFileId: 'file-9', sourceFileName: 'laudo-frischmann.pdf' };
+
+  it('no Grátis o botão fica desabilitado e o motivo aparece no hover', async () => {
+    render(
+      <PlanProvider plan="Free">
+        <ExamDetailView exam={makeExam(comArquivo)} />
+      </PlanProvider>,
+    );
+
+    expect(
+      screen.queryByRole('link', { name: 'Baixar o exame com o histórico ExCenter' }),
+    ).not.toBeInTheDocument();
+    const pdf = screen.getByRole('button', { name: 'Baixar o exame com o histórico ExCenter' });
+    expect(pdf).toBeDisabled();
+
+    await userEvent.hover(pdf.parentElement!);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/a partir do plano Pessoal/);
+  });
+
+  it.each(['Personal', 'Unlimited'])('no %s o botão leva pra rota de impressão', (plan) => {
+    render(
+      <PlanProvider plan={plan}>
+        <ExamDetailView exam={makeExam(comArquivo)} />
+      </PlanProvider>,
+    );
+
+    expect(
+      screen.getByRole('link', { name: 'Baixar o exame com o histórico ExCenter' }),
+    ).toHaveAttribute('href', '/resultados/test-1/imprimir');
+  });
+
+  // Plano desconhecido (fora do provider) trata como PERMITIDO: desabilitar por engano o que a
+  // pessoa paga é pior que deixar o back recusar com a mensagem certa.
+  it('sem plano no contexto, oferece o botão e deixa o back decidir', () => {
+    render(<ExamDetailView exam={makeExam(comArquivo)} />);
+
+    expect(
+      screen.getByRole('link', { name: 'Baixar o exame com o histórico ExCenter' }),
+    ).toBeInTheDocument();
   });
 });
