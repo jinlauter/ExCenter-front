@@ -300,3 +300,21 @@ export interface ExamShareSummaryResponse {
   /** Se o laudo original acompanha o link — o botão só aparece na página pública quando true. */
   hasOriginalFile: boolean;
 }
+
+// ── Cotas do plano ─────────────────────────────────────────────────────────
+// GET /api/users/me/quotas — endpoint próprio, e não um campo do /me: contar consumo é um COUNT
+// no livro-razão, e o /me é buscado a cada navegação da área logada.
+
+export interface QuotaUsageResponse {
+  used: number;
+  /** Nulo quando o plano não tem teto para esta cota. */
+  max: number | null;
+  /** Quantos ainda cabem; nulo quando não há teto. Nunca negativo. */
+  remaining: number | null;
+  /** Falso = teto vitalício (o Grátis). A tela não pode prometer renovação onde ela não existe. */
+  renewsMonthly: boolean;
+}
+
+export interface AccountQuotasResponse {
+  examUpload: QuotaUsageResponse;
+}

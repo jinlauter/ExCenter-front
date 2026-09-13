@@ -18,14 +18,20 @@ não oferecer o que vai ser recusado, e explicar a recusa quando ela chega.
   **desabilitado com o motivo no hover** — não escondido, porque ninguém assina o que não viu.
 - `canExportExamPdf` em `lib/plans.ts` — espelho da tabela do back, marcado como UX no comentário.
 
-**Falta:**
-- **Contador "2 de 3 envios"** na tela de upload. O back já devolve o necessário
-  (`GetQuotaStatusAsync`); falta decidir COM O DONO se entra agora ou só o gate.
-- **Aviso no diálogo de exclusão** de que apagar o exame NÃO devolve a cota consumida. Decisão do
-  dono, e contraria o que qualquer pessoa supõe — sem o aviso, a pessoa apaga achando que libera.
-- **Resposta do upload com lote aparado:** o back já devolve `OverQuotaFileNames` (os arquivos que
-  não couberam no teto), no mesmo padrão de `DuplicateFileNames`. O alerta de upload precisa
-  mostrar esses nomes — hoje eles chegam e ninguém lê.
+**Feito (13/09/2026) — a leva de UX do enforcement:**
+- **Lote aparado visível:** o alerta de upload lista os `overQuotaFileNames`, **agrupados por
+  motivo** junto com as duplicatas. Um envio pode ter os dois, e o que o usuário faz com cada um é
+  oposto — duplicata já está no sistema; fora da cota volta a caber depois ou com outro plano.
+- **Aviso no diálogo de exclusão** de que apagar não devolve o envio usado — e só quando é verdade
+  pra aquele arquivo: `done` consumiu (inclusive "não é exame"), enquanto `failed` e
+  `duplicateExam` já foram estornados pelo worker. No Ilimitado o aviso não aparece.
+- **Contador "2 de 3 envios"** no card de envio, alimentado por `GET /api/users/me/quotas`. O
+  rótulo muda com a forma do teto ("deste mês" só onde renova), e some quando não há teto.
+
+**Falta, e depende do back:**
+- **Janela de 90 dias no histórico do Grátis.** Decidido: resolve na QUERY do back (90 dias antes
+  do exame aberto), não no front. Quando existir, o front provavelmente precisa dizer que há
+  histórico além da janela — senão o gráfico do Grátis parece incompleto sem explicação.
 
 ## ✅ Seção Quem somos e preservação da navegação — 06/09/2026
 

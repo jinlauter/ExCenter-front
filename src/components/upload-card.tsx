@@ -10,7 +10,7 @@ import {
   UploadFeedbackAlert,
   type UploadFeedback,
 } from '@/components/upload-feedback-alert';
-import type { UploadBatchResponse } from '@/types/api';
+import type { QuotaUsageResponse, UploadBatchResponse } from '@/types/api';
 
 const ACCEPTED_MIME = 'application/pdf';
 
@@ -74,7 +74,29 @@ function errorFeedback(message: string): UploadFeedback {
   return { type: 'error', message };
 }
 
-export function UploadCard() {
+/**
+ * "2 de 3 envios usados" — o saldo do plano, na mesma linguagem visual do "Tamanho total".
+ *
+ * Não renderiza nada quando o plano não tem teto: contador sem limite não informa, só ocupa.
+ * E o rótulo muda com a FORMA do teto — "deste mês" só é verdade onde ele renova, e o Grátis é
+ * vitalício. Prometer renovação ali faria o usuário esperar por uma virada de mês que não vem.
+ */
+function QuotaCounter({ quota }: { quota?: QuotaUsageResponse }) {
+  if (!quota || quota.max === null) return null;
+
+  const esgotado = quota.remaining === 0;
+
+  return (
+    <div className="flex items-center justify-between text-xs text-muted-foreground">
+      <span>{quota.renewsMonthly ? 'Envios deste mês' : 'Envios do seu plano'}</span>
+      <span className={esgotado ? 'font-medium text-destructive' : undefined}>
+        {quota.used} de {quota.max} usados
+      </span>
+    </div>
+  );
+}
+
+export function UploadCard({ quota }: { quota?: QuotaUsageResponse }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [feedback, setFeedback] = useState<UploadFeedback | null>(null);
@@ -219,6 +241,11 @@ export function UploadCard() {
             Até {MAX_FILES} arquivos por vez, {formatMegabytes(MAX_TOTAL_BYTES)} MB no total.
             {' '}Envio por foto chega em breve.
           </p>
+          {/* O saldo aparece ANTES do clique, e não só quando o envio é recusado: descobrir o
+              teto depois de selecionar os arquivos é descobrir tarde demais. */}
+          <div className="mx-auto mb-5 max-w-[240px]">
+            <QuotaCounter quota={quota} />
+          </div>
           <Button onClick={trigger}>Selecionar PDFs</Button>
         </div>
       ) : (
@@ -279,6 +306,9 @@ export function UploadCard() {
               value={(totalBytes / MAX_TOTAL_BYTES) * 100}
               indicatorClassName={overSize ? 'bg-destructive' : undefined}
             />
+            {/* Ao lado do tamanho porque são a mesma pergunta — "cabe?" — respondida por dois
+                limites diferentes: o do arquivo e o do plano. */}
+            <QuotaCounter quota={quota} />
           </div>
 
           <div className="flex justify-end gap-2">

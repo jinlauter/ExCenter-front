@@ -4,16 +4,20 @@ import { backendFetchOrRedirect } from '@/lib/backend';
 import { UploadCard } from '@/components/upload-card';
 import { HomeGreeting } from '@/components/home-greeting';
 import { SentFilesSummaryCard } from '@/components/sent-files-summary-card';
-import type { SentFilesSummaryResponse, UserProfileResponse } from '@/types/api';
+import type { AccountQuotasResponse, SentFilesSummaryResponse, UserProfileResponse } from '@/types/api';
 
 // Home — server component. Busca o perfil (nome atualizado + sexo biológico, que flexiona a
 // saudação) e o resumo dos arquivos enviados pro card. O resumo é agregado no banco (GROUP BY):
 // antes isso era um GET da listagem com pageSize=1 só pelo totalCount, que não dava a quebra
 // por status e ainda assim montava a query de paginação inteira.
 export default async function HomePage() {
-  const [profile, summary] = await Promise.all([
+  // As cotas vêm de endpoint próprio, e não do /me: contar consumo é um COUNT no livro-razão do
+  // back, e o /me é buscado em TODA navegação da área logada (a layout monta a Sidebar com ele).
+  // Aqui as três chamadas são paralelas, então a página não paga latência por isso.
+  const [profile, summary, quotas] = await Promise.all([
     backendFetchOrRedirect<UserProfileResponse>('/api/users/me'),
     backendFetchOrRedirect<SentFilesSummaryResponse>('/api/bloodtests/files/summary'),
+    backendFetchOrRedirect<AccountQuotasResponse>('/api/users/me/quotas'),
   ]);
 
   return (
@@ -29,7 +33,9 @@ export default async function HomePage() {
 
       <SentFilesSummaryCard summary={summary} />
 
-      <UploadCard />
+      {/* O contador reflete o consumo depois do envio porque o UploadCard chama router.refresh(),
+          que reexecuta este server component. */}
+      <UploadCard quota={quotas.examUpload} />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Link

@@ -500,3 +500,45 @@ describe('UploadCard — arquivo vindo de seletor que não informa extensão no 
     expect(await screen.findByText('arquivo sem nome')).toBeInTheDocument();
   });
 });
+
+// O saldo do plano aparece ANTES do clique: descobrir o teto depois de selecionar os arquivos é
+// descobrir tarde demais. O back é quem recusa — isto é só não deixar o usuário no escuro.
+describe('UploadCard — contador de envios do plano', () => {
+  const gratisComDoisUsados = { used: 2, max: 3, remaining: 1, renewsMonthly: false };
+
+  it('mostra "2 de 3 usados" já na tela vazia, com o rótulo do teto vitalício', () => {
+    render(<UploadCard quota={gratisComDoisUsados} />);
+
+    expect(screen.getByText('2 de 3 usados')).toBeInTheDocument();
+    expect(screen.getByText('Envios do seu plano')).toBeInTheDocument();
+  });
+
+  // "deste mês" só é verdade onde o teto renova; no Grátis ele é vitalício, e prometer renovação
+  // faria o usuário esperar por uma virada de mês que não vem.
+  it('no teto mensal, o rótulo fala do mês', () => {
+    render(<UploadCard quota={{ used: 5, max: 20, remaining: 15, renewsMonthly: true }} />);
+
+    expect(screen.getByText('Envios deste mês')).toBeInTheDocument();
+  });
+
+  it('sem teto, não renderiza contador nenhum', () => {
+    render(<UploadCard quota={{ used: 0, max: null, remaining: null, renewsMonthly: false }} />);
+
+    expect(screen.queryByText(/usados/)).not.toBeInTheDocument();
+  });
+
+  it('sem a prop (tela que ainda não busca cota), também não renderiza', () => {
+    render(<UploadCard />);
+
+    expect(screen.queryByText(/usados/)).not.toBeInTheDocument();
+  });
+
+  it('continua visível com arquivos selecionados, ao lado do tamanho total', async () => {
+    render(<UploadCard quota={gratisComDoisUsados} />);
+
+    await selectFiles([makeFile('exame.pdf', 1000)]);
+
+    expect(screen.getByText('Tamanho total')).toBeInTheDocument();
+    expect(screen.getByText('2 de 3 usados')).toBeInTheDocument();
+  });
+});
